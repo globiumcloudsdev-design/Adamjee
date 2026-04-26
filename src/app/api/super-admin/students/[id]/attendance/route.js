@@ -1,10 +1,7 @@
 import { NextResponse } from 'next/server';
 import { withAuth, requireRole } from '@/backend/middleware/auth';
-import Attendance from '@/backend/models/Attendance';
+// import Attendance from '@/backend/models/postgres';
 import { User } from '@/backend/models/postgres';
-import { Class } from '@/backend/models/postgres';
-import Subject from '@/backend/models/Subject';
-import { Branch } from '@/backend/models/postgres';
 
 // GET /api/super-admin/students/[id]/attendance - Get student's attendance history
 export const GET = withAuth(async (request, user, userDoc, { params }) => {
