@@ -1,0 +1,45 @@
+=====================================================
+POLICY MANAGEMENT SYSTEM - EXPLANATION
+=====================================================
+
+1. OVERVIEW:
+ ya specific branches ke liye mukhtalif kism ki policies (rules) manage karne ke liye banaya gaya hai. Maslan: Payroll, Attendance, ID Card, Weekly Off, waghera.
+
+2. DATABASE MODEL (Policy.model.js):
+   - Fields: id, branch_id (null for global), policy_type (ENUM), policy_name, description, config (JSONB), is_active, version, created_by, updated_by.
+   - Business Logic (Hooks): 
+     * "Only One Active" Rule: Jab bhi koi policy 'is_active: true' ke sath save hoti hai, to Sequelize hook automatically us type aur us branch ki baqi tamam active policies ko deactivate kar deta hai.
+     * Versioning: Jab bhi policy ka name, description, ya config change hota hai, 'version' number automatically increment ho jata hai.
+
+3. API ENDPOINTS (route.js):
+   - GET: Policies ki list provide karta hai. 
+     * Filters: Search, policy_type, is_active, aur branch_id ke zariye filter kiya ja sakta hai.
+     * Security: Super Admin sab kuch dekh sakta hai, lekin Branch Admin sirf apni branch ki policies dekh sakta hai.
+   - POST: Nayi policy create karne ke liye.
+     * Branch Admin ke liye automatically branch_id assign kar di jati hai.
+     * policy_type validation check ki jati hai.
+
+4. FRONTEND UI (PolicySettingsPanel.jsx):
+   - Dashboard: Policies ka total count, active policies, aur unique types show karta hai.
+   - Filtering: Dynamic search aur dropdown filters maujood hain.
+   - Form Management: 
+     * Nayi policy banate waqt har type ke liye default JSON configuration provide ki gayi hai (e.g., Attendance ke liye buffer time, Payroll ke liye currency).
+     * JSON validation: Config field ko save karne se pehle check kiya jata hai ke wo valid JSON hai ya nahi.
+   - Actions: Edit, Delete, aur Quick Status Toggle (Power button) ke options maujood hain.
+
+5. POLICY TYPES:
+System filhal niche di gayi types ko support karta hai:
+   - id_card, payroll, weekly_off, holiday, event, shift, attendance, leave, exam, fee, transport, library, waghera.
+
+6. TESTING & SCRIPTS:
+   - create-policies-table.js: Database table banane ke liye.
+   - update-enum-types.js: Nayi policy types ko database ENUM mein add karne ke liye.
+   - test-policy.js: API integration test karne ke liye (login -> create -> verify logic).
+
+7. SECURITY (Middleware):
+   - 'withAuth' middleware istemal kiya gaya hai jo sirf "SUPER_ADMIN" aur "BRANCH_ADMIN" ko hi in settings tak rasayi (access) deta hai.
+
+=====================================================
+Summary:
+Yeh ek robust system hai jo version control aur automatic deactivation features ke sath aata hai, taake kisi bhi waqt system mein ek hi kism ki active rule-set maujood ho.
+=====================================================

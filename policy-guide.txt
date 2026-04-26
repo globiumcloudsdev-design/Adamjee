@@ -1,0 +1,639 @@
+================================================================================
+                    POLICY SYSTEM DOCUMENTATION
+                    The Cloud Solutions Backend
+================================================================================
+
+Ye document explain karta hai ke POLICY system is project me kaise kaam karta 
+hai. Complete detail neeche di gayi hai.
+
+================================================================================
+1. POLICY KYA HAI?
+================================================================================
+
+Policy ek configurable rule-set hai jo institute ke liye different modules ke 
+liye banaya ja sakta hai. Jaise:
+- Payroll policy (salary calculation rules)
+- Attendance policy
+- Leave policy
+- Fee policy
+- Exam policy
+- etc.
+
+Har policy ek JSON config (JSONB) store karti hai jisme us module ke specific 
+rules hote hain.
+
+================================================================================
+2. DATABASE MODEL (Policy.model.js)
+================================================================================
+
+Table Name: policies
+
+Fields:
+--------
+id              : UUID (Primary Key, Auto-generated)
+institute_id    : UUID (Required, Foreign Key -> institutes table)
+branch_id       : UUID (Optional, Foreign Key -> branches table)
+policy_type     : ENUM - Ye types allowed hain:
+                  'id_card', 'payroll', 'attendance', 'leave', 'exam', 
+                  'fee', 'transport', 'hostel', 'library', 'hr', 
+                  'academic', 'it', 'security'
+policy_name     : STRING (Required) - Policy ka naam
+description     : TEXT (Optional) - Policy ki detail
+config          : JSONB (Required) - Actual rules/settings JSON me stored
+is_active       : BOOLEAN (Default: true) - Policy active hai ya nahi
+version         : INTEGER (Default: 1) - Har update pe version badhta hai
+created_by      : UUID (Required) - Kis user ne banayi
+updated_by      : UUID (Optional) - Kis user ne last update ki
+created_at      : TIMESTAMP (Auto)
+updated_at      : TIMESTAMP (Auto)
+deleted_at      : TIMESTAMP (Soft delete ke liye, paranoid: true)
+
+Indexes:
+--------
+- institute_id
+- branch_id  
+- policy_type
+- is_active
+- institute_id + policy_type + is_active (Combined index for fast lookup)
+
+Associations:
+-------------
+- belongsTo Institute (as: 'institute')
+- belongsTo Branch (as: 'branch')
+- belongsTo User (as: 'creator')
+- belongsTo User (as: 'updater')
+
+================================================================================
+3. POLICY SERVICE (policy.service.js) - Business Logic
+================================================================================
+
+Ye file me ye functions hain:
+
+a) createPolicy(data, options)
+   - Nayi policy database me create karta hai
+   - Creator user ka detail include karke return karta hai
+
+b) getAllPolicies(filters, pagination)
+   - Saari policies fetch karta hai with pagination
+   - Filters: institute_id, branch_id, policy_type, is_active, search
+   - Search: policy_name aur description me text search
+   - Pagination: page, limit, sortBy, sortOrder
+   - Response me total count, current page, total pages bhi return hote hain
+
+c) getPolicyById(id, instituteId)
+   - Specific policy ID se fetch karta hai
+   - Institute ID check karta hai for security
+   - Creator aur updater ka detail include karta hai
+
+d) updatePolicy(id, instituteId, updateData, options)
+   - Policy update karta hai
+   - IMPORTANT: Version auto-increment hota hai (version + 1)
+   - Updated_by user set hota hai
+
+e) deletePolicy(id, instituteId, options)
+   - Policy ko hard delete karta hai
+   - Institute ID verify karta hai pehle
+
+f) togglePolicyStatus(id, instituteId, isActive, userId)
+   - Policy activate/deactivate karta hai
+   - IMPORTANT FEATURE: Agar ek policy type ko activate karte hain, toh 
+     SAME TYPE ki baaki saari policies AUTO-DEACTIVATE ho jati hain!
+   - Matlab ek time pe ek hi policy type ki ek policy active ho sakti hai
+
+g) getActivePolicyByType(instituteId, policyType, branchId)
+   - Specific type ki ACTIVE policy fetch karta hai
+   - Agar branchId diya gaya hai toh branch-specific policy dhundhta hai
+   - Sabse latest version wali policy return karta hai
+
+h) getPolicyOptions(instituteId, policyType)
+   - Dropdown ke liye options return karta hai
+   - Format: { value: id, label: "Policy Name (v2)", type: policy_type }
+
+i) getPoliciesByType(instituteId, policyType)
+   - Specific type ki SAARI policies return karta hai
+   - Version DESC order me sort hoti hain
+
+================================================================================
+4. POLICY CONTROLLER (policy.controller.js) - API Handlers
+================================================================================
+
+Controller me ye functions hain jo HTTP requests handle karte hain:
+
+Helper Functions:
+-----------------
+- getInstituteId(req): Request se institute ID nikalta hai
+  (req.user?.institute_id || req.user?.school_id || req.user?.schoolId)
+- getBranchId(req): Request se branch ID nikalta hai
+
+API Endpoints:
+--------------
+
+1. POST /api/v1/policies
+   - Nayi policy create karta hai
+   - Transaction use hota hai (rollback on error)
+   - Body me policy data bhejna hota hai
+
+2. GET /api/v1/policies
+   - Saari policies list karta hai
+   - Query params: page, limit, policy_type, is_active, search, sortBy, sortOrder
+
+3. GET /api/v1/policies/:id
+   - Specific policy ka detail return karta hai
+
+4. PUT /api/v1/policies/:id
+   - Policy update karta hai
+   - Transaction use hota hai
+
+5. DELETE /api/v1/policies/:id
+   - Policy delete karta hai
+   - Transaction use hota hai
+
+6. PATCH /api/v1/policies/:id/toggle-status
+   - Policy activate/deactivate karta hai
+   - Body: { is_active: true/false }
+   - Same type ki baaki policies auto-deactivate ho jati hain
+
+7. GET /api/v1/policies/active/:type
+   - Specific type ki active policy fetch karta hai
+   - Example: /api/v1/policies/active/payroll
+
+8. GET /api/v1/policies/type/:type
+   - Specific type ki saari policies fetch karta hai
+
+9. GET /api/v1/policies/options
+   - Dropdown options ke liye data return karta hai
+   - Query: ?policy_type=payroll (optional)
+
+================================================================================
+5. POLICY ROUTES (policy.routes.js)
+================================================================================
+
+Saari routes protected hain (login required).
+
+Route Structure:
+----------------
+router.use(protect);  // Auth middleware
+
+GET    /api/v1/policies/options        -> getPolicyOptions
+GET    /api/v1/policies/active/:type   -> getActivePolicyByType
+GET    /api/v1/policies/type/:type     -> getPoliciesByType
+GET    /api/v1/policies                -> getAllPolicies
+POST   /api/v1/policies                -> createPolicy (validation applied)
+GET    /api/v1/policies/:id            -> getPolicyById
+PUT    /api/v1/policies/:id            -> updatePolicy (validation applied)
+DELETE /api/v1/policies/:id            -> deletePolicy
+PATCH  /api/v1/policies/:id/toggle-status -> togglePolicyStatus (validation)
+
+================================================================================
+6. VALIDATION (policy.validator.js)
+================================================================================
+
+Joi validation schemas:
+
+Create Policy Schema:
+---------------------
+- institute_id: UUID (optional)
+- policy_type: STRING - valid values: 'id_card', 'payroll' ONLY
+  ⚠️ NOTE: Ye validation me sirf 2 types hain, lekin model me 13 types hain!
+  Ye inconsistency hai - agar doosri types use karni hain toh validator 
+  update karna hoga.
+- policy_name: STRING max 255 chars (required)
+- description: STRING (optional)
+- config: OBJECT (required)
+- branch_id: UUID (optional, null allowed)
+- is_active: BOOLEAN (default: true)
+
+Update Policy Schema:
+---------------------
+- policy_name: STRING (optional)
+- description: STRING (optional)
+- config: OBJECT (optional)
+- branch_id: UUID (optional, null allowed)
+- is_active: BOOLEAN (optional)
+
+Toggle Status Schema:
+---------------------
+- is_active: BOOLEAN (required)
+
+Query Schema:
+-------------
+- page, limit, policy_type, is_active, search, sortBy, sortOrder
+
+================================================================================
+7. REAL USAGE - PAYROLL ME POLICY KAISE USE HOTI HAI
+================================================================================
+
+File: src/services/payrollGeneration.service.js
+
+Jab payroll generate hoti hai, toh sabse pehle active payroll policy fetch 
+hoti hai:
+
+async function getPayrollPolicy(instituteId) {
+  const payrollPolicy = await Policy.findOne({
+    where: {
+      institute_id: instituteId,
+      policy_type: 'payroll',
+      is_active: true,
+    },
+    attributes: ['id', 'config', 'policy_name'],
+  });
+
+  if (!payrollPolicy) {
+    throw new Error('No active Payroll policy found...');
+  }
+  return payrollPolicy.config;
+}
+
+Policy Config Structure for Payroll:
+-------------------------------------
+{
+  "attendance_rules": {
+    "late_arrival": {
+      "enabled": true,
+      "threshold_count": 3,
+      "deduction_value": 1
+    },
+    "full_day_absent": {
+      "enabled": true,
+      "deduction_value": 1
+    },
+    "half_day_absent": {
+      "enabled": true,
+      "deduction_value": 0.5
+    }
+  },
+  "overtime": {
+    "enabled": true,
+    "rate_per_hour": 200,
+    "multiplier": 1.5
+  },
+  "salary_calculation": {
+    "allowances": [
+      { "name": "House Rent", "percentage": 10 },
+      { "name": "Medical", "percentage": 5 }
+    ],
+    "fixed_allowances": [
+      { "name": "Transport", "amount": 2000 }
+    ]
+  },
+  "other_deductions": [
+    { "name": "Income Tax", "percentage": 5 },
+    { "name": "Insurance", "amount": 500 }
+  ]
+}
+
+Payroll Calculation Flow:
+-------------------------
+1. Active payroll policy config fetch hoti hai
+2. Staff ki basic salary li jati hai (staff.details.salary)
+3. Attendance calculate hoti hai:
+   - Late arrivals: threshold cross karne pe deduction
+   - Absent days: full day deduction
+   - Half days: 0.5 day deduction
+4. Overtime calculate hota hai:
+   - (overtime_minutes / 60) * rate_per_hour * multiplier
+5. Allowances calculate hote hain:
+   - Percentage based: (basicSalary * percentage) / 100
+   - Fixed amount: direct add
+6. Deductions calculate hote hain:
+   - Policy se defined deductions
+   - Attendance deductions
+7. Net Salary = Basic + Allowances + Overtime - Deductions
+8. Payslip create hoti hai database me
+
+⚠️ Validation checks bhi hain:
+- Percentage 0-1000 ke beech honi chahiye
+- Net salary finite number honi chahiye
+- Agar net salary basic ka 10x se zyada ho toh warning log hoti hai
+
+================================================================================
+8. REAL USAGE - AUTH/LOGIN ME POLICY KAISE USE HOTI HAI
+================================================================================
+
+File: src/services/auth.service.js
+
+Jab user login karta hai, toh uske institute ke saari active policies fetch 
+hoti hain aur user profile me return hoti hain:
+
+const getCompleteInstituteData = async (instituteId) => {
+  // ... institute data fetch ...
+  
+  const policies = await Policy.findAll({
+    where: { institute_id: instituteId, is_active: true },
+    attributes: ['id', 'policy_type', 'policy_name', 'description', 'config', 'version'],
+    order: [['policy_type', 'ASC'], ['created_at', 'DESC']]
+  });
+  
+  const policiesByType = {};
+  const latestPolicies = {};
+  
+  policies.forEach(policy => {
+    // Group by type
+    if (!policiesByType[policy.policy_type]) {
+      policiesByType[policy.policy_type] = [];
+    }
+    policiesByType[policy.policy_type].push(policy);
+    
+    // Track latest version for each type
+    if (!latestPolicies[policy.policy_type] || 
+        policy.version > latestPolicies[policy.policy_type].version) {
+      latestPolicies[policy.policy_type] = policy;
+    }
+  });
+  
+  return {
+    // ... other institute data ...
+    policies: {
+      all: policies,           // Saari active policies array me
+      by_type: policiesByType, // Type wise grouped
+      latest: latestPolicies   // Har type ki latest version
+    }
+  };
+};
+
+Login Response me Policies Format:
+----------------------------------
+user: {
+  institute: {
+    policies: {
+      all: [...],
+      by_type: {
+        payroll: [...],
+        attendance: [...]
+      },
+      latest: {
+        payroll: { id, config, version... },
+        attendance: { id, config, version... }
+      }
+    }
+  }
+}
+
+Auth Routes for Policies:
+-------------------------
+GET /api/v1/auth/my-institute       -> Institute data with policies
+GET /api/v1/auth/my-policies        -> Sirf policies fetch karta hai
+GET /api/v1/auth/my-policies/:type  -> Specific type ki policy fetch karta hai
+
+⚠️ BUG ALERT:
+-------------
+Auth controller me `getMyInstitutePolicies` aur `getInstitutePolicyByType` 
+functions hain jo `authService.getInstitutePoliciesService()` call karte hain,
+lekin ye function `auth.service.js` me EXIST NAHI KARTA!
+
+Ye routes currently ERROR throw karenge. Fix ke liye ya toh:
+1. Auth service me `getInstitutePoliciesService` function add karna hoga, ya
+2. Controller me policyService se directly call karna hoga
+
+================================================================================
+9. KEY FEATURES & BEHAVIORS
+================================================================================
+
+a) Single Active Policy Per Type:
+   - Ek institute me ek time pe ek hi policy type ki ek policy active ho sakti hai
+   - Nayi policy activate karte waqt baaki same type ki policies auto-deactivate
+
+b) Version Tracking:
+   - Har update pe version +1 hota hai
+   - Isse policy history track hoti hai
+   - Latest version policy prefer ki jati hai
+
+c) Branch-Level Policies:
+   - Policies branch-specific bhi ho sakti hain (branch_id set karke)
+   - Agar branch_id null hai toh institute-level policy hai
+
+d) Soft Delete:
+   - paranoid: true hai model me
+   - Delete karne pe row physically delete nahi hoti, sirf deleted_at set hota hai
+
+e) JSONB Config:
+   - Har policy type ka apna config structure hai
+   - Flexible hai - koi bhi JSON structure store ho sakta hai
+   - Payroll ke liye specific structure defined hai (see section 7)
+
+f) Search Functionality:
+   - Policy name aur description me text search supported hai
+   - Case-insensitive search (iLike operator use hota hai)
+
+g) Security:
+   - Har request me institute_id verify hoti hai
+   - User sirf apne institute ki policies dekh/sakta hai
+   - Authentication required for all policy endpoints
+
+================================================================================
+10. POLICY TYPES & THEIR USAGE
+================================================================================
+
+Currently Model me Defined Types (13 total):
+--------------------------------------------
+1. id_card     -> ID card generation rules
+2. payroll     -> Salary calculation, deductions, overtime (IMPLEMENTED)
+3. attendance  -> Attendance marking rules, late policy
+4. leave       -> Leave allocation, approval workflow
+5. exam        -> Exam grading, passing criteria
+6. fee         -> Fee structure, late fee, discounts
+7. transport   -> Transport fee, routes
+8. hostel      -> Hostel fee, room allocation rules
+9. library     -> Book issue, fine rules
+10. hr          -> HR policies, recruitment
+11. academic    -> Academic calendar, sessions
+12. it          -> IT usage policies
+13. security    -> Security protocols
+
+⚠️ Currently Implemented:
+- payroll: Fully implemented in payrollGeneration.service.js
+- id_card: Validator me defined hai
+
+⚠️ Baaki types ka implementation modules me karna hoga jab un features ko 
+   policy-driven banana ho.
+
+================================================================================
+11. SAMPLE API REQUESTS
+================================================================================
+
+Create Payroll Policy:
+----------------------
+POST /api/v1/policies
+Headers: Authorization: Bearer <token>
+Body:
+{
+  "policy_type": "payroll",
+  "policy_name": "Standard Payroll Policy 2024",
+  "description": "Default payroll rules for all staff",
+  "config": {
+    "attendance_rules": {
+      "late_arrival": {
+        "enabled": true,
+        "threshold_count": 3,
+        "deduction_value": 1
+      },
+      "full_day_absent": {
+        "enabled": true,
+        "deduction_value": 1
+      },
+      "half_day_absent": {
+        "enabled": true,
+        "deduction_value": 0.5
+      }
+    },
+    "overtime": {
+      "enabled": true,
+      "rate_per_hour": 200,
+      "multiplier": 1.5
+    },
+    "salary_calculation": {
+      "allowances": [
+        { "name": "House Rent", "percentage": 10 }
+      ],
+      "fixed_allowances": [
+        { "name": "Transport", "amount": 2000 }
+      ]
+    },
+    "other_deductions": [
+      { "name": "Income Tax", "percentage": 5 }
+    ]
+  },
+  "is_active": true
+}
+
+Get Active Payroll Policy:
+--------------------------
+GET /api/v1/policies/active/payroll
+Headers: Authorization: Bearer <token>
+
+Toggle Policy Status:
+---------------------
+PATCH /api/v1/policies/123e4567-e89b-12d3-a456-426614174000/toggle-status
+Headers: Authorization: Bearer <token>
+Body:
+{
+  "is_active": true
+}
+
+================================================================================
+12. KNOWN ISSUES & BUGS
+================================================================================
+
+1. Validator Inconsistency:
+   - Model me 13 policy types hain
+   - Validator me sirf 2 types allowed hain: 'id_card', 'payroll'
+   - Baaki types ke liye API validation fail hogi
+   - FIX: policy.validator.js me policyTypes array update karna hoga
+
+2. Missing Service Function:
+   - auth.controller.js me `getInstitutePoliciesService` call hota hai
+   - auth.service.js me ye function exist nahi karta
+   - FIX: Auth service me ye function add karna hoga ya controller me 
+     policyService use karna hoga
+
+3. getActivePolicyByType me Transaction Bug:
+   - togglePolicyStatus controller me transaction start hoti hai
+   - Lekin policyService.togglePolicyStatus me transaction pass nahi hoti
+   - Service function me separate DB calls hain without transaction
+   - FIX: Service function ko transaction support dena hoga
+
+================================================================================
+13. FLOW DIAGRAM (Text Based)
+================================================================================
+
+POLICY CREATE FLOW:
+-------------------
+Frontend Form -> POST /api/v1/policies
+                     |
+                     v
+              Validation (Joi Schema)
+                     |
+                     v
+              Auth Middleware (protect)
+                     |
+                     v
+              Controller (createPolicy)
+                     |
+                     v
+              Get institute_id from req.user
+                     |
+                     v
+              Service (createPolicy)
+                     |
+                     v
+              Database (Policy.create)
+                     |
+                     v
+              Return Response with policy data
+
+PAYROLL GENERATION FLOW:
+------------------------
+Generate Payroll Request
+        |
+        v
+  getPayrollPolicy(instituteId)
+        |
+        v
+  Policy.findOne({ type: 'payroll', is_active: true })
+        |
+        v
+  Config return hota hai
+        |
+        v
+  Staff list fetch hoti hai
+        |
+        v
+  For each staff:
+    - calculateAttendanceDeductions(config.attendance_rules)
+    - calculateStaffSalary(config)
+    - Create Payslip
+        |
+        v
+  Return result: { total, generated, skipped, failed }
+
+LOGIN FLOW WITH POLICIES:
+-------------------------
+Login Request
+     |
+     v
+  authService.loginService()
+     |
+     v
+  getCompleteInstituteData(instituteId)
+     |
+     v
+  Policy.findAll({ is_active: true })
+     |
+     v
+  Group by type, find latest version
+     |
+     v
+  Return in user.institute.policies
+
+================================================================================
+14. FILES INVOLVED IN POLICY SYSTEM
+================================================================================
+
+Model:
+- src/models/postgres/Policy.model.js
+
+Service:
+- src/services/policy.service.js
+- src/services/payrollGeneration.service.js (uses policy)
+- src/services/auth.service.js (uses policy)
+
+Controller:
+- src/api/controllers/policy.controller.js
+- src/api/controllers/auth.controller.js (policy-related endpoints)
+
+Routes:
+- src/api/routes/v1/policy.routes.js
+- src/api/routes/v1/auth.routes.js (my-policies endpoints)
+
+Validator:
+- src/api/validators/policy.validator.js
+
+================================================================================
+                              END OF DOCUMENT
+================================================================================
+
+Document Created By: Code Analysis
+Project: The Cloud Solutions Backend
+Purpose: Policy System Documentation in Urdu/Hindi
+================================================================================
+

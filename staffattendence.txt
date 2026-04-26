@@ -1,0 +1,683 @@
+================================================================================
+                STAFF ATTENDANCE SYSTEM DOCUMENTATION
+                    The Cloud Solutions Backend
+================================================================================
+
+Ye document staff attendance system ka complete guide hai. Isme model, API 
+endpoints, service functions, validation, aur real usage ki detail di gayi hai.
+
+================================================================================
+1. STAFF ATTENDANCE KYA HAI?
+================================================================================
+
+Staff Attendance system teachers aur staff members ki daily attendance track 
+karta hai. Isme features hain:
+- Single attendance mark karna
+- Bulk CSV upload se attendance mark karna
+- Attendance update/delete karna
+- Date range me attendance dekhna
+- Staff-wise attendance report generate karna
+- Payroll integration (attendance se salary deductions calculate hote hain)
+- Leave system integration
+- Real-time notifications
+
+================================================================================
+2. DATABASE MODEL (StaffAttendance.model.js)
+================================================================================
+
+Table Name: staff_attendances
+
+Fields:
+--------
+id                    : UUID (Primary Key, Auto-generated)
+institute_id          : UUID (Required, FK -> institutes)
+branch_id             : UUID (Optional, FK -> branches)
+staff_id              : UUID (Required, FK -> users)
+date                  : DATEONLY (Required, Format: YYYY-MM-DD)
+status                : ENUM - Allowed values:
+                        'PRESENT', 'ABSENT', 'LATE', 'LEAVE', 'HOLIDAY', 'WEEKEND'
+                        Default: 'PRESENT'
+check_in              : DATETIME (Optional, Check-in timestamp)
+check_out             : DATETIME (Optional, Check-out timestamp)
+late_minutes          : INTEGER (Default: 0, Kitni der se late aaya)
+early_exit_minutes    : INTEGER (Default: 0, Kitni jaldi chala gaya)
+overtime_minutes      : INTEGER (Default: 0, Extra time jo kaam kiya)
+leave_type_id         : UUID (Optional, FK -> leave_types)
+leave_request_id      : UUID (Optional, FK -> leave_requests)
+remarks               : TEXT (Optional, Koi bhi note/comments)
+marked_by             : UUID (Required, FK -> users, kon mark kiya)
+marked_at             : DATETIME (Default: NOW)
+updated_by            : UUID (Optional, FK -> users)
+updated_at            : DATETIME (Default: NOW)
+
+⚠️ NOTE: timestamps: false hai model me, isliye Sequelize auto timestamps 
+        nahi banata. marked_at aur updated_at manually manage hote hain.
+
+Indexes:
+--------
+- institute_id
+- staff_id
+- date
+- status
+- branch_id
+- institute_id + date (Combined index for date range queries)
+
+Associations:
+-------------
+- belongsTo User (as: 'staff')      - Jis staff ki attendance hai
+- belongsTo User (as: 'marker')     - Jisne mark ki
+- belongsTo User (as: 'updater')    - Jisne last update ki
+- belongsTo Institute (as: 'institute')
+- belongsTo Branch (as: 'branch')
+- belongsTo LeaveType (as: 'leaveType')
+- belongsTo LeaveRequest (as: 'leaveRequest')
+
+================================================================================
+3. ATTENDANCE STATUS TYPES
+================================================================================
+
+1. PRESENT   - Staff time par aaya
+2. ABSENT    - Staff nahi aaya
+3. LATE      - Staff late aaya (late_minutes calculate hote hain)
+4. LEAVE     - Staff ne chhutti li (leave_type_id se link hota hai)
+5. HOLIDAY   - School/institute ki chhutti thi
+6. WEEKEND   - Saturday/Sunday
+
+⚠️ Payroll Integration me ye statuses use hote hain:
+   - LATE: threshold cross karne pe deduction
+   - ABSENT: full day deduction
+   - HALF_DAY: 0.5 day deduction (Note: model me HALF_DAY status nahi hai,
+     lekin payroll service me half_day_absent ka logic hai. Ye inconsistency
+     hai - ya toh model me HALF_DAY add karna hoga ya payroll logic update)
+
+================================================================================
+4. STAFF ATTENDANCE SERVICE (staffAttendance.service.js)
+================================================================================
+
+Ye file me ye functions hain:
+
+a) markAttendance(data, options)
+   - Single attendance record create karta hai
+   - Database me entry ke baad notification bhejta hai
+   - Staff ka detail include karke return karta hai
+
+b) bulkMarkAttendance(instituteId, userId, buffer, options)
+   - CSV file se bulk attendance upload karta hai
+   - CSV columns: staff_id, date, status, check_in, check_out, remarks
+   - Har row process hoti hai:
+     * Staff exist karta hai aur institute ka hai verify karta hai
+     * Attendance create karta hai
+     * Notification bhejta hai
+   - Result return karta hai: { success: [], errors: [] }
+
+c) getAllAttendances(filters, pagination)
+   - Saari attendance records fetch karta hai with filters
+   - Filters: institute_id, branch_id, staff_id, status, staff_type, date_from, date_to
+   - Pagination: page, limit, sortBy, sortOrder
+   - Staff ka detail include karta hai (name, email, phone, staff_type)
+   - Branch ka detail include karta hai
+   - Response me role field bhi add karta hai (staff.user_type ya staff.staff_type)
+
+d) getAttendanceById(id, instituteId)
+   - Specific attendance record fetch karta hai
+   - Staff aur branch detail include karta hai
+
+e) updateAttendance(id, instituteId, updateData, userId)
+   - Attendance record update karta hai
+   - updated_by aur updated_at set karta hai
+   - Update ke baad notification bhejta hai
+   - Updated record with details return karta hai
+
+f) deleteAttendance(id, instituteId)
+   - Attendance record delete karta hai
+   - Hard delete hai (row physically remove hoti hai)
+
+g) getAttendanceReport(filters)
+   - Staff-wise attendance summary report generate karta hai
+   - Filters: institute_id, branch_id, staff_type, date_from, date_to
+   - For each staff:
+     * present count
+     * absent count
+     * late count
+     * leave count
+     * total days
+     * attendance_percentage = ((present + late) / total) * 100
+   - Overall summary bhi return karta hai:
+     * total_staff
+     * total_present
+     * total_absent
+     * total_late
+     * total_leave
+     * overall_percentage
+
+================================================================================
+5. NOTIFICATION SYSTEM INTEGRATION
+================================================================================
+
+Jab bhi attendance mark ya update hoti hai, notification bheji jati hai:
+
+Helper: sendStaffAttendanceNotification(staffId, attendanceData, instituteId, staffName, status)
+- broadcastNotification use karti hai
+- Recipient: ALL_ADMINS (institute ke saare admins ko notify hota hai)
+- Title: "Staff Attendance: {staffName}"
+- Body: "{staffName} marked {status} on {date}"
+- Type: 'attendance'
+- Channel: 'in_app'
+- Data: staffId, staffName, status, date, checkIn, checkOut
+
+⚠️ Notification staff ko nahi, ADMIN ko bheji jati hai!
+
+================================================================================
+6. STAFF ATTENDANCE CONTROLLER (staffAttendance.controller.js)
+================================================================================
+
+Helper:
+- getInstituteId(req): req.user?.institute_id || req.user?.school_id
+
+API Endpoints:
+--------------
+
+1. POST /api/v1/staff-attendances
+   - Single attendance mark karta hai
+   - Body me attendance data bhejna hota hai
+
+2. POST /api/v1/staff-attendances/bulk
+   - CSV file upload karke bulk attendance mark karta hai
+   - multipart/form-data me 'file' field me CSV bhejni hoti hai
+   - uploadMiddleware (multer) use hota hai
+
+3. GET /api/v1/staff-attendances
+   - Saari attendance list with pagination
+   - Query params: page, limit, branch_id, staff_id, status, staff_type, 
+     date_from, date_to, sortBy, sortOrder
+
+4. GET /api/v1/staff-attendances/:id
+   - Specific attendance record ka detail
+
+5. PUT /api/v1/staff-attendances/:id
+   - Attendance update karta hai
+   - Body me update fields bhejne hote hain
+
+6. DELETE /api/v1/staff-attendances/:id
+   - Attendance record delete karta hai
+
+7. GET /api/v1/staff-attendances/report
+   - Attendance summary report generate karta hai
+   - Query params: branch_id, staff_type, date_from, date_to
+
+================================================================================
+7. ROUTES & PERMISSIONS (staffAttendance.routes.js)
+================================================================================
+
+All routes protected hai (protect middleware).
+
+Route Structure:
+----------------
+POST   /api/v1/staff-attendances/bulk    -> bulkMarkAttendance
+                                         Permission: staff_attendance.mark
+                                         + uploadMiddleware
+
+GET    /api/v1/staff-attendances/report  -> getAttendanceReport
+                                         Permission: staff_attendance.view
+
+GET    /api/v1/staff-attendances         -> getAllAttendances
+                                         Permission: staff_attendance.view
+
+POST   /api/v1/staff-attendances         -> markAttendance
+                                         Permission: staff_attendance.mark
+                                         + createAttendanceSchema validation
+
+GET    /api/v1/staff-attendances/:id     -> getAttendanceById
+                                         Permission: staff_attendance.view
+
+PUT    /api/v1/staff-attendances/:id     -> updateAttendance
+                                         Permission: staff_attendance.mark
+                                         + updateAttendanceSchema validation
+
+DELETE /api/v1/staff-attendances/:id     -> deleteAttendance
+                                         Permission: staff_attendance.mark
+
+⚠️ PERMISSION BUG:
+------------------
+Routes me permissions use ho rahi hain:
+- 'staff_attendance.mark'
+- 'staff_attendance.view'
+
+Lekin src/config/permissions.js file me ye permissions DEFINED NAHI hain!
+Config file me sirf ye hain:
+- ATTENDANCE_CREATE: 'attendance.create'
+- ATTENDANCE_READ: 'attendance.read'
+- ATTENDANCE_EXPORT: 'attendance.export'
+
+FIX chahiye:
+Ya toh route file me permissions update karo:
+  staff_attendance.mark -> attendance.create
+  staff_attendance.view -> attendance.read
+
+Ya phir permissions.js me add karo:
+  STAFF_ATTENDANCE_MARK: 'staff_attendance.mark',
+  STAFF_ATTENDANCE_VIEW: 'staff_attendance.view',
+
+================================================================================
+8. VALIDATION SCHEMAS (staffAttendance.validator.js)
+================================================================================
+
+Create Attendance Schema:
+-------------------------
+- staff_id: UUID (required)
+- date: DATE ISO format (required)
+- status: ENUM('PRESENT','ABSENT','LATE','LEAVE','HOLIDAY','WEEKEND') (default: 'PRESENT')
+- check_in: DATETIME (optional, null allowed)
+- check_out: DATETIME (optional, null allowed)
+- late_minutes: INTEGER >= 0 (default: 0)
+- early_exit_minutes: INTEGER >= 0 (default: 0)
+- overtime_minutes: INTEGER >= 0 (default: 0)
+- leave_type_id: UUID (optional, null allowed)
+- leave_request_id: UUID (optional, null allowed)
+- remarks: STRING (optional, empty allowed)
+- branch_id: UUID (optional, null allowed)
+
+Update Attendance Schema:
+-------------------------
+- status: ENUM (optional)
+- check_in: DATETIME (optional, null allowed)
+- check_out: DATETIME (optional, null allowed)
+- late_minutes: INTEGER >= 0 (optional)
+- early_exit_minutes: INTEGER >= 0 (optional)
+- overtime_minutes: INTEGER >= 0 (optional)
+- leave_type_id: UUID (optional, null allowed)
+- remarks: STRING (optional, empty allowed)
+
+================================================================================
+9. CSV BULK UPLOAD FORMAT
+================================================================================
+
+File: src/utils/csvParser.js
+- csv-parser library use hoti hai
+- Buffer ko stream me convert karke parse karta hai
+
+Expected CSV Columns:
+---------------------
+staff_id, date, status, check_in, check_out, remarks
+
+Sample CSV:
+-----------
+staff_id,date,status,check_in,check_out,remarks
+550e8400-e29b-41d4-a716-446655440000,2024-01-15,PRESENT,2024-01-15T08:30:00Z,2024-01-15T17:00:00Z,
+550e8400-e29b-41d4-a716-446655440001,2024-01-15,ABSENT,,,Sick leave
+550e8400-e29b-41d4-a716-446655440002,2024-01-15,LATE,2024-01-15T09:15:00Z,2024-01-15T17:00:00Z,Traffic
+
+Bulk Upload Flow:
+-----------------
+1. CSV file upload hoti hai via multipart/form-data ('file' field)
+2. Buffer read hota hai
+3. csv-parser se rows parse hoti hain
+4. Har row ke liye:
+   - Staff verify hota hai (exist karta hai + institute ka hai + user_type='STAFF')
+   - Attendance create hoti hai
+   - Success/Error track hota hai
+5. Result return hota hai:
+   {
+     success: [
+       { staff_id: "...", date: "2024-01-15" }
+     ],
+     errors: [
+       { staff_id: "...", error: "Staff not found" }
+     ]
+   }
+
+================================================================================
+10. PAYROLL INTEGRATION
+================================================================================
+
+File: src/services/payrollGeneration.service.js
+
+Staff Attendance Payroll me kaise use hoti hai:
+
+Step 1: Attendance Fetch
+------------------------
+async function calculateAttendanceDeductions(staffId, year, month, policyConfig) {
+  // Uss month ki saari attendance records fetch hoti hain
+  const attendances = await StaffAttendance.findAll({
+    where: {
+      staff_id: staffId,
+      date: { [Op.between]: [startDate, endDate] },
+    },
+    attributes: ['status', 'late_minutes', 'overtime_minutes'],
+  });
+
+Step 2: Count Calculation
+-------------------------
+  let lateCount = 0;
+  let absentDays = 0;
+  let halfDays = 0;
+  let totalOvertimeMinutes = 0;
+
+  for (const att of attendances) {
+    if (att.status === 'LATE') lateCount++;
+    else if (att.status === 'ABSENT') absentDays++;
+    else if (att.status === 'HALF_DAY') halfDays++;  // ⚠️ Model me ye status nahi hai!
+    totalOvertimeMinutes += att.overtime_minutes || 0;
+  }
+
+Step 3: Deduction Calculation (Policy Config se)
+------------------------------------------------
+  const rules = policyConfig.attendance_rules || {};
+  let totalDeductionDays = 0;
+
+  // Late Arrival Rule:
+  if (rules.late_arrival?.enabled) {
+    const threshold = rules.late_arrival.threshold_count || 3;
+    const deductionPerThreshold = rules.late_arrival.deduction_value || 1;
+    // Har 3 late = 1 day deduction
+    totalDeductionDays += Math.floor(lateCount / threshold) * deductionPerThreshold;
+  }
+
+  // Full Day Absent Rule:
+  if (rules.full_day_absent?.enabled) {
+    totalDeductionDays += absentDays * (rules.full_day_absent.deduction_value || 1);
+  }
+
+  // Half Day Absent Rule:
+  if (rules.half_day_absent?.enabled) {
+    totalDeductionDays += halfDays * (rules.half_day_absent.deduction_value || 0.5);
+  }
+
+Step 4: Overtime Calculation
+----------------------------
+  if (policyConfig.overtime?.enabled) {
+    const hourlyRate = policyConfig.overtime.rate_per_hour || 200;
+    const multiplier = policyConfig.overtime.multiplier || 1.5;
+    overtimeAmount = (overtimeMinutes / 60) * hourlyRate * multiplier;
+  }
+
+Step 5: Salary Deduction
+------------------------
+  const dailyRate = basicSalary / 30;
+  const attendanceDeduction = deductionDays * dailyRate;
+  netSalary = basicSalary + allowances + overtime - deductions - attendanceDeduction;
+
+IMPORTANT NOTES:
+----------------
+- Attendance status 'LATE' se deduction tab hota hai jab threshold cross ho
+- 'ABSENT' se direct 1 day deduct hota hai
+- overtime_minutes field se overtime pay calculate hota hai
+- Attendance deduction ka breakdown payslip me save hota hai:
+  { name: 'Attendance Deductions', amount: attendanceDeduction }
+
+================================================================================
+11. LEAVE SYSTEM INTEGRATION
+================================================================================
+
+Staff Attendance me 2 fields leave system se linked hain:
+
+1. leave_type_id -> LeaveType model se link
+   - Jab status 'LEAVE' hota hai, toh kaunsa type ki leave hai ye batata hai
+   - Example: Casual Leave, Sick Leave, Earned Leave
+
+2. leave_request_id -> LeaveRequest model se link
+   - Approved leave request se direct link
+   - Isse pata chalta hai ke leave approved thi ya nahi
+
+⚠️ Current Implementation me leave request approve hone pe attendance auto-mark
+    nahi hoti. Ye manual process hai. Future me automation add ho sakti hai:
+    - Leave approve hone pe auto attendance 'LEAVE' status me mark ho
+
+================================================================================
+12. ATTENDANCE REPORT STRUCTURE
+================================================================================
+
+API Response Format for GET /api/v1/staff-attendances/report:
+
+{
+  "summary": {
+    "total_staff": 25,
+    "total_present": 520,
+    "total_absent": 30,
+    "total_late": 15,
+    "total_leave": 10,
+    "overall_percentage": "94.55"
+  },
+  "staff_wise": [
+    {
+      "staff_id": "550e8400-e29b-41d4-a716-446655440000",
+      "name": "Ali Khan",
+      "staff_type": "TEACHING",
+      "present": 22,
+      "absent": 2,
+      "late": 1,
+      "leave": 1,
+      "total_days": 26,
+      "attendance_percentage": "88.46"
+    },
+    ...
+  ]
+}
+
+Calculation Logic:
+------------------
+- present = PRESENT status count
+- absent = ABSENT status count
+- late = LATE status count
+- leave = LEAVE status count
+- total_days = present + absent + late + leave
+- attendance_percentage = ((present + late) / total_days) * 100
+  (Late ko present maana jata hai percentage calculation me)
+
+================================================================================
+13. SAMPLE API REQUESTS
+================================================================================
+
+Mark Single Attendance:
+-----------------------
+POST /api/v1/staff-attendances
+Headers: Authorization: Bearer <token>
+Content-Type: application/json
+Body:
+{
+  "staff_id": "550e8400-e29b-41d4-a716-446655440000",
+  "date": "2024-01-15",
+  "status": "LATE",
+  "check_in": "2024-01-15T09:15:00Z",
+  "check_out": "2024-01-15T17:00:00Z",
+  "late_minutes": 15,
+  "remarks": "Traffic jam",
+  "branch_id": "550e8400-e29b-41d4-a716-446655440001"
+}
+
+Bulk Upload Attendance:
+-----------------------
+POST /api/v1/staff-attendances/bulk
+Headers: Authorization: Bearer <token>
+Content-Type: multipart/form-data
+Form Data:
+  file: [CSV file]
+
+Get Attendance List:
+--------------------
+GET /api/v1/staff-attendances?page=1&limit=20&status=LATE&date_from=2024-01-01&date_to=2024-01-31
+Headers: Authorization: Bearer <token>
+
+Get Attendance Report:
+----------------------
+GET /api/v1/staff-attendances/report?date_from=2024-01-01&date_to=2024-01-31&staff_type=TEACHING
+Headers: Authorization: Bearer <token>
+
+Update Attendance:
+------------------
+PUT /api/v1/staff-attendances/550e8400-e29b-41d4-a716-446655440002
+Headers: Authorization: Bearer <token>
+Body:
+{
+  "status": "PRESENT",
+  "late_minutes": 0,
+  "remarks": "Updated after verification"
+}
+
+================================================================================
+14. KNOWN ISSUES & BUGS
+================================================================================
+
+1. HALF_DAY Status Missing:
+   - Model me 'HALF_DAY' status enum me nahi hai
+   - Lekin payrollGeneration.service.js me half_day_absent ka logic hai
+   - Jab HALF_DAY status nahi hai toh payroll me half day deduction kaise hoga?
+   - FIX: Model me HALF_DAY enum value add karna hoga
+
+2. Permission Codes Missing:
+   - Routes me 'staff_attendance.mark' aur 'staff_attendance.view' use hote hain
+   - src/config/permissions.js me ye codes exist nahi karte
+   - FIX: Permissions config me ye codes add karo ya routes me existing 
+     'attendance.create'/'attendance.read' use karo
+
+3. Timestamps Disabled:
+   - Model me timestamps: false hai
+   - created_at aur updated_at fields nahi hain
+   - Manual marked_at aur updated_at manage ho rahi hain
+   - Ye Sequelize best practices ke against hai
+
+4. No Check-in/Check-out Validation:
+   - Validator me check_in aur check_out ki validation sirf date format ki hai
+   - Check_in > check_out ki validation nahi hai
+   - Future date ki validation nahi hai
+
+5. No Duplicate Prevention:
+   - Same staff_id + same date + same institute_id pe multiple records ban 
+     sakti hain
+   - Unique constraint nahi hai database level pe
+   - Bulk upload me bhi ignoreDuplicates nahi use hota
+   - FIX: Unique index add karna chahiye (institute_id, staff_id, date)
+
+6. Auto Attendance Only for Students:
+   - autoAttendance.service.js sirf student attendance ke liye hai
+   - Staff attendance ke liye auto-mark absent feature nahi hai
+   - FIX: Cron job add karna hoga staff attendance ke liye bhi
+
+================================================================================
+15. FLOW DIAGRAM (Text Based)
+================================================================================
+
+SINGLE ATTENDANCE MARK FLOW:
+----------------------------
+Frontend Form -> POST /api/v1/staff-attendances
+                     |
+                     v
+              Validation (Joi Schema)
+                     |
+                     v
+              Auth + Permission Middleware
+                     |
+                     v
+              Controller (markAttendance)
+                     |
+                     v
+              Get institute_id from req.user
+                     |
+                     v
+              Service (markAttendance)
+                     |
+                     v
+              Database (StaffAttendance.create)
+                     |
+                     v
+              Send Notification to Admins
+                     |
+                     v
+              Return Response
+
+BULK UPLOAD FLOW:
+-----------------
+CSV File -> POST /api/v1/staff-attendances/bulk
+                |
+                v
+           Upload Middleware (multer)
+                |
+                v
+           Auth + Permission Middleware
+                |
+                v
+           Controller (bulkMarkAttendance)
+                |
+                v
+           CSV Buffer Parse (csv-parser)
+                |
+                v
+           For Each Row:
+             - Verify Staff
+             - Create Attendance
+             - Send Notification
+                |
+                v
+           Return { success: [], errors: [] }
+
+PAYROLL INTEGRATION FLOW:
+-------------------------
+Generate Payroll Request
+        |
+        v
+  Fetch Payroll Policy Config
+        |
+        v
+  For Each Staff:
+    |
+    v
+  Fetch Staff Attendance (month range)
+    |
+    v
+  Count: Late, Absent, Half-Day, Overtime
+    |
+    v
+  Apply Policy Rules:
+    - Late threshold -> deduction days
+    - Absent -> deduction days
+    - Half-day -> deduction days
+    - Overtime -> overtime amount
+    |
+    v
+  Calculate Net Salary
+    |
+    v
+  Create Payslip
+
+================================================================================
+16. FILES INVOLVED IN STAFF ATTENDANCE SYSTEM
+================================================================================
+
+Model:
+- src/models/postgres/StaffAttendance.model.js
+
+Service:
+- src/services/staffAttendance.service.js
+- src/services/payrollGeneration.service.js (uses attendance data)
+- src/services/notification.service.js (notifications)
+
+Controller:
+- src/api/controllers/staffAttendance.controller.js
+
+Routes:
+- src/api/routes/v1/staffAttendance.routes.js
+
+Validator:
+- src/api/validators/staffAttendance.validator.js
+
+Utils:
+- src/utils/csvParser.js (CSV parsing)
+
+Middleware:
+- src/api/middlewares/upload.middleware.js (File upload)
+
+Config:
+- src/config/permissions.js (Permission codes)
+
+Auto Attendance (Student Only):
+- src/services/autoAttendance.service.js
+
+================================================================================
+                              END OF DOCUMENT
+================================================================================
+
+Document Created By: Code Analysis
+Project: The Cloud Solutions Backend
+Purpose: Staff Attendance System Documentation
+================================================================================
+
