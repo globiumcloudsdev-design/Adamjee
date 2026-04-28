@@ -9,7 +9,9 @@ import {
     Users, TrendingUp, UserCheck, Plus, Edit, Trash2, X
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
+
 import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 
@@ -18,20 +20,35 @@ const STATUS_CONFIG = {
     ABSENT: { label: 'Absent', color: 'bg-red-100 text-red-700 border-red-200', icon: XCircle },
     LATE: { label: 'Late', color: 'bg-yellow-100 text-yellow-700 border-yellow-200', icon: Clock },
     LEAVE: { label: 'Leave', color: 'bg-blue-100 text-blue-700 border-blue-200', icon: AlertCircle },
-    HALF_DAY: { label: 'Half Day', color: 'bg-purple-100 text-purple-700 border-purple-200', icon: Clock }
+    HALF_DAY: { label: 'Half Day', color: 'bg-purple-100 text-purple-700 border-purple-200', icon: Clock },
+    HOLIDAY: { label: 'Holiday', color: 'bg-gray-100 text-gray-700 border-gray-200', icon: Calendar }
 };
 
+
 export default function StaffAttendanceManager({ isBranchAdmin = false, defaultBranchId = null }) {
+    const router = useRouter();
     const [mounted, setMounted] = useState(false);
+
     const [loading, setLoading] = useState(false);
     const [branches, setBranches] = useState([]);
     const [staffList, setStaffList] = useState([]);
+    const [modalBranchId, setModalBranchId] = useState('');
+    const [modalStaffList, setModalStaffList] = useState([]);
     const [attendanceRecords, setAttendanceRecords] = useState([]);
     const [reportSummary, setReportSummary] = useState(null);
 
+
     // Modal States
     const [isModalOpen, setIsModalOpen] = useState(false);
+    const [isHolidayModalOpen, setIsHolidayModalOpen] = useState(false);
+    const [holidayForm, setHolidayForm] = useState({
+        date: format(new Date(), 'yyyy-MM-dd'),
+        reason: '',
+        remarks: '',
+        branch_id: defaultBranchId || ''
+    });
     const [modalMode, setModalMode] = useState('add'); // 'add' or 'edit'
+
     const [currentRecord, setCurrentRecord] = useState({
         staff_id: '',
         date: format(new Date(), 'yyyy-MM-dd'),
@@ -45,8 +62,10 @@ export default function StaffAttendanceManager({ isBranchAdmin = false, defaultB
         date: format(new Date(), 'yyyy-MM-dd'),
         branchId: defaultBranchId || '',
         role: '',
+        staffId: '',
         searchQuery: '',
     });
+
 
     useEffect(() => { setMounted(true); }, []);
 
@@ -66,7 +85,28 @@ export default function StaffAttendanceManager({ isBranchAdmin = false, defaultB
 
     useEffect(() => {
         fetchAttendance();
-    }, [filters.date, filters.branchId, filters.role]);
+    }, [filters.date, filters.branchId, filters.role, filters.staffId, filters.searchQuery]);
+
+    useEffect(() => {
+        const fetchModalStaff = async () => {
+            if (!modalBranchId) {
+                setModalStaffList([]);
+                return;
+            }
+            try {
+                const params = new URLSearchParams();
+                params.append('branch_id', modalBranchId);
+                const response = await apiClient.get(`/api/staff-attendance/staff-list?${params.toString()}`);
+                if (response.success) {
+                    setModalStaffList(response.data || []);
+                }
+            } catch (error) {
+                console.error('Failed to fetch modal staff list:', error);
+            }
+        };
+        fetchModalStaff();
+    }, [modalBranchId]);
+
 
     const fetchBranches = async () => {
         if (isBranchAdmin) return;
@@ -98,10 +138,19 @@ export default function StaffAttendanceManager({ isBranchAdmin = false, defaultB
     const fetchAttendance = async () => {
         setLoading(true);
         try {
-            const params = new URLSearchParams({
-                date_from: filters.date,
-                date_to: filters.date,
-            });
+            const params = new URLSearchParams();
+            if (filters.staffId) {
+                params.append('staff_id', filters.staffId);
+            } else if (filters.searchQuery) {
+                // Fetch full history without date constraint when searching generally
+            } else {
+                params.append('date_from', filters.date);
+                params.append('date_to', filters.date);
+            }
+            // Fetch high maximum bound to fetch all history correctly
+            params.append('limit', '1000');
+
+
             if (filters.branchId) params.append('branch_id', filters.branchId);
             if (filters.role) params.append('role', filters.role);
 
@@ -204,6 +253,30 @@ export default function StaffAttendanceManager({ isBranchAdmin = false, defaultB
         }
     };
 
+    const handleHolidaySubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        try {
+            const response = await apiClient.post('/api/staff-attendance/holiday', holidayForm);
+            if (response.success) {
+                toast.success(response.message || 'Holiday successfully marked');
+                setIsHolidayModalOpen(false);
+                setHolidayForm({
+                    date: format(new Date(), 'yyyy-MM-dd'),
+                    reason: '',
+                    remarks: '',
+                    branch_id: defaultBranchId || ''
+                });
+                fetchAttendance();
+            }
+        } catch (error) {
+            toast.error(error.message || 'Failed to mark holiday');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+
     const filteredRecords = useMemo(() => {
         return attendanceRecords.filter(record => {
             const staffName = `${record.staff?.first_name} ${record.staff?.last_name}`.toLowerCase();
@@ -272,9 +345,12 @@ export default function StaffAttendanceManager({ isBranchAdmin = false, defaultB
                         <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                         <input
                             type="date"
+                            disabled={!!filters.staffId || !!filters.searchQuery}
+
                             value={filters.date}
                             onChange={(e) => setFilters(prev => ({ ...prev, date: e.target.value }))}
-                            className="pl-10 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none w-44"
+                            className="pl-10 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none w-44 disabled:opacity-50"
+
                         />
                     </div>
 
@@ -299,6 +375,23 @@ export default function StaffAttendanceManager({ isBranchAdmin = false, defaultB
                         <option value="STAFF">Staff</option>
                     </select>
 
+                    <select
+                        value={filters.staffId}
+                        onChange={(e) => setFilters(prev => ({ ...prev, staffId: e.target.value }))}
+                        className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none min-w-[180px]"
+                    >
+                        <option value="">
+                            {filters.branchId && staffList.length === 0 
+                                ? `${branches.find(b => b.id === filters.branchId || b._id === filters.branchId)?.name || 'Branch'} Employees Not Found` 
+                                : "All Staff (Single Day)"}
+                        </option>
+                        {staffList.map(s => (
+                            <option key={s.id} value={s.id}>
+                                {s.first_name} {s.last_name} ({s.role})
+                            </option>
+                        ))}
+                    </select>
+
                     <div className="relative">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
                         <input
@@ -313,12 +406,20 @@ export default function StaffAttendanceManager({ isBranchAdmin = false, defaultB
 
                 <div className="flex gap-2">
                     <button
+                        onClick={() => setIsHolidayModalOpen(true)}
+                        className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-all shadow-md font-bold text-sm"
+                    >
+                        <Calendar className="h-4 w-4" />
+                        Mark As Holiday
+                    </button>
+                    <button
                         onClick={handleOpenAddModal}
                         className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all shadow-md font-bold text-sm"
                     >
                         <Plus className="h-4 w-4" />
                         Mark Attendance
                     </button>
+
                     <button
                         onClick={fetchAttendance}
                         className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-all shadow-sm"
@@ -367,7 +468,13 @@ export default function StaffAttendanceManager({ isBranchAdmin = false, defaultB
                                                         {record.staff?.first_name?.[0]}{record.staff?.last_name?.[0]}
                                                     </div>
                                                     <div>
-                                                        <p className="font-bold text-gray-900">{record.staff?.first_name} {record.staff?.last_name}</p>
+                                                        <p 
+                                                            className="font-bold text-gray-900 hover:text-blue-600 hover:underline cursor-pointer transition-all"
+                                                            onClick={() => router.push(`${isBranchAdmin ? '/branch-admin' : '/super-admin'}/staff/${record.staff_id || record.staff?.id}/attendance`)}
+                                                        >
+                                                            {record.staff?.first_name} {record.staff?.last_name}
+                                                        </p>
+
                                                         <p className="text-[10px] text-gray-500">{record.staff?.email}</p>
                                                     </div>
                                                 </div>
@@ -422,7 +529,7 @@ export default function StaffAttendanceManager({ isBranchAdmin = false, defaultB
             {isModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
                     <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setIsModalOpen(false)} />
-                    <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all animate-in zoom-in-95">
+                    <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] flex flex-col overflow-hidden transform transition-all animate-in zoom-in-95">
                         <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white flex justify-between items-center">
                             <div>
                                 <h3 className="text-xl font-bold">{modalMode === 'add' ? 'Mark Attendance' : 'Edit Attendance'}</h3>
@@ -433,9 +540,27 @@ export default function StaffAttendanceManager({ isBranchAdmin = false, defaultB
                             </button>
                         </div>
 
-                        <form onSubmit={handleModalSubmit} className="p-6 space-y-4">
+                        <form onSubmit={handleModalSubmit} className="p-6 space-y-4 overflow-y-auto flex-1">
+
+                            {!isBranchAdmin && modalMode === 'add' && (
+                                <div className="space-y-1">
+                                    <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Branch *</label>
+                                    <select
+                                        required
+                                        value={modalBranchId}
+                                        onChange={(e) => setModalBranchId(e.target.value)}
+                                        className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                                    >
+                                        <option value="">Select Branch</option>
+                                        {branches.map(b => (
+                                            <option key={b.id || b._id} value={b.id || b._id}>{b.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+
                             <div className="space-y-1">
-                                <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Staff Member</label>
+                                <label className="text-xs font-bold text-gray-500 uppercase tracking-wide">Staff Member *</label>
                                 <select
                                     required
                                     disabled={modalMode === 'edit'}
@@ -443,12 +568,19 @@ export default function StaffAttendanceManager({ isBranchAdmin = false, defaultB
                                     onChange={(e) => setCurrentRecord(prev => ({ ...prev, staff_id: e.target.value }))}
                                     className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none transition-all disabled:opacity-70"
                                 >
-                                    <option value="">Select Staff Member</option>
-                                    {staffList.map(s => (
+                                    <option value="">
+                                        {!isBranchAdmin && modalMode === 'add' && !modalBranchId 
+                                            ? "Select Branch First" 
+                                            : (isBranchAdmin ? staffList : modalStaffList).length === 0
+                                                ? "Employees Not Found" 
+                                                : "Select Staff Member"}
+                                    </option>
+                                    {(isBranchAdmin ? staffList : modalStaffList).map(s => (
                                         <option key={s.id} value={s.id}>{s.first_name} {s.last_name} ({s.role})</option>
                                     ))}
                                 </select>
                             </div>
+
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-1">
@@ -528,6 +660,91 @@ export default function StaffAttendanceManager({ isBranchAdmin = false, defaultB
                     </div>
                 </div>
             )}
+            {/* Holiday Modal */}
+            {isHolidayModalOpen && (
+                <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
+                    <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6 border border-gray-100">
+                        <div className="flex justify-between items-center mb-4">
+                            <h3 className="text-xl font-bold text-gray-900">Mark As Holiday</h3>
+                            <button 
+                                onClick={() => setIsHolidayModalOpen(false)}
+                                className="p-1.5 hover:bg-gray-100 rounded-full transition-colors"
+                            >
+                                <X className="h-5 w-5 text-gray-500" />
+                            </button>
+                        </div>
+                        
+                        <form onSubmit={handleHolidaySubmit} className="space-y-4">
+                            <div className="space-y-1">
+                                <label className="text-xs font-bold text-gray-500 uppercase">Date</label>
+                                <input
+                                    type="date"
+                                    required
+                                    value={holidayForm.date}
+                                    onChange={(e) => setHolidayForm(prev => ({ ...prev, date: e.target.value }))}
+                                    className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-medium text-gray-800"
+                                />
+                            </div>
+
+                            {!isBranchAdmin && (
+                                <div className="space-y-1">
+                                    <label className="text-xs font-bold text-gray-500 uppercase">Branch (Optional)</label>
+                                    <select
+                                        value={holidayForm.branch_id}
+                                        onChange={(e) => setHolidayForm(prev => ({ ...prev, branch_id: e.target.value }))}
+                                        className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-medium text-gray-800"
+                                    >
+                                        <option value="">All Branches</option>
+                                        {branches.map(b => (
+                                            <option key={b.id} value={b.id}>{b.name}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+
+                            <div className="space-y-1">
+                                <label className="text-xs font-bold text-gray-500 uppercase">Holiday Reason</label>
+                                <input
+                                    type="text"
+                                    placeholder="e.g. Eid, Independence Day"
+                                    value={holidayForm.reason}
+                                    onChange={(e) => setHolidayForm(prev => ({ ...prev, reason: e.target.value }))}
+                                    className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-medium text-gray-800"
+                                />
+                            </div>
+
+                            <div className="space-y-1">
+                                <label className="text-xs font-bold text-gray-500 uppercase">Additional Remarks</label>
+                                <textarea
+                                    placeholder="Remarks..."
+                                    value={holidayForm.remarks}
+                                    onChange={(e) => setHolidayForm(prev => ({ ...prev, remarks: e.target.value }))}
+                                    className="w-full px-4 py-2 bg-gray-50 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-medium resize-none h-20 text-gray-800"
+                                />
+                            </div>
+
+                            <div className="pt-4 flex gap-3">
+                                <button
+                                    type="button"
+                                    onClick={() => setIsHolidayModalOpen(false)}
+                                    className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 rounded-xl hover:bg-gray-200 transition-all font-bold"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    type="submit"
+                                    disabled={loading}
+                                    className="flex-1 px-4 py-2.5 bg-amber-600 text-white rounded-xl hover:bg-amber-700 transition-all font-bold shadow-md flex items-center justify-center gap-2"
+                                >
+                                    {loading && <RefreshCw className="h-4 w-4 animate-spin" />}
+                                    Mark Holiday
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
+

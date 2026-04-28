@@ -246,13 +246,20 @@ export const API_ENDPOINTS = {
     },
     // Attendance Management
     ATTENDANCE: {
-      CREATE: '/api/super-admin/attendance',
-      SCAN: '/api/super-admin/attendance/scan',
-      LIST: '/api/super-admin/attendance',
-      GET: '/api/super-admin/attendance/:id',
-      UPDATE: '/api/super-admin/attendance/:id',
-      DELETE: '/api/super-admin/attendance/:id',
+      CREATE: '/api/attendance',
+      SCAN: '/api/attendance/scan',
+      LIST: '/api/attendance',
+      GET: '/api/attendance/:id',
+      UPDATE: '/api/attendance/:id',
+      DELETE: '/api/attendance/:id',
     },
+
+    LEAVE_REQUESTS: {
+      LIST: '/api/leave-requests',
+      CREATE: '/api/leave-requests',
+      UPDATE: (id) => `/api/leave-requests/${id}`,
+    },
+
 
 
     // Grades (alias to coaching endpoints)
@@ -452,14 +459,14 @@ export const API_ENDPOINTS = {
 
     // Classes Management
     CLASSES: {
-      CREATE: '/api/branch-admin/classes', // POST
-      LIST: '/api/branch-admin/classes', // GET
-      GET: '/api/branch-admin/classes/:id', // GET
-      UPDATE: '/api/branch-admin/classes/:id', // PUT
-      DELETE: '/api/branch-admin/classes/:id', // DELETE
-      ASSIGN_TEACHER: '/api/branch-admin/classes/:id/assign-teacher', // POST
-      STUDENTS: '/api/branch-admin/classes/:id/students', // GET
-      TIMETABLE: '/api/branch-admin/classes/:id/timetable', // GET
+      CREATE: '/api/classes', // POST
+      LIST: '/api/classes', // GET
+      GET: '/api/classes/:id', // GET
+      UPDATE: '/api/classes/:id', // PUT
+      DELETE: '/api/classes/:id', // DELETE
+      ASSIGN_TEACHER: '/api/classes/:id/assign-teacher', // POST
+      STUDENTS: '/api/classes/:id/students', // GET
+      TIMETABLE: '/api/classes/:id/timetable', // GET
     },
 
     // Grades (alias to coaching endpoints)
@@ -527,13 +534,20 @@ export const API_ENDPOINTS = {
 
     // Attendance Management
     ATTENDANCE: {
-      CREATE: '/api/branch-admin/attendance', // POST
-      SCAN: '/api/branch-admin/attendance/scan', // POST
-      LIST: '/api/branch-admin/attendance', // GET
-      GET: '/api/branch-admin/attendance/:id', // GET
-      UPDATE: '/api/branch-admin/attendance/:id', // PUT
-      DELETE: '/api/branch-admin/attendance/:id', // DELETE
+      CREATE: '/api/attendance', // POST
+      SCAN: '/api/attendance/scan', // POST
+      LIST: '/api/attendance', // GET
+      GET: '/api/attendance/:id', // GET
+      UPDATE: '/api/attendance/:id', // PUT
+      DELETE: '/api/attendance/:id', // DELETE
     },
+
+    LEAVE_REQUESTS: {
+      LIST: '/api/leave-requests',
+      CREATE: '/api/leave-requests',
+      UPDATE: (id) => `/api/leave-requests/${id}`,
+    },
+
 
     // Fee Management
     FEES: {

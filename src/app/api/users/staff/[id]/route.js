@@ -1,10 +1,44 @@
 import { NextResponse } from "next/server";
-import { User, sequelize } from "@/backend/models/postgres";
+import { User, sequelize, Branch } from "@/backend/models/postgres";
+import { Op } from "sequelize";
 import { withAuth } from "@/backend/middleware/auth.middleware.js";
 import { uploadStaffDocument, uploadProfilePhoto, deleteFromCloudinary } from "@/backend/utils/cloudinary";
 
+
+/**
+ * GET /api/users/staff/[id]
+ */
+async function getStaff(req, { params }) {
+  try {
+    const { id } = await params;
+    const currentUser = req.user;
+
+    const staff = await User.findByPk(id, {
+      include: [{ model: Branch, as: "branch", attributes: ["id", "name", "code"] }],
+      attributes: { exclude: ["password_hash"] }
+    });
+
+    if (!staff || (staff.role !== "STAFF" && staff.role !== "TEACHER")) {
+      return NextResponse.json({ error: "Staff member not found" }, { status: 404 });
+    }
+
+    if (currentUser.role !== "SUPER_ADMIN" && staff.branch_id !== currentUser.branch_id) {
+      return NextResponse.json({ error: "Unauthorized access" }, { status: 403 });
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: staff
+    });
+  } catch (error) {
+    console.error("Get Staff Error:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
 /**
  * PUT /api/users/staff/[id]
+
  * Integrated Update: Handles BOTH JSON (for simple toggles) and FormData (for file uploads)
  */
 async function updateStaff(req, { params }) {
@@ -16,9 +50,10 @@ async function updateStaff(req, { params }) {
     const currentUser = req.user;
 
     const staff = await User.findByPk(id);
-    if (!staff || staff.role !== "STAFF") {
+    if (!staff || (staff.role !== "STAFF" && staff.role !== "TEACHER")) {
       return NextResponse.json({ error: "Staff member not found" }, { status: 404 });
     }
+
 
     if (currentUser.role !== "SUPER_ADMIN" && staff.branch_id !== currentUser.branch_id) {
       return NextResponse.json({ error: "Unauthorized access" }, { status: 403 });
@@ -149,9 +184,10 @@ async function deleteStaff(req, { params }) {
     const currentUser = req.user;
 
     const staff = await User.findByPk(id);
-    if (!staff || staff.role !== "STAFF") {
+    if (!staff || (staff.role !== "STAFF" && staff.role !== "TEACHER")) {
       return NextResponse.json({ error: "Staff not found" }, { status: 404 });
     }
+
 
     if (currentUser.role !== "SUPER_ADMIN" && staff.branch_id !== currentUser.branch_id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
@@ -165,5 +201,7 @@ async function deleteStaff(req, { params }) {
   }
 }
 
+export const GET = withAuth(getStaff, ["SUPER_ADMIN", "BRANCH_ADMIN"]);
 export const PUT = withAuth(updateStaff, ["SUPER_ADMIN", "BRANCH_ADMIN"]);
 export const DELETE = withAuth(deleteStaff, ["SUPER_ADMIN", "BRANCH_ADMIN"]);
+

@@ -50,9 +50,8 @@ export default function StudentAttendanceDetailPage() {
   const fetchAttendanceHistory = async () => {
     try {
       setLoading(true);
-      const endpoint = user?.role === 'SUPER_ADMIN'
-        ? `/api/super-admin/students/${studentId}/attendance`
-        : `/api/branch-admin/students/${studentId}/attendance`;
+      const endpoint = `/api/super-admin/students/${studentId}/attendance`;
+
       
       const response = await apiClient.get(endpoint, {
         params: { page: pagination.page, limit: pagination.limit }
@@ -81,12 +80,9 @@ export default function StudentAttendanceDetailPage() {
   const handleSaveStatus = async () => {
     try {
       setUpdating(true);
-      const endpoint = user?.role === 'SUPER_ADMIN'
-        ? `/api/super-admin/students/${studentId}/attendance`
-        : `/api/branch-admin/students/${studentId}/attendance`;
-      
-      await apiClient.put(endpoint, {
-        attendanceId: editingRecord._id,
+      await apiClient.put('/api/attendance', {
+        attendanceId: editingRecord.id || editingRecord._id,
+
         status: editStatus,
         remarks: editRemarks
       });
@@ -154,9 +150,13 @@ export default function StudentAttendanceDetailPage() {
                   {student?.rollNumber && (
                     <span>Roll: {student.rollNumber}</span>
                   )}
+                  {student?.className && (
+                    <span>Class: {student.className}</span>
+                  )}
                   {student?.section && (
                     <span>Section: {student.section}</span>
                   )}
+
                   {student?.email && (
                     <span>Email: {student.email}</span>
                   )}
@@ -222,9 +222,8 @@ export default function StudentAttendanceDetailPage() {
                 <TableHead>Type</TableHead>
                 <TableHead>Branch</TableHead>
                 <TableHead>Class</TableHead>
-                <TableHead>Subject/Event</TableHead>
+                <TableHead>Section</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead>Check In</TableHead>
                 <TableHead>Remarks</TableHead>
                 <TableHead>Marked By</TableHead>
                 <TableHead>Actions</TableHead>
@@ -257,11 +256,8 @@ export default function StudentAttendanceDetailPage() {
                     </TableCell>
                     <TableCell>{record.branchId?.name || '—'}</TableCell>
                     <TableCell>{record.classId?.name || '—'}</TableCell>
-                    <TableCell>
-                      {record.attendanceType === 'subject' && record.subjectId?.name}
-                      {record.attendanceType === 'event' && record.eventId?.title}
-                      {record.attendanceType === 'daily' && '—'}
-                    </TableCell>
+                    <TableCell>{record.sectionId?.name || '—'}</TableCell>
+
                     <TableCell>
                       <div className="flex items-center gap-2">
                         {getStatusIcon(record.status)}
@@ -270,20 +266,12 @@ export default function StudentAttendanceDetailPage() {
                         </Badge>
                       </div>
                     </TableCell>
-                    <TableCell>
-                      {record.checkInTime
-                        ? new Date(record.checkInTime).toLocaleTimeString('en-PK', {
-                            hour: '2-digit',
-                            minute: '2-digit'
-                          })
-                        : '—'}
-                    </TableCell>
                     <TableCell className="max-w-xs truncate">
                       {record.remarks || '—'}
                     </TableCell>
                     <TableCell>
                       <div className="text-sm">
-                        <div>{record.markedBy?.fullName || '—'}</div>
+                        <div>{record.markedBy?.first_name + ' ' + record.markedBy?.last_name || '—'}</div>
                         <div className="text-xs text-gray-500">
                           {record.markedBy?.email}
                         </div>

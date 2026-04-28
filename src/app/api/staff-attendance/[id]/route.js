@@ -66,8 +66,9 @@ async function updateAttendanceHandler(request, { params }) {
 
         await attendance.update({
             status,
-            check_in,
-            check_out,
+            check_in: (String(status).toUpperCase() === 'ABSENT' || String(status).toUpperCase() === 'LEAVE') ? null : check_in,
+            check_out: (String(status).toUpperCase() === 'ABSENT' || String(status).toUpperCase() === 'LEAVE') ? null : check_out,
+
             remarks,
             late_minutes,
             early_exit_minutes,

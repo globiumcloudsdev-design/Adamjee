@@ -130,11 +130,11 @@ const ROLE_MENUS = {
       category: "Fee Management",
       isCollapsible: true,
       items: [
-        {
-          name: "Fee Templates",
-          path: "/super-admin/fee-management/templates",
-          icon: Receipt,
-        },
+        // {
+        //   name: "Fee Templates",
+        //   path: "/super-admin/fee-management/templates",
+        //   icon: Receipt,
+        // },
         {
           name: "Fee Voucher",
           path: "/super-admin/fee-vouchers",
@@ -149,7 +149,7 @@ const ROLE_MENUS = {
       isCollapsible: true,
       items: [
         {
-          name: "Attendance QR Code",
+          name: "Student Attendance",
           path: "/super-admin/attendance",
           icon: QrCode,
         },
@@ -158,24 +158,29 @@ const ROLE_MENUS = {
           path: "/super-admin/staff-attendance",
           icon: UserCheck,
         },
-      ],
-    },
-    {
-      category: "Event Management",
-      isCollapsible: true,
-      items: [
         {
-          name: "Calendar View",
-          path: "/super-admin/event-management/calendar",
-          icon: Calendar,
-        },
-        {
-          name: "All Events",
-          path: "/super-admin/event-management/events",
+          name: "Leaves",
+          path: "/super-admin/leaves",
           icon: Calendar,
         },
       ],
     },
+    // {
+    //   category: "Event Management",
+    //   isCollapsible: true,
+    //   items: [
+    //     {
+    //       name: "Calendar View",
+    //       path: "/super-admin/event-management/calendar",
+    //       icon: Calendar,
+    //     },
+    //     {
+    //       name: "All Events",
+    //       path: "/super-admin/event-management/events",
+    //       icon: Calendar,
+    //     },
+    //   ],
+    // },
     {
       category: "Notifications",
       items: [
@@ -186,32 +191,32 @@ const ROLE_MENUS = {
         },
       ],
     },
-    {
-      category: "System",
-      items: [
-        {
-          name: "Settings",
-          path: "/super-admin/settings",
-          icon: Settings,
-        },
-      ],
-    },
-    {
-      category: "Salary Management",
-      isCollapsible: true,
-      items: [
-        {
-          name: "Payroll",
-          path: "/super-admin/salary-management/payroll",
-          icon: Wallet,
-        },
-        {
-          name: "Employee Attendance",
-          path: "/super-admin/salary-management/employee-attendance",
-          icon: UserCheck,
-        },
-      ],
-    },
+    // {
+    //   category: "System",
+    //   items: [
+    //     {
+    //       name: "Settings",
+    //       path: "/super-admin/settings",
+    //       icon: Settings,
+    //     },
+    //   ],
+    // },
+    // {
+    //   category: "Salary Management",
+    //   isCollapsible: true,
+    //   items: [
+    //     {
+    //       name: "Payroll",
+    //       path: "/super-admin/salary-management/payroll",
+    //       icon: Wallet,
+    //     },
+    //     {
+    //       name: "Employee Attendance",
+    //       path: "/super-admin/salary-management/employee-attendance",
+    //       icon: UserCheck,
+    //     },
+    //   ],
+    // },
   ],
 
   branch_admin: [
@@ -227,9 +232,9 @@ const ROLE_MENUS = {
       items: [
         { name: "Academic Management", path: "/branch-admin/academic", icon: GraduationCap },
         { name: "Timetable", path: "/branch-admin/timetable", icon: Clock },
-        { name: "Syllabus", path: "/branch-admin/syllabus", icon: FileText },
-        { name: "Departments", path: "/branch-admin/departments", icon: Building2 },
-        { name: "Academic Structure", path: "/branch-admin/academic-structure", icon: LayoutDashboard },
+        // { name: "Syllabus", path: "/branch-admin/syllabus", icon: FileText },
+        // { name: "Departments", path: "/branch-admin/departments", icon: Building2 },
+        // { name: "Academic Structure", path: "/branch-admin/academic-structure", icon: LayoutDashboard },
       ],
     },
     {
@@ -254,26 +259,24 @@ const ROLE_MENUS = {
         { name: "Teachers", path: "/branch-admin/teachers", icon: Users },
       ],
     },
-    // {
-    //   category: "Library Management",
-    //   isCollapsible: true,
-    //   items: [
-    //     { name: "Library Books", path: "/branch-admin/library", icon: BookOpen },
-    //   ],
-    // },
     {
       category: "Attendance",
       isCollapsible: true,
       items: [
         { name: "Student Attendance", path: "/branch-admin/attendance", icon: Clock },
         { name: "Staff Attendance", path: "/branch-admin/staff-attendance", icon: UserCheck },
+        {
+          name: "Leaves",
+          path: "/branch-admin/leaves",
+          icon: Calendar,
+        },
       ],
     },
     {
       category: "Operations",
       isCollapsible: true,
       items: [
-        { name: "Events", path: "/branch-admin/events", icon: Calendar },
+        // { name: "Events", path: "/branch-admin/events", icon: Calendar },
         { name: "Exams", path: "/branch-admin/exams", icon: FileText },
       ],
     },
@@ -283,37 +286,37 @@ const ROLE_MENUS = {
         { name: "Notifications", path: "/branch-admin/notifications", icon: Calendar },
       ],
     },
-    {
-      category: "System",
-      items: [
-        { name: "Settings", path: "/branch-admin/settings", icon: Settings },
-      ],
-    },
+    // {
+    //   category: "System",
+    //   items: [
+    //     { name: "Settings", path: "/branch-admin/settings", icon: Settings },
+    //   ],
+    // },
     {
       category: "Finance Management",
       isCollapsible: true,
       items: [
         { name: "Fee Voucher", path: "/branch-admin/fee-vouchers", icon: Receipt },
-        { name: "Fee Templates", path: "/branch-admin/fee-templates", icon: Receipt },
+        // { name: "Fee Templates", path: "/branch-admin/fee-templates", icon: Receipt },
         { name: "Expenses", path: "/branch-admin/expenses", icon: Wallet },
       ],
     },
-    {
-      category: "Salary Management",
-      isCollapsible: true,
-      items: [
-        {
-          name: "Payroll",
-          path: "/branch-admin/salary-management/payroll",
-          icon: Wallet,
-        },
-        {
-          name: "Employee Attendance",
-          path: "/branch-admin/salary-management/employee-attendance",
-          icon: UserCheck,
-        },
-      ],
-    },
+    // {
+    //   category: "Salary Management",
+    //   isCollapsible: true,
+    //   items: [
+    //     {
+    //       name: "Payroll",
+    //       path: "/branch-admin/salary-management/payroll",
+    //       icon: Wallet,
+    //     },
+    //     {
+    //       name: "Employee Attendance",
+    //       path: "/branch-admin/salary-management/employee-attendance",
+    //       icon: UserCheck,
+    //     },
+    //   ],
+    // },
   ],
 
   teacher: [

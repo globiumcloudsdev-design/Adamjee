@@ -17,8 +17,9 @@ import LiveJsQRScanner from '@/components/LiveJsQRScanner';
 import apiClient from '@/lib/api-client';
 import API_ENDPOINTS from '@/constants/api-endpoints';
 import { toast } from 'sonner';
-import { Camera, Search, Save, CheckCircle, XCircle, Clock, UserSearch, Eye, DollarSign, Calendar } from 'lucide-react';
+import { Camera, Search, Save, CheckCircle, XCircle, Clock, UserSearch, Eye, DollarSign, Calendar, X } from 'lucide-react';
 import ButtonLoader from '@/components/ui/button-loader';
+import { Checkbox } from '@/components/ui/checkbox';
 
 const STATUS_OPTIONS = [
   { value: 'present', label: 'Present' },
@@ -36,12 +37,22 @@ export default function BranchAdminAttendancePage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
+  const [isHolidayModalOpen, setIsHolidayModalOpen] = useState(false);
+  const [holidayForm, setHolidayForm] = useState({
+    date: new Date().toISOString().split('T')[0],
+    reason: '',
+    remarks: '',
+    branch_id: ''
+  });
+
   
   // Data states
   const [classes, setClasses] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [students, setStudents] = useState([]);
+  const [allSections, setAllSections] = useState([]);
   const [filteredStudents, setFilteredStudents] = useState([]);
+
   
   // Form states
   const [selectedClass, setSelectedClass] = useState('');
@@ -78,11 +89,24 @@ export default function BranchAdminAttendancePage() {
   const [editRemarks, setEditRemarks] = useState('');
   const [updating, setUpdating] = useState(false);
 
+  // Manual Bulk Attendance States
+  const [manualAttendanceModalOpen, setManualAttendanceModalOpen] = useState(false);
+  const [manualAttendanceDate, setManualAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
+  const [manualAttendanceStatus, setManualAttendanceStatus] = useState('PRESENT');
+  const [manualAttendanceStudents, setManualAttendanceStudents] = useState([]);
+  const [manualSelectedStudents, setManualSelectedStudents] = useState([]);
+  const [manualFetchingStudents, setManualFetchingStudents] = useState(false);
+  const [manualMarkingAttendance, setManualMarkingAttendance] = useState(false);
+
+
   // Fetch classes and today's attendance on mount
   useEffect(() => {
-    if (user?.branchId?._id) {
+    if (user) {
       fetchClasses();
+
       fetchTodayAttendance();
+      fetchAllSections();
+
     }
   }, [user]);
 
@@ -90,13 +114,12 @@ export default function BranchAdminAttendancePage() {
   useEffect(() => {
     if (selectedClass && selectedSection) {
       fetchStudents();
-      fetchSubjects();
     } else {
       setStudents([]);
       setFilteredStudents([]);
-      setSubjects([]);
     }
   }, [selectedClass, selectedSection]);
+
 
   // Filter students when search changes
   useEffect(() => {
@@ -105,13 +128,23 @@ export default function BranchAdminAttendancePage() {
     } else {
       const query = searchQuery.toLowerCase();
       setFilteredStudents(
-        students.filter(student =>
-          student.firstName?.toLowerCase().includes(query) ||
-          student.lastName?.toLowerCase().includes(query) ||
-          student.registrationNumber?.toLowerCase().includes(query) ||
-          student.rollNumber?.toLowerCase().includes(query)
-        )
+        students.filter(student => {
+          const fName = (student.first_name || student.firstName || '').toLowerCase();
+          const lName = (student.last_name || student.lastName || '').toLowerCase();
+          const regNo = (student.registration_no || student.registrationNumber || '').toLowerCase();
+          const email = (student.email || '').toLowerCase();
+          const phone = (student.phone || '').toLowerCase();
+          const rollNo = (student.roll_no || student.rollNumber || student.details?.academic_info?.roll_no || '').toLowerCase();
+
+          return fName.includes(query) ||
+                 lName.includes(query) ||
+                 regNo.includes(query) ||
+                 email.includes(query) ||
+                 phone.includes(query) ||
+                 rollNo.includes(query);
+        })
       );
+
     }
   }, [searchQuery, students]);
   
@@ -139,13 +172,70 @@ export default function BranchAdminAttendancePage() {
     try {
       setLoading(true);
       const response = await apiClient.get(API_ENDPOINTS.BRANCH_ADMIN.CLASSES.LIST);
-      setClasses(response.data.classes || []);
+      const classesData = Array.isArray(response) ? response : (response.data?.classes || response.data || []);
+      
+      if (user?.branch_id && classesData.some(c => c.branch_id || c.branchId)) {
+        const branchClasses = classesData.filter(c => c.branch_id === user.branch_id || c.branchId === user.branch_id);
+        setClasses(branchClasses.length > 0 ? branchClasses : classesData);
+      } else {
+        setClasses(classesData);
+      }
     } catch (error) {
       toast.error('Failed to fetch classes');
     } finally {
       setLoading(false);
     }
   };
+
+
+
+
+  const handleHolidaySubmit = async (e) => {
+
+    e.preventDefault();
+    setSaving(true);
+    try {
+      // Force user's own branch_id for security
+      const payload = {
+        ...holidayForm,
+        branch_id: user.branch_id
+      };
+      
+      const response = await apiClient.post('/api/attendance/holiday', payload);
+      if (response.success) {
+        toast.success(response.message || 'Holiday marked for students successfully');
+        setIsHolidayModalOpen(false);
+        setHolidayForm({
+          date: new Date().toISOString().split('T')[0],
+          reason: '',
+          remarks: '',
+          branch_id: ''
+        });
+        
+        if (typeof fetchStudents === 'function') {
+          fetchStudents();
+        } else {
+          router.refresh();
+        }
+      }
+    } catch (error) {
+      toast.error(error.message || 'Failed to mark holiday');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const fetchAllSections = async () => {
+    try {
+      const response = await apiClient.get('/api/sections');
+      const secData = Array.isArray(response) ? response : (response.data?.sections || response.data || []);
+      setAllSections(secData);
+    } catch (error) {
+      console.error('Failed to fetch all sections:', error);
+    }
+  };
+
+
 
   const fetchSubjects = async () => {
     if (!selectedClass) return;
@@ -171,18 +261,23 @@ export default function BranchAdminAttendancePage() {
   const fetchStudents = async () => {
     try {
       setLoading(true);
-      const response = await apiClient.get(API_ENDPOINTS.STUDENT.LIST);
+      const response = await apiClient.get(API_ENDPOINTS.BRANCH_ADMIN.STUDENTS.LIST);
+      const studentArray = Array.isArray(response) ? response : (response.data?.students || response.data || response.students || []);
 
-      const filtered = response.data.students?.filter((student) => {
-        const studentBranchId = student.branchId || student.branchId?._id;
-        const studentClassId = student.classId || student.studentProfile?.classId || student.studentProfile?.classId?._id;
+      const finalBranchId = user.branch_id || user.branchId;
+
+      const filtered = studentArray.filter((student) => {
+        const studentBranchId = student.branch_id || student.branchId;
+        const studentClassId = student.details?.academic_info?.class_id || student.classId;
+        const studentSectionId = student.details?.academic_info?.section_id || student.section;
+        
         return (
-          (studentBranchId === user.branchId?._id || studentBranchId === user.branchId) &&
-          (studentClassId === selectedClass || studentClassId?._id === selectedClass) &&
-          (student.section === selectedSection)
+          (studentBranchId === finalBranchId) &&
+          (studentClassId === selectedClass) &&
+          (studentSectionId === selectedSection || !selectedSection)
         );
-      }) || [];
-      
+      });
+
       setStudents(filtered);
       setFilteredStudents(filtered);
       
@@ -197,37 +292,39 @@ export default function BranchAdminAttendancePage() {
 
   const fetchExistingAttendance = async (studentList) => {
     try {
-      const response = await apiClient.get(API_ENDPOINTS.BRANCH_ADMIN.ATTENDANCE.LIST, {
+      const response = await apiClient.get('/api/attendance', {
+
         params: {
-          classId: selectedClass,
-          date: attendanceDate,
-          subjectId: selectedSubject || undefined
+          date: attendanceDate
         }
       });
+      const attendanceData = Array.isArray(response) ? response : (response.data || []);
+      const records = {};
       
-      if (response.data.attendance) {
-        const records = {};
-        response.data.attendance.records?.forEach(record => {
-          records[record.studentId] = record.status;
-        });
-        setAttendanceRecords(records);
-      } else {
-        // Initialize all students as present by default
-        const records = {};
-        studentList.forEach(student => {
-          records[student._id] = 'present';
-        });
-        setAttendanceRecords(records);
-      }
+      attendanceData.forEach(record => {
+        const sId = record.student_id || record.studentId;
+        if (sId) {
+          records[sId] = record.status?.toLowerCase() || 'present';
+        }
+      });
+
+      const finalRecords = {};
+      studentList.forEach(student => {
+        const id = student.id || student._id;
+        finalRecords[id] = records[id] || 'present';
+      });
+      
+      setAttendanceRecords(finalRecords);
     } catch (error) {
-      // If no attendance exists, initialize all as present
       const records = {};
       studentList.forEach(student => {
-        records[student._id] = 'present';
+        const id = student.id || student._id;
+        records[id] = 'present';
       });
       setAttendanceRecords(records);
     }
   };
+
 
   const handleStatusChange = (studentId, status) => {
     setAttendanceRecords(prev => ({
@@ -388,11 +485,9 @@ export default function BranchAdminAttendancePage() {
         q: query
       });
       
-      if (response.success && response.data) {
-        setSearchResults(Array.isArray(response.data) ? response.data : []);
-      } else {
-        setSearchResults([]);
-      }
+      const searchData = Array.isArray(response) ? response : (response.data?.students || response.data || []);
+      setSearchResults(searchData);
+
     } catch (error) {
       console.error('Error searching students:', error);
       setSearchResults([]);
@@ -406,15 +501,15 @@ export default function BranchAdminAttendancePage() {
     try {
       // Create attendance record for this student
       const payload = {
-        branchId: user.branchId?._id,
-        classId: student.classId?._id || student.classId, // Use student's classId from search results
-        section: student.section, // Use student's section from search results
+        branchId: user.branchId || user.branch_id || student.branch_id || student.branchId, 
+        classId: student.details?.academic_info?.class_id || student.classId, 
+        section: student.details?.academic_info?.section_id || student.section, 
         subjectId: attendanceType === 'subject' ? selectedSubject : null,
         eventId: attendanceType === 'event' ? selectedEvent : null,
         date: attendanceDate,
         attendanceType: attendanceType || 'daily',
         records: [{
-          studentId: student._id,
+          studentId: student.id || student._id,
           status: status
         }]
       };
@@ -424,23 +519,25 @@ export default function BranchAdminAttendancePage() {
       // Update local state
       setAttendanceRecords(prev => ({
         ...prev,
-        [student._id]: status
+        [student.id || student._id]: status
       }));
 
       // Add to marked students if not already there with proper structure
-      if (!markedStudents.find(s => s._id === student._id)) {
+      const studentIdKey = student.id || student._id;
+      if (!markedStudents.find(s => (s.id || s._id) === studentIdKey)) {
         setMarkedStudents(prev => [...prev, {
           ...student,
-          registrationNumber: student.studentProfile?.registrationNumber || student.registrationNumber,
-          rollNumber: student.studentProfile?.rollNumber || student.rollNumber,
-          section: student.studentProfile?.section || student.section,
+          registrationNumber: student.registration_no || student.registrationNumber,
+          rollNumber: student.details?.academic_info?.roll_no || student.rollNumber,
+          section: student.details?.academic_info?.section_id || student.section,
           feeStatus: student.hasPaidFees ? 'paid' : 'unpaid'
         }]);
       }
 
-      toast.success(`Marked ${student.fullName} as ${status}`);
+      toast.success(`Attendance marked as ${status.toLowerCase()} for ${student.first_name || student.firstName} ${student.last_name || student.lastName || ''}`);
       setStudentSearchQuery('');
       setSearchResults([]);
+
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to mark attendance');
     }
@@ -450,8 +547,52 @@ export default function BranchAdminAttendancePage() {
     router.push(`/branch-admin/students/${studentId}/attendance?return=/branch-admin/attendance`);
   };
 
-  const getSelectedClass = () => classes.find(c => c._id === selectedClass);
+  const fetchManualStudents = async () => {
+    try {
+      setManualFetchingStudents(true);
+      const response = await apiClient.get('/api/users/students');
+      setManualAttendanceStudents(response.data?.students || response.data || response || []);
+
+    } catch (error) {
+      toast.error(error.message || 'Failed to fetch students');
+    } finally {
+      setManualFetchingStudents(false);
+    }
+  };
+
+  const handleManualAttendanceSubmit = async () => {
+    try {
+      setManualMarkingAttendance(true);
+      const payload = {
+        date: manualAttendanceDate,
+        status: manualAttendanceStatus,
+        student_ids: manualSelectedStudents
+      };
+      await apiClient.post('/api/attendance', payload);
+      toast.success(`Attendance marked successfully!`);
+      setManualAttendanceModalOpen(false);
+      setManualSelectedStudents([]);
+      if (selectedClass && selectedSection) {
+        fetchStudents();
+      }
+    } catch (error) {
+      toast.error(error.message || 'Failed to mark attendance');
+    } finally {
+      setManualMarkingAttendance(false);
+    }
+  };
+
+  const getSelectedClass = () => classes.find(c => c.id === selectedClass || c._id === selectedClass);
+
+
   const sections = getSelectedClass()?.sections || [];
+
+  const getSectionName = (sectionId) => {
+    if (!sectionId) return '—';
+    const sec = allSections.find(s => s.id === sectionId || s._id === sectionId);
+    return sec ? sec.name : sectionId;
+  };
+
 
   const getStatusIcon = (status) => {
     switch (status) {
@@ -469,21 +610,26 @@ export default function BranchAdminAttendancePage() {
   };
 
   const getStatusBadge = (status) => {
+    if (!status) return <Badge variant="outline">—</Badge>;
+    const lowerStatus = status.toLowerCase();
+
     const variants = {
       present: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200',
       absent: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200',
       late: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200',
       half_day: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200',
       excused: 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200',
-      leave: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200'
+      leave: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200',
+      holiday: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200'
     };
     
     return (
-      <Badge className={variants[status]}>
-        {status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ')}
+      <Badge className={variants[lowerStatus] || 'bg-gray-100 text-gray-800'}>
+        {lowerStatus.charAt(0).toUpperCase() + lowerStatus.slice(1).replace('_', ' ')}
       </Badge>
     );
   };
+
 
   // History functions
   const fetchAttendanceHistory = async () => {
@@ -547,6 +693,117 @@ export default function BranchAdminAttendancePage() {
   
   return (
     <div className="p-6 space-y-6">
+      {/* Manual Attendance Modal */}
+      <Modal
+        open={manualAttendanceModalOpen}
+        onClose={() => setManualAttendanceModalOpen(false)}
+        title="Manual Student Attendance (Bulk)"
+        size="lg"
+      >
+        <div className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Date</Label>
+              <Input
+                type="date"
+                value={manualAttendanceDate}
+                onChange={(e) => setManualAttendanceDate(e.target.value)}
+                max={new Date().toISOString().split('T')[0]}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <Dropdown
+                name="status"
+                value={manualAttendanceStatus}
+                onChange={(e) => setManualAttendanceStatus(e.target.value)}
+                options={[
+                  { value: 'PRESENT', label: 'Present' },
+                  { value: 'ABSENT', label: 'Absent' },
+                  { value: 'LATE', label: 'Late' },
+                  { value: 'LEAVE', label: 'Leave' },
+                  { value: 'HOLIDAY', label: 'Holiday' }
+                ]}
+              />
+            </div>
+          </div>
+
+          <div className="flex justify-end pt-2">
+            <Button onClick={fetchManualStudents} disabled={manualFetchingStudents}>
+              {manualFetchingStudents ? <ButtonLoader /> : 'Fetch Students'}
+            </Button>
+          </div>
+
+          {manualAttendanceStudents.length > 0 && (
+            <div className="space-y-4 mt-4">
+              <div className="flex justify-between items-center">
+                <Label className="font-semibold text-md">Select Students ({manualAttendanceStudents.length})</Label>
+                <div className="flex items-center space-x-2">
+                  <Checkbox
+                    id="select-all"
+                    checked={manualSelectedStudents.length === manualAttendanceStudents.length && manualAttendanceStudents.length > 0}
+                    onCheckedChange={(checked) => {
+                      if (checked) {
+                        setManualSelectedStudents(manualAttendanceStudents.map(s => s.id));
+                      } else {
+                        setManualSelectedStudents([]);
+                      }
+                    }}
+                  />
+                  <Label htmlFor="select-all" className="cursor-pointer text-sm font-medium">Select All</Label>
+                </div>
+              </div>
+
+              <div className="border rounded-lg max-h-80 overflow-y-auto shadow-sm">
+                <Table>
+                  <TableHeader className="bg-gray-50 dark:bg-gray-900">
+                    <TableRow>
+                      <TableHead className="w-12"></TableHead>
+                      <TableHead>Name</TableHead>
+                      <TableHead>Reg #</TableHead>
+                      <TableHead>Class / Section</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {manualAttendanceStudents.map((student) => (
+                      <TableRow key={student.id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/50">
+                        <TableCell>
+                          <Checkbox
+                            checked={manualSelectedStudents.includes(student.id)}
+                            onCheckedChange={(checked) => {
+                              if (checked) {
+                                setManualSelectedStudents([...manualSelectedStudents, student.id]);
+                              } else {
+                                setManualSelectedStudents(manualSelectedStudents.filter(id => id !== student.id));
+                              }
+                            }}
+                          />
+                        </TableCell>
+                        <TableCell className="font-medium">{student.first_name} {student.last_name}</TableCell>
+                        <TableCell>{student.registration_no}</TableCell>
+                        <TableCell>
+                          {student.details?.academic_info?.class_id || 'N/A'} - {student.details?.academic_info?.section_id || student.section || 'N/A'}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-4 border-t">
+                <Button variant="outline" onClick={() => setManualAttendanceModalOpen(false)}>Cancel</Button>
+                <Button
+                  onClick={handleManualAttendanceSubmit}
+                  disabled={manualMarkingAttendance || manualSelectedStudents.length === 0}
+                >
+                  {manualMarkingAttendance ? <ButtonLoader /> : `Mark Attendance (${manualSelectedStudents.length})`}
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+      </Modal>
+
       <div className="flex justify-between items-center">
         <div>
           <h1 className="text-3xl font-bold">Mark Attendance</h1>
@@ -559,7 +816,20 @@ export default function BranchAdminAttendancePage() {
             <Camera className="h-4 w-4 mr-2" />
             Scan QR
           </Button>
+          <Button onClick={() => setManualAttendanceModalOpen(true)} variant="outline">
+            <UserSearch className="h-4 w-4 mr-2" />
+            Manual Attendance
+          </Button>
+          <Button 
+            onClick={() => setIsHolidayModalOpen(true)} 
+            variant="secondary"
+            className="bg-amber-600 hover:bg-amber-700 text-white font-bold shadow-md"
+          >
+            <Calendar className="h-4 w-4 mr-2" />
+            Mark Holiday
+          </Button>
         </div>
+
       </div>
       
       <Card>
@@ -584,8 +854,8 @@ export default function BranchAdminAttendancePage() {
                 name="class"
                 value={selectedClass}
                 onChange={(e) => setSelectedClass(e.target.value)}
-                options={classes.map((c) => ({ value: c._id, label: c.name }))}
-                placeholder="Select class"
+                options={classes.length === 0 ? [{ value: '', label: 'This Branch Classes Not Found' }] : classes.map((c) => ({ value: c.id || c._id, label: c.name }))}
+                placeholder={classes.length === 0 ? "This Branch Classes Not Found" : "Select class"}
               />
             </div>
             
@@ -595,24 +865,14 @@ export default function BranchAdminAttendancePage() {
                 name="section"
                 value={selectedSection}
                 onChange={(e) => setSelectedSection(e.target.value)}
-                options={sections.map((s) => ({ value: s.name, label: s.name }))}
+                options={sections.length === 0 && selectedClass ? [{ value: '', label: `${classes.find(c => c.id === selectedClass || c._id === selectedClass)?.name || 'Class'} Sections Not Found` }] : sections.map((s) => ({ value: s.id || s._id || s.name, label: s.name }))}
                 disabled={!selectedClass}
-                placeholder="Select section"
+                placeholder={!selectedClass ? "Select class first" : sections.length === 0 ? `${classes.find(c => c.id === selectedClass || c._id === selectedClass)?.name || 'Class'} Sections Not Found` : "Select section"}
               />
             </div>
-            
-            <div className="space-y-2">
-              <Label>Subject (Optional)</Label>
-              <Dropdown
-                name="subject"
-                value={selectedSubject}
-                onChange={(e) => setSelectedSubject(e.target.value)}
-                options={[{ value: '', label: 'All subjects' }, ...subjects.map((s) => ({ value: s._id, label: s.name }))]}
-                disabled={!selectedClass}
-                placeholder="All subjects"
-              />
-            </div>
-            
+
+
+             
             <div className="space-y-2">
               <Label>Attendance Type</Label>
               <Dropdown
@@ -621,13 +881,13 @@ export default function BranchAdminAttendancePage() {
                 onChange={(e) => setAttendanceType(e.target.value)}
                 options={[
                   { value: 'daily', label: 'Daily' },
-                  { value: 'subject', label: 'Subject' },
-                  { value: 'event', label: 'Event' },
+                  // { value: 'subject', label: 'Subject' },
+                  // { value: 'event', label: 'Event' },
                 ]}
               />
             </div>
 
-            {attendanceType === 'event' && (
+            {/* {attendanceType === 'event' && (
               <div className="space-y-2">
                 <Label>Event *</Label>
                 <Dropdown
@@ -639,7 +899,7 @@ export default function BranchAdminAttendancePage() {
                   disabled={events.length === 0}
                 />
               </div>
-            )}
+            )} */}
           </div>
         </CardContent>
       </Card>
@@ -684,17 +944,19 @@ export default function BranchAdminAttendancePage() {
                   </TableHeader>
                   <TableBody>
                     {searchResults.map((student) => (
-                      <TableRow key={student._id}>
+                      <TableRow key={student.id || student._id}>
                         <TableCell>
                           <div>
-                            <div className="font-medium">{student.fullName}</div>
+                            <div className="font-medium">{(student.first_name || student.firstName) ? `${student.first_name || student.firstName} ${student.last_name || student.lastName || ''}` : student.fullName}</div>
                             <div className="text-xs text-gray-500">{student.email}</div>
                           </div>
                         </TableCell>
-                        <TableCell>{student.registrationNumber || '—'}</TableCell>
-                        <TableCell>{student.rollNumber || '—'}</TableCell>
-                        <TableCell>{student.section || '—'}</TableCell>
+                        <TableCell>{student.registration_no || student.registrationNumber || '—'}</TableCell>
+                        <TableCell>{student.roll_no || student.rollNumber || student.details?.academic_info?.roll_no || '—'}</TableCell>
+                        <TableCell>{getSectionName(student.section || student.details?.academic_info?.section_id)}</TableCell>
+
                         <TableCell>
+
                           <div className="flex items-center gap-1">
                             <DollarSign className="w-4 h-4" />
                             <Badge className={student.hasPaidFees ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
@@ -715,8 +977,9 @@ export default function BranchAdminAttendancePage() {
                             <Button
                               size="sm"
                               variant="outline"
-                              onClick={() => viewStudentAttendance(student._id)}
+                              onClick={() => viewStudentAttendance(student.id || student._id)}
                             >
+
                               <Eye className="w-4 h-4 mr-1" />
                               View History
                             </Button>
@@ -760,7 +1023,8 @@ export default function BranchAdminAttendancePage() {
               </TableHeader>
               <TableBody>
                 {markedStudents.map((student) => (
-                  <TableRow key={student._id}>
+                  <TableRow key={student.id || student._id}>
+
                     <TableCell>
                       <div>
                         <div className="font-medium">{student.fullName}</div>
@@ -788,11 +1052,12 @@ export default function BranchAdminAttendancePage() {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() => viewStudentAttendance(student._id)}
+                        onClick={() => viewStudentAttendance(student.id || student._id)}
                       >
                         <Eye className="w-4 h-4 mr-1" />
                         View History
                       </Button>
+
                     </TableCell>
                   </TableRow>
                 ))}
@@ -841,9 +1106,10 @@ export default function BranchAdminAttendancePage() {
                 {loading ? (
                   <div className="text-center py-8">Loading students...</div>
                 ) : filteredStudents.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
-                    No students found
+                  <div className="text-center py-8 text-gray-500 font-medium">
+                    This Branch Students Not Found
                   </div>
+
                 ) : (
                   <Table>
                     <TableHeader>
@@ -855,43 +1121,48 @@ export default function BranchAdminAttendancePage() {
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {filteredStudents.map(student => (
-                        <TableRow key={student._id}>
-                          <TableCell>{student.rollNumber || 'N/A'}</TableCell>
-                          <TableCell>{student.registrationNumber}</TableCell>
-                          <TableCell className="font-medium">
-                            {student.firstName} {student.lastName}
-                          </TableCell>
-                          <TableCell>
-                            <div className="flex items-center gap-2">
-                              <Button
-                                variant={attendanceRecords[student._id] === 'present' ? 'default' : 'outline'}
-                                size="sm"
-                                onClick={() => handleStatusChange(student._id, 'present')}
-                              >
-                                <CheckCircle className="h-4 w-4 mr-1" />
-                                Present
-                              </Button>
-                              <Button
-                                variant={attendanceRecords[student._id] === 'absent' ? 'default' : 'outline'}
-                                size="sm"
-                                onClick={() => handleStatusChange(student._id, 'absent')}
-                              >
-                                <XCircle className="h-4 w-4 mr-1" />
-                                Absent
-                              </Button>
-                              <Button
-                                variant={attendanceRecords[student._id] === 'late' ? 'default' : 'outline'}
-                                size="sm"
-                                onClick={() => handleStatusChange(student._id, 'late')}
-                              >
-                                <Clock className="h-4 w-4 mr-1" />
-                                Late
-                              </Button>
-                            </div>
-                          </TableCell>
-                        </TableRow>
-                      ))}
+                      {filteredStudents.map(student => {
+                        const studentId = student.id || student._id;
+                        return (
+                          <TableRow key={studentId}>
+                            <TableCell>{student.details?.academic_info?.roll_no || student.rollNumber || student.roll_no || 'N/A'}</TableCell>
+                            <TableCell>{student.registration_no || student.registrationNumber || 'N/A'}</TableCell>
+                            <TableCell className="font-medium">
+                              {student.first_name || student.firstName || ''} {student.last_name || student.lastName || ''}
+                            </TableCell>
+
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <Button
+                                  variant={attendanceRecords[studentId] === 'present' ? 'default' : 'outline'}
+                                  size="sm"
+                                  onClick={() => handleStatusChange(studentId, 'present')}
+                                >
+                                  <CheckCircle className="h-4 w-4 mr-1" />
+                                  Present
+                                </Button>
+                                <Button
+                                  variant={attendanceRecords[studentId] === 'absent' ? 'default' : 'outline'}
+                                  size="sm"
+                                  onClick={() => handleStatusChange(studentId, 'absent')}
+                                >
+                                  <XCircle className="h-4 w-4 mr-1" />
+                                  Absent
+                                </Button>
+                                <Button
+                                  variant={attendanceRecords[studentId] === 'late' ? 'default' : 'outline'}
+                                  size="sm"
+                                  onClick={() => handleStatusChange(studentId, 'late')}
+                                >
+                                  <Clock className="h-4 w-4 mr-1" />
+                                  Late
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+
                     </TableBody>
                   </Table>
                 )}
@@ -1211,6 +1482,77 @@ export default function BranchAdminAttendancePage() {
           )}
         </div>
       </Modal>
+
+      {/* Student Holiday Modal */}
+      {isHolidayModalOpen && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4 animate-fadeIn">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-2xl max-w-md w-full p-6 border border-gray-100 dark:border-gray-700">
+            <div className="flex justify-between items-center mb-4">
+              <h3 className="text-xl font-bold text-gray-900 dark:text-white">Mark Student Holiday</h3>
+              <button 
+                onClick={() => setIsHolidayModalOpen(false)}
+                className="p-1.5 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-full transition-colors"
+              >
+                <X className="h-5 w-5 text-gray-500 dark:text-gray-400" />
+              </button>
+            </div>
+            
+            <form onSubmit={handleHolidaySubmit} className="space-y-4">
+              <div className="space-y-1">
+                <Label className="text-xs font-bold text-gray-500 uppercase">Date</Label>
+                <Input
+                  type="date"
+                  required
+                  value={holidayForm.date}
+                  onChange={(e) => setHolidayForm(prev => ({ ...prev, date: e.target.value }))}
+                  className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-medium text-gray-800 dark:text-white"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs font-bold text-gray-500 uppercase">Holiday Reason</Label>
+                <Input
+                  type="text"
+                  placeholder="e.g. Summer Break, Public Holiday"
+                  value={holidayForm.reason}
+                  onChange={(e) => setHolidayForm(prev => ({ ...prev, reason: e.target.value }))}
+                  className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-medium text-gray-800 dark:text-white"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <Label className="text-xs font-bold text-gray-500 uppercase">Additional Remarks</Label>
+                <textarea
+                  placeholder="Remarks..."
+                  value={holidayForm.remarks}
+                  onChange={(e) => setHolidayForm(prev => ({ ...prev, remarks: e.target.value }))}
+                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none h-20 text-gray-800 dark:text-white bg-white dark:bg-gray-700"
+                />
+              </div>
+
+              <div className="pt-4 flex gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setIsHolidayModalOpen(false)}
+                  className="flex-1"
+                >
+                  Cancel
+                </Button>
+                <Button
+                  type="submit"
+                  disabled={saving}
+                  className="flex-1 bg-amber-600 hover:bg-amber-700 text-white font-bold flex items-center justify-center gap-2 shadow-md"
+                >
+                  {saving && <ButtonLoader />}
+                  Mark Holiday
+                </Button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
+
   );
 }

@@ -119,8 +119,9 @@ export async function markStaffAttendanceHandler(request) {
             staff_id,
             date,
             status,
-            check_in,
-            check_out,
+            check_in: (String(status).toUpperCase() === 'ABSENT' || String(status).toUpperCase() === 'LEAVE') ? null : check_in,
+            check_out: (String(status).toUpperCase() === 'ABSENT' || String(status).toUpperCase() === 'LEAVE') ? null : check_out,
+
             remarks,
             branch_id: finalBranchId,
             marked_by: request.user.id,

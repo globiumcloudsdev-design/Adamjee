@@ -177,7 +177,15 @@ async function getStaff(req) {
     const search = searchParams.get('search');
     const branchId = searchParams.get('branchId');
     
-    let whereClause = { role: "STAFF" };
+    const allStaff = searchParams.get('allStaff') === 'true';
+    
+    let whereClause = {};
+    if (allStaff) {
+      whereClause.role = { [Op.in]: ["STAFF", "TEACHER"] };
+    } else {
+      whereClause.role = "STAFF";
+    }
+
 
     if (currentUser.role === "BRANCH_ADMIN") {
       whereClause.branch_id = currentUser.branch_id;

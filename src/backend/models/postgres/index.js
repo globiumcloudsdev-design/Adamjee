@@ -8,7 +8,10 @@ import Branch from "./Branch.model.js";
 import User from "./User.model.js";
 import Policy from "./Policy.model.js";
 import StaffAttendance from "./StaffAttendance.model.js";
+import Attendance from "./Attendance.model.js";
 import Expense from "./Expense.model.js";
+import Timetable from "./Timetable.model.js";
+import LeaveRequest from "./LeaveRequest.model.js";
 
 const models = {
   AcademicYear,
@@ -21,7 +24,11 @@ const models = {
   Expense,
   Policy,
   StaffAttendance,
+  Attendance,
+  Timetable,
+  LeaveRequest,
 };
+
 
 // Run associations
 Object.values(models).forEach((model) => {
@@ -41,6 +48,11 @@ export {
   Expense,
   Policy,
   StaffAttendance,
+  Attendance,
+  Timetable,
+  LeaveRequest,
 };
 
+
 export default models;
+

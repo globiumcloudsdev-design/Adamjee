@@ -145,7 +145,8 @@ export function requireRole(allowedRoles) {
       );
     }
     
-    if (!roles.includes(user.role)) {
+    const hasRole = roles.some(r => r.toUpperCase() === user.role.toUpperCase());
+    if (!hasRole) {
       return NextResponse.json(
         { 
           success: false, 
@@ -154,6 +155,7 @@ export function requireRole(allowedRoles) {
         { status: 403 }
       );
     }
+
     
     return null; // No error, user has required role
   };

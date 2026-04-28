@@ -1,12 +1,10 @@
 import { NextResponse } from 'next/server';
 import { withAuth, requireRole } from '@/backend/middleware/auth';
-// import Attendance from '@/backend/models/postgres';
-import { User } from '@/backend/models/postgres';
+import { Attendance, User, Branch, Class, Section } from '@/backend/models/postgres/index.js';
 
 // GET /api/super-admin/students/[id]/attendance - Get student's attendance history
 export const GET = withAuth(async (request, user, userDoc, { params }) => {
   try {
-        
     const { id } = await params;
     const { searchParams } = new URL(request.url);
     const page = parseInt(searchParams.get('page')) || 1;
@@ -14,84 +12,101 @@ export const GET = withAuth(async (request, user, userDoc, { params }) => {
     const skip = (page - 1) * limit;
     
     // Verify student exists
-    const student = await User.findOne({ _id: id, role: 'student' }).lean();
+    const student = await User.findOne({ where: { id, role: 'STUDENT' } });
     if (!student) {
       return NextResponse.json(
         { success: false, message: 'Student not found' },
         { status: 404 }
       );
     }
+
+    let detailsObj = {};
+    if (typeof student.details === 'string') {
+      try {
+        detailsObj = JSON.parse(student.details);
+      } catch (e) {
+        detailsObj = {};
+      }
+    } else if (student.details && typeof student.details === 'object') {
+      detailsObj = student.details;
+    }
+
+    const classId = student.class_id || student.classId || detailsObj.academic_info?.class_id || detailsObj.class_id || detailsObj.classId;
+    const sectionId = student.section_id || student.sectionId || detailsObj.academic_info?.section_id || detailsObj.section_id || detailsObj.sectionId;
+    const rollNo = detailsObj.academic_info?.roll_no || detailsObj.roll_no || detailsObj.rollNumber || '';
+
+
+    let className = '—';
+    let sectionName = '—';
+
+    if (classId) {
+      const cls = await Class.findByPk(classId);
+      if (cls) className = cls.name;
+    }
+
+    if (sectionId) {
+      const sec = await Section.findByPk(sectionId);
+      if (sec) sectionName = sec.name;
+    }
+
     
-    // Get all attendance records where this student appears
-    const [attendanceRecords, total] = await Promise.all([
-      Attendance.find({ 'records.studentId': id })
-        .populate('classId', 'name code')
-        .populate('subjectId', 'name code')
-        .populate('branchId', 'name')
-        .populate('eventId', 'title')
-        .populate('markedBy', 'fullName email')
-        .sort({ date: -1 })
-        .skip(skip)
-        .limit(limit)
-        .lean(),
-      Attendance.countDocuments({ 'records.studentId': id })
-    ]);
-    
-    // Extract only this student's record from each attendance
-    const studentAttendance = attendanceRecords.map(attendance => {
-      const studentRecord = attendance.records.find(
-        r => r.studentId.toString() === id
-      );
-      
-      return {
-        _id: attendance._id,
-        date: attendance.date,
-        classId: attendance.classId,
-        subjectId: attendance.subjectId,
-        branchId: attendance.branchId,
-        eventId: attendance.eventId,
-        attendanceType: attendance.attendanceType,
-        markedBy: attendance.markedBy,
-        status: studentRecord?.status || 'absent',
-        checkInTime: studentRecord?.checkInTime,
-        remarks: studentRecord?.remarks,
-        createdAt: attendance.createdAt
-      };
+    // Get all attendance records for this student
+    const attendances = await Attendance.findAll({
+      where: { student_id: id },
+      include: [
+        { model: Branch, as: 'branch', attributes: ['id', 'name'] },
+        { model: User, as: 'marker', attributes: ['id', 'first_name', 'last_name', 'email'] },
+      ],
+      order: [['date', 'DESC']],
+      offset: skip,
+      limit: limit
     });
-    
-    // Calculate statistics
+
+    const total = await Attendance.count({ where: { student_id: id } });
+
+    const studentAttendance = attendances.map(attendance => ({
+      id: attendance.id,
+      date: attendance.date,
+      branchId: attendance.branch,
+      classId: { id: classId, name: className },
+      sectionId: { id: sectionId, name: sectionName },
+      attendanceType: attendance.attendance_type || 'daily',
+      markedBy: attendance.marker,
+      status: attendance.status?.toLowerCase() || 'absent',
+      remarks: attendance.remarks,
+      createdAt: attendance.created_at
+    }));
+
+
     const stats = {
       total: studentAttendance.length,
       present: studentAttendance.filter(a => a.status === 'present').length,
       absent: studentAttendance.filter(a => a.status === 'absent').length,
       late: studentAttendance.filter(a => a.status === 'late').length,
-      excused: studentAttendance.filter(a => a.status === 'excused').length,
-      halfDay: studentAttendance.filter(a => a.status === 'half_day').length
+      excused: studentAttendance.filter(a => a.status === 'leave').length
     };
-    
+
     stats.percentage = stats.total > 0 
       ? ((stats.present / stats.total) * 100).toFixed(2) 
       : 0;
-    
+
     return NextResponse.json({
       success: true,
       data: {
         student: {
-          _id: student._id,
-          fullName: student.fullName,
+          id: student.id,
+          fullName: `${student.first_name} ${student.last_name || ''}`,
           email: student.email,
-          registrationNumber: student.studentProfile?.registrationNumber,
-          rollNumber: student.studentProfile?.rollNumber,
-          section: student.studentProfile?.section
+          registrationNumber: student.registration_no,
+          rollNumber: rollNo || student.details?.academic_info?.roll_no || '',
+
+          className: className,
+          section: sectionName
         },
+
         attendance: studentAttendance,
         stats,
-        pagination: {
-          page,
-          limit,
-          total,
-          pages: Math.ceil(total / limit)
-        }
+        pagination: { page, limit, total, pages: Math.ceil(total / limit) }
       }
     });
   } catch (error) {
@@ -101,12 +116,12 @@ export const GET = withAuth(async (request, user, userDoc, { params }) => {
       { status: 500 }
     );
   }
-}, [requireRole(['super_admin'])]);
+}, [requireRole(['SUPER_ADMIN', 'super_admin', 'BRANCH_ADMIN', 'branch_admin'])]);
+
 
 // PUT /api/super-admin/students/[id]/attendance - Update specific attendance status
 export const PUT = withAuth(async (request, user, userDoc, { params }) => {
   try {
-        
     const { id } = await params;
     const body = await request.json();
     const { attendanceId, status, remarks } = body;
@@ -118,30 +133,18 @@ export const PUT = withAuth(async (request, user, userDoc, { params }) => {
       );
     }
     
-    // Find the attendance record
-    const attendance = await Attendance.findById(attendanceId);
+    const attendance = await Attendance.findOne({ where: { id: attendanceId, student_id: id } });
     if (!attendance) {
       return NextResponse.json(
-        { success: false, message: 'Attendance record not found' },
+        { success: false, message: 'Attendance record not found for this student' },
         { status: 404 }
       );
     }
     
-    // Find and update the student's record
-    const studentRecord = attendance.records.find(
-      r => r.studentId.toString() === id
-    );
-    
-    if (!studentRecord) {
-      return NextResponse.json(
-        { success: false, message: 'Student not found in attendance record' },
-        { status: 404 }
-      );
-    }
-    
-    studentRecord.status = status;
+    attendance.status = String(status).toUpperCase();
+
     if (remarks !== undefined) {
-      studentRecord.remarks = remarks;
+      attendance.remarks = remarks;
     }
     
     await attendance.save();
@@ -158,4 +161,6 @@ export const PUT = withAuth(async (request, user, userDoc, { params }) => {
       { status: 500 }
     );
   }
-}, [requireRole(['super_admin'])]);
+}, [requireRole(['SUPER_ADMIN', 'super_admin', 'BRANCH_ADMIN', 'branch_admin'])]);
+
+

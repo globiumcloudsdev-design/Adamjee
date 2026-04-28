@@ -233,15 +233,31 @@ export async function GET(req) {
     const academicYearId = searchParams.get("academic_year_id");
     const classId = searchParams.get("class_id");
     const branchId = searchParams.get("branch_id") || searchParams.get("branchId");
+    const q = searchParams.get("q");
 
     // --- Role-Based Filter ---
     let whereClause = { role: "STUDENT" };
 
     if (user.role === "BRANCH_ADMIN") {
-      whereClause.branch_id = user.branch_id; // Branch Admin locked to his branch
+      whereClause.branch_id = user.branch_id; 
     } else if (user.role === "SUPER_ADMIN" && branchId) {
-      whereClause.branch_id = branchId; // Super Admin can filter by any branch
+      whereClause.branch_id = branchId; 
     }
+
+    if (q) {
+      whereClause[Op.or] = [
+        { first_name: { [Op.iLike]: `%${q}%` } },
+        { last_name: { [Op.iLike]: `%${q}%` } },
+        { email: { [Op.iLike]: `%${q}%` } },
+        { phone: { [Op.iLike]: `%${q}%` } },
+        { registration_no: { [Op.iLike]: `%${q}%` } },
+        sequelize.where(
+          sequelize.fn('concat', sequelize.col('first_name'), ' ', sequelize.col('last_name')),
+          { [Op.iLike]: `%${q}%` }
+        )
+      ];
+    }
+
 
     // --- Academic Info Filtering (JSONB search) ---
     const academicInfoFilter = {};
