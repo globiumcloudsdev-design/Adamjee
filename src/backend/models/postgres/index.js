@@ -10,7 +10,7 @@ import Policy from "./Policy.model.js";
 import StaffAttendance from "./StaffAttendance.model.js";
 import Attendance from "./Attendance.model.js";
 import Expense from "./Expense.model.js";
-import Timetable from "./Timetable.model.js";
+import Timetable from "./TimeTable.model.js";
 import LeaveRequest from "./LeaveRequest.model.js";
 import FeeVoucher from "./FeeVoucher.model.js";
 
