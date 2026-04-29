@@ -98,15 +98,16 @@ export async function PUT(req, { params }) {
     };
 
     // --- 4. Recalculate Fees if needed ---
-    if (data.subjects || data.discount !== undefined) {
-      const subjects = data.subjects || student.details?.academic_info?.subjects || [];
-      const discount = data.discount !== undefined ? data.discount : (student.details?.academic_info?.discount || 0);
+    if (data.subjects || data.discount !== undefined || data.academic_info) {
+      const subjects = data.subjects || data.academic_info?.subjects || student.details?.academic_info?.subjects || [];
+      const discount = data.discount !== undefined ? data.discount : (data.academic_info?.discount || student.details?.academic_info?.discount || 0);
 
       const total_fee = subjects.reduce((acc, sub) => acc + (sub.fee || 0), 0);
       const payable_fee = total_fee - discount;
 
       data.details.academic_info = {
-        ...(data.details.academic_info || student.details?.academic_info || {}),
+        ...(student.details?.academic_info || {}),
+        ...(data.academic_info || {}),
         subjects,
         total_fee,
         discount,
@@ -114,6 +115,7 @@ export async function PUT(req, { params }) {
       };
     }
 
+    student.changed('details', true);
     await student.update(data);
     return NextResponse.json({
       message: "Student updated successfully",

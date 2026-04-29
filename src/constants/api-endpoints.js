@@ -199,15 +199,15 @@ export const API_ENDPOINTS = {
 
     // Fee Vouchers
     FEE_VOUCHERS: {
-      CREATE: '/api/super-admin/fee-vouchers',
-      LIST: '/api/super-admin/fee-vouchers',
-      GET: '/api/super-admin/fee-vouchers/:id',
-      UPDATE: '/api/super-admin/fee-vouchers/:id',
-      DELETE: '/api/super-admin/fee-vouchers/:id',
-      CANCEL: '/api/super-admin/fee-vouchers/:id/cancel',
-      APPROVE_PAYMENT: '/api/super-admin/fee-vouchers/:voucherId/approve-payment',
-      MANUAL_PAYMENT: '/api/super-admin/fee-vouchers/:id/manual-payment',
-      // REJECT_PAYMENT: '/api/super-admin/fee-vouchers/:voucherId/reject-payment',
+      CREATE: '/api/fee-vouchers',
+      LIST: '/api/fee-vouchers',
+      GET: '/api/fee-vouchers/:id',
+      UPDATE: '/api/fee-vouchers/:id',
+      DELETE: '/api/fee-vouchers/:id',
+      CANCEL: '/api/fee-vouchers/:id/cancel',
+      APPROVE_PAYMENT: '/api/fee-vouchers/:voucherId/approve-payment',
+      MANUAL_PAYMENT: '/api/fee-vouchers/:id/manual-payment',
+      // REJECT_PAYMENT: '/api/fee-vouchers/:voucherId/reject-payment',
     },
 
     // Pending Fees Management
@@ -236,13 +236,13 @@ export const API_ENDPOINTS = {
 
     // Timetables Management
     TIMETABLES: {
-      CREATE: '/api/super-admin/timetables',
-      LIST: '/api/super-admin/timetables',
-      GET: (id) => `/api/super-admin/timetables/${id}`,
-      UPDATE: (id) => `/api/super-admin/timetables/${id}`,
-      DELETE: (id) => `/api/super-admin/timetables/${id}`,
-      CLASS_TIMETABLE: (classId) => `/api/super-admin/timetables/class/${classId}`,
-      TEACHER_TIMETABLE: (teacherId) => `/api/super-admin/timetables/teacher/${teacherId}`,
+      CREATE: '/api/timetable',
+      LIST: '/api/timetable',
+      GET: (id) => `/api/timetable/${id}`,
+      UPDATE: (id) => `/api/timetable/${id}`,
+      DELETE: (id) => `/api/timetable/${id}`,
+      CLASS_TIMETABLE: (classId) => `/api/timetable/class/${classId}`,
+      TEACHER_TIMETABLE: (teacherId) => `/api/timetable/teacher/${teacherId}`,
     },
     // Attendance Management
     ATTENDANCE: {
@@ -421,13 +421,13 @@ export const API_ENDPOINTS = {
 
     // Timetables Management for branch admin (branch-limited)
     TIMETABLES: {
-      CREATE: '/api/branch-admin/timetables', // POST
-      LIST: '/api/branch-admin/timetables', // GET
-      GET: (id) => `/api/branch-admin/timetables/${id}`, // GET
-      UPDATE: (id) => `/api/branch-admin/timetables/${id}`, // PUT
-      DELETE: (id) => `/api/branch-admin/timetables/${id}`, // DELETE
-      CLASS_TIMETABLE: (classId) => `/api/branch-admin/timetables/class/${classId}`, // GET
-      TEACHER_TIMETABLE: (teacherId) => `/api/branch-admin/timetables/teacher/${teacherId}`, // GET
+      CREATE: '/api/timetable', // POST
+      LIST: '/api/timetable', // GET
+      GET: (id) => `/api/timetable/${id}`, // GET
+      UPDATE: (id) => `/api/timetable/${id}`, // PUT
+      DELETE: (id) => `/api/timetable/${id}`, // DELETE
+      CLASS_TIMETABLE: (classId) => `/api/timetable/class/${classId}`, // GET
+      TEACHER_TIMETABLE: (teacherId) => `/api/timetable/teacher/${teacherId}`, // GET
     },
 
     // Teachers Management
@@ -489,11 +489,11 @@ export const API_ENDPOINTS = {
 
     // Subjects Management
     SUBJECTS: {
-      CREATE: '/api/branch-admin/subjects', // POST
-      LIST: '/api/branch-admin/subjects', // GET
-      GET: '/api/branch-admin/subjects/:id', // GET
-      UPDATE: '/api/branch-admin/subjects/:id', // PUT
-      DELETE: '/api/branch-admin/subjects/:id', // DELETE
+      CREATE: '/api/subjects', // POST
+      LIST: '/api/subjects', // GET
+      GET: '/api/subjects/:id', // GET
+      UPDATE: '/api/subjects/:id', // PUT
+      DELETE: '/api/subjects/:id', // DELETE
     },
 
     // Events Management
@@ -578,15 +578,15 @@ export const API_ENDPOINTS = {
 
     // Fee Vouchers
     FEE_VOUCHERS: {
-      CREATE: '/api/branch-admin/fee-vouchers', // POST
-      LIST: '/api/branch-admin/fee-vouchers', // GET
-      GET: '/api/branch-admin/fee-vouchers/:id', // GET
-      UPDATE: '/api/branch-admin/fee-vouchers/:id', // PUT
-      DELETE: '/api/branch-admin/fee-vouchers/:id', // DELETE
-      CANCEL: '/api/branch-admin/fee-vouchers/:id/cancel', // PUT
-      APPROVE_PAYMENT: '/api/branch-admin/fee-vouchers/:voucherId/approve-payment', // POST
-      MANUAL_PAYMENT: '/api/branch-admin/fee-vouchers/:id/manual-payment', // POST
-      // REJECT_PAYMENT: '/api/branch-admin/fee-vouchers/:voucherId/reject-payment', // POST
+      CREATE: '/api/fee-vouchers', // POST
+      LIST: '/api/fee-vouchers', // GET
+      GET: '/api/fee-vouchers/:id', // GET
+      UPDATE: '/api/fee-vouchers/:id', // PUT
+      DELETE: '/api/fee-vouchers/:id', // DELETE
+      CANCEL: '/api/fee-vouchers/:id/cancel', // PUT
+      APPROVE_PAYMENT: '/api/fee-vouchers/:voucherId/approve-payment', // POST
+      MANUAL_PAYMENT: '/api/fee-vouchers/:id/manual-payment', // POST
+      // REJECT_PAYMENT: '/api/fee-vouchers/:voucherId/reject-payment', // POST
     },
 
     // Expenses Management

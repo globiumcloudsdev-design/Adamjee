@@ -12,6 +12,7 @@ import Attendance from "./Attendance.model.js";
 import Expense from "./Expense.model.js";
 import Timetable from "./Timetable.model.js";
 import LeaveRequest from "./LeaveRequest.model.js";
+import FeeVoucher from "./FeeVoucher.model.js";
 
 const models = {
   AcademicYear,
@@ -27,6 +28,7 @@ const models = {
   Attendance,
   Timetable,
   LeaveRequest,
+  FeeVoucher,
 };
 
 
@@ -34,6 +36,7 @@ const models = {
 Object.values(models).forEach((model) => {
   if (model.associate) model.associate(models);
 });
+
 
 export {
   sequelize,
@@ -51,6 +54,7 @@ export {
   Attendance,
   Timetable,
   LeaveRequest,
+  FeeVoucher,
 };
 
 

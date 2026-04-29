@@ -95,19 +95,26 @@ export default function Dropdown({ id, name, value, onChange, options = [], plac
           <div className="max-h-60 overflow-y-auto py-1">
             {options.map((opt) => {
               const isSelected = opt.value === value;
+              const isDisabled = opt.disabled;
+
               return (
                 <button
                   key={opt.value ?? opt.label}
                   type="button"
-                  onClick={() => handleSelect(opt)}
+                  disabled={isDisabled}
+                  onClick={() => !isDisabled && handleSelect(opt)}
                   className={`w-full text-left px-4 py-2.5 transition-colors duration-150 flex items-center justify-between
                     ${isSelected 
                       ? 'bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400' 
-                      : 'text-gray-900 hover:bg-gray-50 dark:text-white dark:hover:bg-gray-700'
+                      : isDisabled
+                        ? 'opacity-50 cursor-not-allowed bg-gray-50/50 dark:bg-gray-900/20 text-gray-400'
+                        : 'text-gray-900 hover:bg-gray-50 dark:text-white dark:hover:bg-gray-700'
                     }
                   `}
                 >
-                  <span>{opt.label}</span>
+                  <span className={isDisabled ? 'line-through decoration-gray-300' : ''}>
+                    {opt.label}
+                  </span>
                   {isSelected && <Check className="w-4 h-4" />}
                 </button>
               );

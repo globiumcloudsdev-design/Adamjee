@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { withAuth } from "@/backend/middleware/auth.middleware.js";
-import { User, Branch } from "@/backend/models/postgres";
+import { User, Branch, Timetable } from "@/backend/models/postgres";
 import { Op } from "sequelize";
 import { generateTeacherQR } from "@/lib/qr-generator";
 import { getWelcomeEmailTemplate } from "@/backend/utils/email-templates";
@@ -196,9 +196,48 @@ async function getTeachers(req) {
       order: [["created_at", "DESC"]],
     });
 
+    // --- NEW: Fetch dynamic assignments from Timetable ---
+    const branchIds = [...new Set(teachers.map(t => t.branch_id))].filter(Boolean);
+    const timetables = await Timetable.findAll({
+      where: { branch_id: { [Op.in]: branchIds } },
+      attributes: ['id', 'class_id', 'section_id', 'periods']
+    });
+
+    // Map teacherId -> set of unique (class, section) assignments
+    const teacherAssignments = {};
+    timetables.forEach(tt => {
+      (tt.periods || []).forEach(p => {
+        const tId = p.teacherId;
+        if (!tId) return;
+        
+        if (!teacherAssignments[tId]) teacherAssignments[tId] = new Set();
+        // Store as a unique string key to avoid duplicates
+        teacherAssignments[tId].add(`${tt.class_id}:${tt.section_id}`);
+      });
+    });
+
+    // Augment teacher data with dynamic counts
+    const data = teachers.map(t => {
+      const teacherObj = t.toJSON();
+      const assignmentSet = teacherAssignments[t.id];
+      const assignedCount = assignmentSet ? assignmentSet.size : 0;
+
+      if (!teacherObj.details) teacherObj.details = {};
+      if (!teacherObj.details.teacher) teacherObj.details.teacher = {};
+      
+      // If the static classes array is empty or missing, use the dynamic count
+      // This ensures the frontend table shows the classes assigned via Timetable
+      if (!teacherObj.details.teacher.classes || teacherObj.details.teacher.classes.length === 0) {
+        // Create a dummy array of the right length so .length works in frontend
+        teacherObj.details.teacher.classes = new Array(assignedCount).fill({});
+      }
+      
+      return teacherObj;
+    });
+
     return NextResponse.json({
       success: true,
-      data: teachers,
+      data: data,
     });
   } catch (error) {
     console.error("Get Teachers Error:", error);

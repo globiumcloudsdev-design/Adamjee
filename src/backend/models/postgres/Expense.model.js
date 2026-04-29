@@ -107,13 +107,11 @@ const Expense = sequelize.define('Expense', {
   createdAt: 'created_at',
   updatedAt: 'updated_at',
   indexes: [
-    { fields: ['institute_id'] },
     { fields: ['branch_id'] },
     { fields: ['category'] },
     { fields: ['status'] },
     { fields: ['date'] },
-    { fields: ['vendor_id'] },
-    { fields: ['institute_id', 'branch_id'] },
+    { fields: ['branch_id'] },
   ],
 });
 

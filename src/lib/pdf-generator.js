@@ -544,710 +544,199 @@ export const generateFeeVoucherPDF = (voucher) => {
   // Check if we're in a browser environment for responsive detection
   const isMobile = typeof window !== 'undefined' ? window.innerWidth < 768 : false;
 
-  // Enhanced Professional Color Palette
-  const primaryColor = [0, 102, 204]; // Professional Blue
-  const secondaryColor = [52, 73, 94]; // Dark Gray
-  const accentColor = [34, 197, 94]; // Green for amounts
-  const warningColor = [245, 158, 11]; // Amber for warnings
-  const borderColor = [229, 231, 235]; // Light Gray for borders
-  const highlightColor = [254, 252, 232]; // Soft Yellow for highlights
-  const lightGray = [248, 250, 252]; // Very light gray background
-  const darkBlue = [23, 37, 84]; // Dark blue for headers
+  // Simplified Minimal Color Palette
+  const primaryColor = [0, 0, 0]; // Solid Black
+  const secondaryColor = [50, 50, 50]; // Dark Gray
+  const borderColor = [200, 200, 200]; // Light Gray borders
+  const highlightColor = [255, 255, 255]; // White
 
   // Page dimensions
   const pageWidth = doc.internal.pageSize.width;
   const pageHeight = doc.internal.pageSize.height;
-  const margin = isMobile ? 8 : 12; // Reduced margin for better content fit
+  const margin = 15; 
   const contentWidth = pageWidth - (2 * margin);
 
   // Responsive font sizes
-  const h1Size = isMobile ? 18 : 24;
-  const h2Size = isMobile ? 14 : 18;
-  const h3Size = isMobile ? 12 : 14;
-  const bodySize = isMobile ? 9 : 10;
-  const smallSize = isMobile ? 7 : 8;
+  const h1Size = 16;
+  const h2Size = 12;
+  const h3Size = 10;
+  const bodySize = 10;
+  const smallSize = 8;
 
-  // Responsive spacing
-  const lineHeight = isMobile ? 6 : 7;
-  const sectionGap = isMobile ? 10 : 15;
-  const boxPadding = isMobile ? 6 : 8; // Reduced padding
+  const lineHeight = 7;
+  const boxPadding = 6; 
 
-  // Clear background with subtle gradient effect
   doc.setFillColor(255, 255, 255);
   doc.rect(0, 0, pageWidth, pageHeight, 'F');
-
-  // Add subtle background pattern
-  doc.setFillColor(250, 250, 250);
-  doc.rect(0, 0, pageWidth, 40, 'F');
   
   // ========== HEADER SECTION ==========
   let yPosition = margin;
 
-  // Enhanced Coaching Header with gradient effect
-  const headerSectionHeight = isMobile ? 35 : 45;
-
-  // Main header background
-  doc.setFillColor(...primaryColor);
-  doc.roundedRect(margin, yPosition, contentWidth, headerSectionHeight, 3, 3, 'F');
-
-  // Add gradient effect with lighter blue
-  doc.setFillColor(100, 150, 255);
-  doc.roundedRect(margin, yPosition, contentWidth, headerSectionHeight * 0.6, 3, 3, 'F');
-
-  // Coaching badge/logo with enhanced styling
-  doc.setFillColor(255, 255, 255);
-  doc.setDrawColor(...primaryColor);
-  doc.setLineWidth(1.5);
-  doc.roundedRect(margin + (isMobile ? 6 : 8), yPosition + (isMobile ? 6 : 8),
-                  isMobile ? 20 : 25, isMobile ? 20 : 25, 3, 3, 'FD');
-  doc.setTextColor(...primaryColor);
-  doc.setFontSize(isMobile ? 12 : 15);
   doc.setFont('helvetica', 'bold');
-  doc.text('EA', margin + (isMobile ? 6 : 8) + (isMobile ? 10 : 12.5), 
-           yPosition + (isMobile ? 6 : 8) + (isMobile ? 10 : 12.5), 
-           { align: 'center', baseline: 'middle' });
-
-  // Coaching name with enhanced positioning
-  doc.setTextColor(255, 255, 255);
   doc.setFontSize(h1Size);
-  doc.setFont('helvetica', 'bold');
-  const coachingName = 'ADAMJEE COACHING';
-  const coachingX = isMobile ? margin + 32 : margin + 40;
+  doc.setTextColor(0, 0, 0);
+  doc.text('ADAMJEE', pageWidth / 2, yPosition, { align: 'center' });
 
-  // Add subtle shadow for text
-  doc.setTextColor(0, 50, 100, 0.3);
-  doc.text(coachingName, coachingX + 1, yPosition + (isMobile ? 14 : 18) + 1);
-  doc.setTextColor(255, 255, 255);
-  doc.text(coachingName, coachingX, yPosition + (isMobile ? 14 : 18));
-
-  // Coaching motto with better positioning
-  if (!isMobile) {
-    doc.setFontSize(bodySize - 1);
-    doc.setFont('helvetica', 'italic');
-    doc.text('Center of Excellence in Education', margin + 40, yPosition + 25);
-  }
-
-  // Enhanced Voucher title with background
-  const titleY = yPosition + (isMobile ? 26 : 32);
-  doc.setFillColor(255, 255, 255);
-  doc.setDrawColor(...primaryColor);
-  doc.setLineWidth(0.8);
-  doc.roundedRect(pageWidth / 2 - 50, titleY - 3, 100, isMobile ? 8 : 10, 2, 2, 'FD');
-
-  doc.setTextColor(...primaryColor);
+  yPosition += 6;
   doc.setFontSize(h2Size);
-  doc.setFont('helvetica', 'bold');
-  doc.text('FEE VOUCHER', pageWidth / 2, titleY + (isMobile ? 1.5 : 2), 
-           { align: 'center', baseline: 'middle' });
+  doc.text('FEE VOUCHER', pageWidth / 2, yPosition, { align: 'center' });
 
-  yPosition += headerSectionHeight + (isMobile ? 4 : 6);
-  
-  // ========== VOUCHER INFO BADGE ==========
-  doc.setFillColor(255, 255, 255);
-  doc.setDrawColor(...primaryColor);
+  yPosition += 6;
+  doc.setDrawColor(0, 0, 0);
   doc.setLineWidth(0.5);
-  doc.roundedRect(margin, yPosition, contentWidth, isMobile ? 16 : 20, 2, 2, 'FD');
-  
-  // Voucher number
-  doc.setTextColor(...primaryColor);
-  doc.setFontSize(h3Size);
-  doc.setFont('helvetica', 'bold');
-  const voucherText = isMobile ? `Voucher #${voucher.voucherNumber}` : `Voucher #${voucher.voucherNumber}`;
-  doc.text(voucherText, margin + boxPadding, yPosition + (isMobile ? 6 : 8));
-  
-  // Issue date
+  doc.line(margin, yPosition, margin + contentWidth, yPosition);
+
+  yPosition += 8;
+  // Metadata Section
   doc.setFontSize(bodySize);
   doc.setFont('helvetica', 'normal');
-  const issueDate = new Date().toLocaleDateString('en-PK', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric'
-  });
-  doc.text(`Issued: ${issueDate}`, margin + contentWidth - boxPadding, 
-           yPosition + (isMobile ? 6 : 8), 
-           { align: 'right', baseline: 'middle' });
-  
-  yPosition += isMobile ? 18 : 22;
-  
-  // ========== STUDENT INFORMATION SECTION ==========
-  // Section header with enhanced styling
-  doc.setFillColor(...primaryColor);
-  doc.roundedRect(margin, yPosition, contentWidth, isMobile ? 7 : 9, 2, 2, 'F');
+  const issueDate = new Date().toLocaleDateString('en-PK');
+  const dueDate = voucher.dueDate ? new Date(voucher.dueDate).toLocaleDateString('en-PK') : 'N/A';
 
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(h3Size);
   doc.setFont('helvetica', 'bold');
-  doc.text('STUDENT DETAILS', margin + boxPadding, yPosition + (isMobile ? 4 : 5));
+  doc.text('Voucher #:', margin, yPosition);
+  doc.setFont('helvetica', 'normal');
+  doc.text(voucher.voucherNumber || '---', margin + 25, yPosition);
 
-  yPosition += (isMobile ? 8 : 10);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Issue Date:', margin + (contentWidth * 0.65), yPosition);
+  doc.setFont('helvetica', 'normal');
+  doc.text(issueDate, margin + (contentWidth * 0.65) + 25, yPosition);
 
-  // Enhanced Student info box with gradient background
-  const studentBoxHeight = isMobile ? 45 : 50;
+  yPosition += 6;
+  doc.setFont('helvetica', 'bold');
+  doc.text('Status:', margin, yPosition);
+  doc.setFont('helvetica', 'normal');
+  doc.text((voucher.status || 'pending').toUpperCase(), margin + 25, yPosition);
 
-  // Main background
-  doc.setFillColor(249, 250, 251);
-  doc.roundedRect(margin, yPosition, contentWidth, studentBoxHeight, 3, 3, 'F');
+  doc.setFont('helvetica', 'bold');
+  doc.text('Due Date:', margin + (contentWidth * 0.65), yPosition);
+  doc.setFont('helvetica', 'normal');
+  doc.text(dueDate, margin + (contentWidth * 0.65) + 25, yPosition);
 
-  // Add subtle gradient effect
-  doc.setFillColor(240, 245, 250);
-  doc.roundedRect(margin, yPosition, contentWidth, studentBoxHeight * 0.4, 3, 3, 'F');
-
-  // Border with primary color
-  doc.setDrawColor(...primaryColor);
-  doc.setLineWidth(0.8);
-  doc.roundedRect(margin, yPosition, contentWidth, studentBoxHeight, 3, 3, 'S');
+  // STUDENT DETAILS
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(h2Size);
+  doc.text('STUDENT DETAILS', margin, yPosition);
   
-  const studentY = yPosition + boxPadding;
-  
-  // Get student data with fallbacks
-  const studentName = voucher.studentId?.fullName ||
+  yPosition += 4;
+  doc.line(margin, yPosition, margin + contentWidth, yPosition);
+
+  yPosition += 6;
+  doc.setFontSize(bodySize);
+
+  const studentName = voucher.studentId?.fullName || 
                      `${voucher.studentId?.firstName || ''} ${voucher.studentId?.lastName || ''}`.trim() ||
                      'N/A';
-  const guardianType = voucher.studentId?.studentProfile?.guardianType || 'parent';
-  const parentLabel = guardianType === 'guardian' ? 'Guardian:' : 'Father:';
-  const parentName = guardianType === 'guardian'
-    ? (voucher.studentId?.studentProfile?.guardian?.name || 'N/A')
-    : (voucher.studentId?.fatherName || voucher.studentId?.studentProfile?.father?.name || 'N/A');
-  const registrationNumber = voucher.studentId?.studentProfile?.registrationNumber ||
-                            voucher.studentId?.registrationNumber || 'N/A';
-  const rollNumber = voucher.studentId?.studentProfile?.rollNumber ||
-                    voucher.studentId?.rollNumber || 'N/A';
-  const className = voucher.classId?.name || 'N/A';
-  const section = voucher.studentId?.studentProfile?.section || 'N/A';
-  const branchName = voucher.branchId?.name || 'N/A';
+  const rollNo = voucher.studentId?.rollNumber || 'N/A';
+  const regNo = voucher.studentId?.registrationNumber || voucher.studentId?.studentProfile?.registrationNumber || 'N/A';
+  const className = voucher.class?.name || 'N/A';
+  const sectionName = voucher.section?.name || 'N/A';
+
+  doc.setFont('helvetica', 'bold');
+  doc.text('Student Name:', margin, yPosition);
+  doc.setFont('helvetica', 'normal');
+  doc.text(studentName, margin + 35, yPosition);
+
+  doc.setFont('helvetica', 'bold');
+  doc.text('Class / Section:', margin + (contentWidth * 0.5), yPosition);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`${className} - ${sectionName}`, margin + (contentWidth * 0.5) + 35, yPosition);
+
+  yPosition += 6;
+  doc.setFont('helvetica', 'bold');
+  doc.text('Roll Number:', margin, yPosition);
+  doc.setFont('helvetica', 'normal');
+  doc.text(rollNo, margin + 35, yPosition);
+
+  doc.setFont('helvetica', 'bold');
+  doc.text('Registration #:', margin + (contentWidth * 0.5), yPosition);
+  doc.setFont('helvetica', 'normal');
+  doc.text(regNo, margin + (contentWidth * 0.5) + 35, yPosition);
+
+  yPosition += 10;
   
+  // Skip old complex mapping logic entirely
+  
+  // FEE DETAILS
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(h2Size);
+  doc.text('FEE SUMMARY', margin, yPosition);
+  
+  yPosition += 4;
+  doc.line(margin, yPosition, margin + contentWidth, yPosition);
+
+  yPosition += 6;
   doc.setFontSize(bodySize);
+
+  const feeType = voucher.feeType || voucher.fee_type || 'Monthly';
+  const totalAmt = Number(voucher.totalAmount || voucher.amountDue || 0);
+  const paidAmt = Number(voucher.paidAmount || 0);
+  const remainingAmt = Number(voucher.remainingAmount !== undefined ? voucher.remainingAmount : (totalAmt - paidAmt));
+
+  doc.setFont('helvetica', 'bold');
+  doc.text('Fee Type:', margin, yPosition);
   doc.setFont('helvetica', 'normal');
-  doc.setTextColor(0, 0, 0);
-  
-  if (isMobile) {
-    // Mobile: Stacked layout with proper alignment
-    const labelValueGap = 4;
-    const rowSpacing = lineHeight + 1;
-    
-    // First row: Student Name
+  doc.text(feeType, margin + 35, yPosition);
+
+  if (feeType === 'Installment') {
     doc.setFont('helvetica', 'bold');
-    doc.setTextColor(...secondaryColor);
-    doc.text('Student:', margin + boxPadding, studentY, { baseline: 'middle' });
+    doc.text('Installment Info:', margin + (contentWidth * 0.5), yPosition);
     doc.setFont('helvetica', 'normal');
-    doc.setTextColor(0, 0, 0);
-    const studentLabelWidth = doc.getTextWidth('Student:');
-    // Check if name fits, otherwise truncate
-    let displayName = studentName;
-    const maxNameWidth = contentWidth - (boxPadding * 2) - studentLabelWidth - labelValueGap;
-    if (doc.getTextWidth(displayName) > maxNameWidth) {
-      while (doc.getTextWidth(displayName + '...') > maxNameWidth && displayName.length > 3) {
-        displayName = displayName.slice(0, -1);
-      }
-      displayName = displayName + '...';
-    }
-    doc.text(displayName, margin + boxPadding + studentLabelWidth + labelValueGap, 
-             studentY, { baseline: 'middle' });
-
-    // Second row: Class & Section
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(...secondaryColor);
-    doc.text('Class:', margin + boxPadding, studentY + rowSpacing, { baseline: 'middle' });
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(0, 0, 0);
-    const classLabelWidth = doc.getTextWidth('Class:');
-    doc.text(`${className} - ${section}`, margin + boxPadding + classLabelWidth + labelValueGap, 
-             studentY + rowSpacing, { baseline: 'middle' });
-
-    // Third row: Parent/Guardian
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(...secondaryColor);
-    doc.text(parentLabel, margin + boxPadding, studentY + (rowSpacing * 2), { baseline: 'middle' });
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(0, 0, 0);
-    const parentLabelWidth = doc.getTextWidth(parentLabel);
-    // Check if parent name fits
-    let displayParentName = parentName;
-    const maxParentWidth = contentWidth - (boxPadding * 2) - parentLabelWidth - labelValueGap;
-    if (doc.getTextWidth(displayParentName) > maxParentWidth) {
-      while (doc.getTextWidth(displayParentName + '...') > maxParentWidth && displayParentName.length > 3) {
-        displayParentName = displayParentName.slice(0, -1);
-      }
-      displayParentName = displayParentName + '...';
-    }
-    doc.text(displayParentName, margin + boxPadding + parentLabelWidth + labelValueGap, 
-             studentY + (rowSpacing * 2), { baseline: 'middle' });
-
-    // Fourth row: Registration & Roll Number
-    const fourthRowY = studentY + (rowSpacing * 3);
-    
-    // Registration Number
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(...secondaryColor);
-    doc.text('Reg #:', margin + boxPadding, fourthRowY, { baseline: 'middle' });
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(0, 0, 0);
-    const regLabelWidth = doc.getTextWidth('Reg #:');
-    doc.text(registrationNumber, margin + boxPadding + regLabelWidth + labelValueGap, 
-             fourthRowY, { baseline: 'middle' });
-
-    // Fifth row: Roll Number & Branch
-    const fifthRowY = studentY + (rowSpacing * 4);
-    
-    // Roll Number
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(...secondaryColor);
-    doc.text('Roll #:', margin + boxPadding, fifthRowY, { baseline: 'middle' });
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(0, 0, 0);
-    const rollLabelWidth = doc.getTextWidth('Roll #:');
-    doc.text(rollNumber, margin + boxPadding + rollLabelWidth + labelValueGap, 
-             fifthRowY, { baseline: 'middle' });
-
-    // Branch (on same line if space available)
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(...secondaryColor);
-    const rollEndX = margin + boxPadding + rollLabelWidth + labelValueGap + doc.getTextWidth(rollNumber);
-    if (rollEndX + doc.getTextWidth('Branch:') + labelValueGap + doc.getTextWidth(branchName) < margin + contentWidth - boxPadding) {
-      doc.text('Branch:', rollEndX + 10, fifthRowY, { baseline: 'middle' });
-      doc.setFont('helvetica', 'normal');
-      doc.setTextColor(0, 0, 0);
-      const branchLabelWidth = doc.getTextWidth('Branch:');
-      doc.text(branchName, rollEndX + 10 + branchLabelWidth + labelValueGap, 
-               fifthRowY, { baseline: 'middle' });
-    }
-
-  } else {
-    // Desktop: Two-column layout with adjusted widths
-    const labelWidth = 35; // Reduced for better fit
-    const leftColX = margin + boxPadding;
-    const rightColX = margin + (contentWidth * 0.55); // Adjusted column split
-    const valueOffset = labelWidth + 3; // Reduced space between label and value
-    
-    // Set font for labels
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(...secondaryColor);
-    
-    // Left Column - Labels
-    doc.text('Student Name:', leftColX, studentY, { baseline: 'middle' });
-    doc.text('Class & Section:', leftColX, studentY + lineHeight, { baseline: 'middle' });
-    doc.text(parentLabel, leftColX, studentY + (lineHeight * 2), { baseline: 'middle' });
-
-    // Right Column - Labels
-    doc.text('Registration #:', rightColX, studentY, { baseline: 'middle' });
-    doc.text('Roll Number:', rightColX, studentY + lineHeight, { baseline: 'middle' });
-    doc.text('Branch:', rightColX, studentY + (lineHeight * 2), { baseline: 'middle' });
-
-    // Set font for values
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(0, 0, 0);
-    
-    // Calculate available width for values
-    const leftValueWidth = rightColX - leftColX - valueOffset - 5;
-    const rightValueWidth = margin + contentWidth - rightColX - valueOffset - boxPadding;
-    
-    // Left Column - Values with text wrapping
-    let displayStudentName = studentName;
-    if (doc.getTextWidth(displayStudentName) > leftValueWidth) {
-      while (doc.getTextWidth(displayStudentName + '...') > leftValueWidth && displayStudentName.length > 3) {
-        displayStudentName = displayStudentName.slice(0, -1);
-      }
-      displayStudentName = displayStudentName + '...';
-    }
-    doc.text(displayStudentName, leftColX + valueOffset, studentY, { baseline: 'middle' });
-    
-    doc.text(`${className} - ${section}`, leftColX + valueOffset, studentY + lineHeight, { baseline: 'middle' });
-    
-    let displayParentName = parentName;
-    if (doc.getTextWidth(displayParentName) > leftValueWidth) {
-      while (doc.getTextWidth(displayParentName + '...') > leftValueWidth && displayParentName.length > 3) {
-        displayParentName = displayParentName.slice(0, -1);
-      }
-      displayParentName = displayParentName + '...';
-    }
-    doc.text(displayParentName, leftColX + valueOffset, studentY + (lineHeight * 2), { baseline: 'middle' });
-
-    // Right Column - Values
-    doc.text(registrationNumber, rightColX + valueOffset, studentY, { baseline: 'middle' });
-    doc.text(rollNumber, rightColX + valueOffset, studentY + lineHeight, { baseline: 'middle' });
-    doc.text(branchName, rightColX + valueOffset, studentY + (lineHeight * 2), { baseline: 'middle' });
+    doc.text(`${voucher.installmentNo} of ${voucher.totalInstallments}`, margin + (contentWidth * 0.5) + 35, yPosition);
+    yPosition += 6;
   }
-  
-  yPosition += studentBoxHeight + (isMobile ? 4 : 6);
-  
-  // ========== FEE PERIOD SECTION ==========
-  // Section header with enhanced styling
-  doc.setFillColor(...primaryColor);
-  doc.roundedRect(margin, yPosition, contentWidth, isMobile ? 7 : 9, 2, 2, 'F');
 
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(h3Size);
+  yPosition += 6;
+
   doc.setFont('helvetica', 'bold');
-  doc.text('FEE PERIOD', margin + boxPadding, yPosition + (isMobile ? 4 : 5));
-
-  yPosition += (isMobile ? 8 : 10);
-
-  // Enhanced Fee period box with gradient background
-  const periodBoxHeight = isMobile ? 16 : 18;
-
-  // Main background
-  doc.setFillColor(249, 250, 251);
-  doc.roundedRect(margin, yPosition, contentWidth, periodBoxHeight, 3, 3, 'F');
-
-  // Add subtle gradient effect
-  doc.setFillColor(240, 245, 250);
-  doc.roundedRect(margin, yPosition, contentWidth, periodBoxHeight * 0.4, 3, 3, 'F');
-
-  // Border with primary color
-  doc.setDrawColor(...primaryColor);
-  doc.setLineWidth(0.8);
-  doc.roundedRect(margin, yPosition, contentWidth, periodBoxHeight, 3, 3, 'S');
-  
-  const periodY = yPosition + boxPadding;
-  
-  const monthName = MONTHS.find(m => m.value === voucher.month.toString())?.label || voucher.month;
-  const dueDate = voucher.dueDate ? new Date(voucher.dueDate).toLocaleDateString('en-PK', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric'
-  }) : 'N/A';
-  
-  doc.setFontSize(bodySize);
+  doc.text('Total Amount:', margin, yPosition);
   doc.setFont('helvetica', 'normal');
-  doc.setTextColor(0, 0, 0);
-  
-  if (isMobile) {
-    // Mobile: Two lines for better readability
-    doc.text(`Month: ${monthName} ${voucher.year}`, 
-             margin + boxPadding, periodY, { baseline: 'middle' });
-    doc.text(`Due: ${dueDate}`, 
-             margin + contentWidth - boxPadding, periodY, 
-             { align: 'right', baseline: 'middle' });
-  } else {
-    // Desktop: Three sections with proper spacing
-    const centerY = periodY;
-    
-    // Left: Month and Year
-    doc.text(`For: ${monthName} ${voucher.year}`, 
-             margin + boxPadding, centerY, { baseline: 'middle' });
-    
-    // Center: Due Date
-    doc.text(`Due: ${dueDate}`, 
-             pageWidth / 2, centerY, 
-             { align: 'center', baseline: 'middle' });
-    
-    // Right: Fee Template (truncated if needed)
-    const templateName = voucher.templateId?.name || 'N/A';
-    let displayTemplate = `Template: ${templateName}`;
-    const maxTemplateWidth = contentWidth * 0.3;
-    if (doc.getTextWidth(displayTemplate) > maxTemplateWidth) {
-      while (doc.getTextWidth(displayTemplate + '...') > maxTemplateWidth && displayTemplate.length > 10) {
-        displayTemplate = displayTemplate.slice(0, -1);
-      }
-      displayTemplate = displayTemplate + '...';
-    }
-    doc.text(displayTemplate, 
-             margin + contentWidth - boxPadding, centerY, 
-             { align: 'right', baseline: 'middle' });
-  }
-  
-  yPosition += periodBoxHeight + (isMobile ? 4 : 6);
+  doc.text(`PKR ${totalAmt.toLocaleString('en-PK')}`, margin + 35, yPosition);
 
-  // ========== FEE BREAKDOWN SECTION ==========
-  // Section header
-  doc.setFillColor(...primaryColor);
-  doc.roundedRect(margin, yPosition, contentWidth, isMobile ? 7 : 9, 2, 2, 'F');
-
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(h3Size);
   doc.setFont('helvetica', 'bold');
-  doc.text('FEE BREAKDOWN', margin + boxPadding, yPosition + (isMobile ? 4 : 5));
-
-  yPosition += (isMobile ? 8 : 10);
-
-  // Prepare fee items dynamically from voucher
-  const feeItems = [];
-  
-  // 1. Add Base Amount if exists
-  if (voucher.baseAmount > 0) {
-    feeItems.push({ description: 'Base Template Amount', amount: voucher.baseAmount });
-  }
-
-  // 2. Add Template Items/Components
-  if (voucher.items && voucher.items.length > 0) {
-    voucher.items.forEach(item => {
-      feeItems.push({ description: item.name, amount: item.amount || 0 });
-    });
-  } else if (voucher.templateId?.items && voucher.templateId.items.length > 0) {
-    // Fallback to template items if voucher doesn't have them (for older vouchers)
-    voucher.templateId.items.forEach(item => {
-      feeItems.push({ description: item.name, amount: item.amount || 0 });
-    });
-  } else {
-    // Ultimate fallback for very old vouchers
-    feeItems.push({ description: 'Tuition Fee', amount: voucher.amount || 0 });
-  }
-
-  // 3. Add Late Fee if applicable
-  if (voucher.lateFeeAmount > 0) {
-    feeItems.push({ description: 'Late Fee Fine', amount: voucher.lateFeeAmount });
-  }
-
-  // Filter non-zero items (except we might want to show 0 if user asked for it, but usually non-zero is cleaner)
-  // User said: "r agar ksi component mein Amount hoto Amount aye wrna 0 aye"
-  // This implies they want to see all components even if 0.
-  const displayItems = feeItems;
-
-  // Add discount if applicable
-  if (voucher.discountAmount > 0) {
-    displayItems.push({ description: 'Discount', amount: -voucher.discountAmount });
-  }
-
-  // Calculate table dimensions
-  const headerHeight = isMobile ? 10 : 12;
-  const rowHeight = isMobile ? 10 : 12;
-  const totalRowHeight = isMobile ? 12 : 15;
-  const tableHeight = headerHeight + (displayItems.length * rowHeight) + totalRowHeight;
-
-  // Calculate column widths - optimized for better fit
-  const descColWidth = contentWidth * 0.6; // 60% for description
-  const amountColWidth = contentWidth * 0.4; // 40% for amount
-
-  // Column positions
-  const descHeaderX = margin + boxPadding;
-  const amountHeaderX = margin + descColWidth;
-  const amountEndX = margin + contentWidth - boxPadding;
-
-  // Table header
-  doc.setFillColor(...primaryColor);
-  doc.roundedRect(margin, yPosition, contentWidth, headerHeight, 1, 1, 'F');
-
-  doc.setTextColor(255, 255, 255);
-  doc.setFontSize(isMobile ? 9 : 11);
-  doc.setFont('helvetica', 'bold');
-  doc.text('Description', descHeaderX, yPosition + headerHeight/2, { baseline: 'middle' });
-  doc.text('Amount (PKR)', amountEndX, yPosition + headerHeight/2, { align: 'right', baseline: 'middle' });
-
-  let currentY = yPosition + headerHeight;
-
-  // Table rows
-  let subTotal = 0;
-
-  displayItems.forEach((item, index) => {
-    // Alternate row background
-    if (index % 2 === 0) {
-      doc.setFillColor(255, 255, 255);
-    } else {
-      doc.setFillColor(249, 250, 251);
-    }
-    doc.rect(margin, currentY, contentWidth, rowHeight, 'F');
-
-    // Description with truncation
-    doc.setFont('helvetica', 'normal');
-    doc.setTextColor(0, 0, 0);
-    doc.setFontSize(isMobile ? 8 : 10);
-
-    let description = item.description;
-    const maxDescWidth = descColWidth - (boxPadding * 2);
-    
-    if (doc.getTextWidth(description) > maxDescWidth) {
-      while (doc.getTextWidth(description + '...') > maxDescWidth && description.length > 3) {
-        description = description.slice(0, -1);
-      }
-      description = description + '...';
-    }
-
-    doc.text(description, descHeaderX, currentY + rowHeight/2, { baseline: 'middle' });
-
-    // Amount
-    const amountText = Math.abs(item.amount).toLocaleString('en-PK');
-    const amountColor = item.amount < 0 ? [220, 38, 38] : secondaryColor; // Red for discount
-    doc.setTextColor(...amountColor);
-    doc.setFont('helvetica', 'bold');
-
-    const formattedAmount = item.amount < 0 ? `-${amountText}` : amountText;
-    doc.text(formattedAmount, amountEndX, currentY + rowHeight/2, { align: 'right', baseline: 'middle' });
-
-    subTotal += item.amount;
-    currentY += rowHeight;
-  });
-
-  // Total row
-  const totalAmount = voucher.totalAmount || Math.max(0, subTotal);
-
-  doc.setFillColor(...highlightColor);
-  doc.roundedRect(margin, currentY, contentWidth, totalRowHeight, 1, 1, 'F');
-
-  doc.setDrawColor(245, 158, 11);
-  doc.setLineWidth(0.5);
-  doc.rect(margin, currentY, contentWidth, totalRowHeight);
-
-  doc.setFontSize(isMobile ? 10 : 12);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(133, 77, 14);
-
-  const totalLabel = 'TOTAL PAYABLE:';
-  doc.text(totalLabel, descHeaderX, currentY + totalRowHeight/2, { baseline: 'middle' });
-
-  const totalText = totalAmount.toLocaleString('en-PK');
-  doc.text(totalText, amountEndX, currentY + totalRowHeight/2, { align: 'right', baseline: 'middle' });
-
-  // Add vertical line to separate columns
-  doc.setDrawColor(...borderColor);
-  doc.setLineWidth(0.3);
-  doc.line(amountHeaderX, yPosition, amountHeaderX, yPosition + tableHeight);
-
-  // Add border around entire table
-  doc.setDrawColor(...borderColor);
-  doc.setLineWidth(0.5);
-  doc.roundedRect(margin, yPosition, contentWidth, tableHeight, 2, 2, 'S');
-
-  yPosition += tableHeight + (isMobile ? 8 : 12);
-
-  // ========== PAYMENT STATUS SECTION ==========
-  if (voucher.paidAmount > 0) {
-    const paidAmount = voucher.paidAmount || 0;
-    const remainingAmount = Math.max(0, totalAmount - paidAmount);
-    
-    const statusBoxHeight = isMobile ? 30 : 35;
-    
-    doc.setFillColor(240, 253, 244);
-    doc.roundedRect(margin, yPosition, contentWidth, statusBoxHeight, 2, 2, 'F');
-    doc.setDrawColor(34, 197, 94);
-    doc.setLineWidth(0.8);
-    doc.rect(margin, yPosition, contentWidth, statusBoxHeight);
-    
-    // Status title
-    doc.setTextColor(21, 128, 61);
-    doc.setFontSize(isMobile ? 11 : 13);
-    doc.setFont('helvetica', 'bold');
-    doc.text('PAYMENT STATUS', margin + boxPadding, yPosition + (statusBoxHeight/3), { baseline: 'middle' });
-    
-    // Amount details
-    doc.setFontSize(isMobile ? 9 : 11);
-    doc.setFont('helvetica', 'normal');
-    
-    if (isMobile) {
-      doc.setTextColor(21, 128, 61);
-      doc.text(`Paid: ${paidAmount.toLocaleString('en-PK')}`, 
-               margin + boxPadding, yPosition + (statusBoxHeight * 2/3), { baseline: 'middle' });
-      
-      if (remainingAmount > 0) {
-        doc.setTextColor(220, 38, 38);
-        doc.text(`Due: ${remainingAmount.toLocaleString('en-PK')}`, 
-                 margin + contentWidth - boxPadding, yPosition + (statusBoxHeight * 2/3), 
-                 { align: 'right', baseline: 'middle' });
-      } else {
-        doc.setTextColor(21, 128, 61);
-        doc.text('✓ Fully Paid', margin + contentWidth - boxPadding, yPosition + (statusBoxHeight * 2/3), 
-                 { align: 'right', baseline: 'middle' });
-      }
-    } else {
-      doc.setTextColor(21, 128, 61);
-      doc.text(`Amount Paid: ${paidAmount.toLocaleString('en-PK')}`, 
-               margin + boxPadding, yPosition + (statusBoxHeight * 2/3), { baseline: 'middle' });
-      
-      if (remainingAmount > 0) {
-        doc.setTextColor(220, 38, 38);
-        doc.text(`Balance Due: ${remainingAmount.toLocaleString('en-PK')}`, 
-                 margin + contentWidth - boxPadding, yPosition + (statusBoxHeight * 2/3), 
-                 { align: 'right', baseline: 'middle' });
-      } else {
-        doc.setTextColor(21, 128, 61);
-        doc.text('✓ Fully Paid', margin + contentWidth - boxPadding, yPosition + (statusBoxHeight * 2/3), 
-                 { align: 'right', baseline: 'middle' });
-      }
-    }
-    
-    yPosition += statusBoxHeight + (isMobile ? 8 : 12);
-  }
-
-  // ========== INSTRUCTIONS SECTION ==========
-  if (yPosition < pageHeight - 40) {
-    doc.setTextColor(...secondaryColor);
-    doc.setFontSize(isMobile ? 8 : 9);
-    doc.setFont('helvetica', 'italic');
-    
-    const instructions = [
-      '• Pay before due date to avoid late charges',
-      '• Keep this voucher for your records',
-      '• Contact accounts office for queries'
-    ];
-    
-    instructions.forEach((instruction, index) => {
-      const instructionY = yPosition + (index * (isMobile ? 3 : 4));
-      doc.text(instruction, margin + 2, instructionY, { baseline: 'middle' });
-    });
-    
-    yPosition += isMobile ? 15 : 20;
-  }
-  
-  // ========== FOOTER SECTION ==========
-  const footerY = pageHeight - margin - (isMobile ? 20 : 25);
-  
-  // Horizontal line
-  doc.setDrawColor(...borderColor);
-  doc.setLineWidth(0.3);
-  doc.line(margin, footerY, margin + contentWidth, footerY);
-  
-  // Signature areas
-  doc.setFontSize(smallSize);
+  doc.text('Already Paid:', margin + (contentWidth * 0.5), yPosition);
   doc.setFont('helvetica', 'normal');
-  doc.setTextColor(100, 116, 139);
+  doc.text(`PKR ${paidAmt.toLocaleString('en-PK')}`, margin + (contentWidth * 0.5) + 35, yPosition);
+
+  yPosition += 6;
+  doc.setFont('helvetica', 'bold');
+  doc.text('Outstanding:', margin, yPosition);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`PKR ${remainingAmt.toLocaleString('en-PK')}`, margin + 35, yPosition);
+
+  yPosition += 12;
+
+  yPosition += 10;
+
+  // Simple Total Summary
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(12);
+  doc.text('Total Payable:', margin, yPosition);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`PKR ${remainingAmt.toLocaleString('en-PK')}`, margin + 35, yPosition);
+
+  yPosition += 15;
   
-  if (!isMobile) {
-    // Desktop: Two signature areas
-    doc.text('____________________', margin + 50, footerY + 6, 
-             { align: 'center', baseline: 'middle' });
-    doc.text('Student/Parent Signature', margin + 50, footerY + 10, 
-             { align: 'center', baseline: 'middle' });
-    
-    doc.text('____________________', margin + contentWidth - 50, footerY + 6, 
-             { align: 'center', baseline: 'middle' });
-    doc.text('Accounts Officer', margin + contentWidth - 50, footerY + 10, 
-             { align: 'center', baseline: 'middle' });
-  } else {
-    // Mobile: Single signature area centered
-    doc.text('____________________', pageWidth / 2, footerY + 6, 
-             { align: 'center', baseline: 'middle' });
-    doc.text('Student/Parent Signature', pageWidth / 2, footerY + 10, 
-             { align: 'center', baseline: 'middle' });
-  }
-  
-  // Footer text
-  doc.setFontSize(smallSize);
+  // INSTRUCTIONS
+  yPosition += 10;
+  doc.setFontSize(9);
   doc.setFont('helvetica', 'italic');
+  doc.setTextColor(0, 0, 0);
+  doc.text('• Please pay before the due date to avoid late charges.', margin, yPosition);
   
-  const footerNoteY = pageHeight - margin - 3;
-  doc.text('Computer Generated Document - No Signature Required', 
-           pageWidth / 2, footerNoteY, 
-           { align: 'center', baseline: 'middle' });
-  
-  // Generation timestamp
+  yPosition += 5;
+  doc.text('• Keep this voucher for your personal records.', margin, yPosition);
+
+  // Footer Signatures
+  const footerY = pageHeight - 30;
+  doc.setFontSize(10);
   doc.setFont('helvetica', 'normal');
-  const timestamp = new Date().toLocaleString('en-PK', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit'
-  });
+  doc.text('_________________________', margin + 30, footerY, { align: 'center' });
+  doc.text('Student/Parent Signature', margin + 30, footerY + 5, { align: 'center' });
+
+  doc.text('_________________________', margin + contentWidth - 30, footerY, { align: 'center' });
+  doc.text('Accounts Officer', margin + contentWidth - 30, footerY + 5, { align: 'center' });
   
-  doc.text(`Generated: ${timestamp}`, 
-           margin + contentWidth, footerY - 8, 
-           { align: 'right', baseline: 'middle' });
-  
-  // Coaching contact information
-  doc.setTextColor(...primaryColor);
-  doc.setFontSize(smallSize);
-  doc.setFont('helvetica', 'bold');
-  
-  const contactText = 'Adamjee Coaching • accounts@easeacademy.edu.pk • (042) 123-4567';
-  const contactTextWidth = doc.getTextWidth(contactText);
-  
-  if (contactTextWidth > contentWidth) {
-    // Split into two lines if too long
-    doc.text('Adamjee Coaching • accounts@easeacademy.edu.pk', 
-             margin, footerY - 15, { baseline: 'middle' });
-    doc.text('(042) 123-4567', margin, footerY - 10, { baseline: 'middle' });
-  } else {
-    doc.text(contactText, margin, footerY - 12, { baseline: 'middle' });
-  }
-  
-  return doc.output('arraybuffer');
+  return Buffer.from(doc.output('arraybuffer'));
 };

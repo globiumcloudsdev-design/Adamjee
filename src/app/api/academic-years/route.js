@@ -7,7 +7,27 @@ import { Op } from "sequelize";
 async function getAcademicYears(req) {
   try {
     const user = req.user;
-    const whereClause = user.role === "SUPER_ADMIN" ? {} : { [Op.or]: [{ branch_id: user.branch_id }, { branch_id: null }] };
+    const { searchParams } = new URL(req.url);
+    const branchIdParam = searchParams.get("branch_id");
+
+    let whereClause = {};
+    if (user.role === "SUPER_ADMIN") {
+      if (branchIdParam) {
+        whereClause = {
+          [Op.or]: [
+            { branch_id: branchIdParam },
+            { branch_id: null }
+          ]
+        };
+      }
+    } else {
+      whereClause = {
+        [Op.or]: [
+          { branch_id: user.branch_id },
+          { branch_id: null }
+        ]
+      };
+    }
     const years = await AcademicYearModel.findAll({ 
       where: whereClause, 
       order: [["start_date", "DESC"]],

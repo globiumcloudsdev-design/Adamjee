@@ -18,6 +18,7 @@ import apiClient from '@/lib/api-client';
 import { API_ENDPOINTS } from '@/constants/api-endpoints';
 import { toast } from 'sonner';
 import { generateFeeVoucherPDF } from '@/lib/pdf-generator';
+import ConfirmDeleteModal from '@/components/modals/ConfirmDeleteModal';
 
 const MONTHS = [
   { value: '1', label: 'January' },
@@ -88,10 +89,13 @@ export default function FeeVouchersPage() {
   
   // Form data for generate modal
   const [formData, setFormData] = useState({
-    templateId: '',
+    generation_type: 'branch',
+    academic_year_id: '',
+    groupId: '',
     classId: '',
+    sectionId: '',
+    studentId: '',
     studentIds: [],
-    selectAllStudents: false,
     dueDate: '',
     month: (new Date().getMonth() + 1).toString(),
     year: new Date().getFullYear().toString(),
@@ -100,9 +104,15 @@ export default function FeeVouchersPage() {
   
   // Dropdown data
   const [templates, setTemplates] = useState([]);
+  const [groups, setGroups] = useState([]);
+  const [academicYears, setAcademicYears] = useState([]);
   const [classes, setClasses] = useState([]);
   const [students, setStudents] = useState([]);
   const [studentDropdownOpen, setStudentDropdownOpen] = useState(false);
+  
+  // Delete confirmation modal states
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deletingVoucherId, setDeletingVoucherId] = useState(null);
   
   // Payment modal states
   const [paymentAmount, setPaymentAmount] = useState('');
@@ -119,12 +129,15 @@ export default function FeeVouchersPage() {
 
   // Load all vouchers once on mount
   useEffect(() => {
-    if (user) {
+    if (user?.id || user?._id) {
       fetchAllVouchers();
       fetchTemplates();
       fetchClasses();
+      fetchAcademicYears();
+      fetchGroups();
+      fetchStudents();
     }
-  }, [user]);
+  }, [user?.id, user?._id]);
 
   // Reset pagination when filters change
   useEffect(() => {
@@ -168,44 +181,54 @@ export default function FeeVouchersPage() {
 
   const fetchTemplates = async () => {
     try {
-      const res = await apiClient.get(API_ENDPOINTS.BRANCH_ADMIN.FEE_TEMPLATES.LIST, { limit: 200, status: 'active' });
-      console.log('Templates response:', res);
-      if (res?.success) {
-        // Handle different response structures
-        const templatesData = res.data?.templates || res.data?.data || res.data || [];
-        console.log('Templates data:', templatesData);
-        setTemplates(Array.isArray(templatesData) ? templatesData : []);
-      } else {
-        console.error('Templates API returned success false:', res);
-        toast.error('Failed to load fee templates');
-      }
+      const res = await apiClient.get('/api/fee-templates', { limit: 200, status: 'active' });
+      if (Array.isArray(res)) setTemplates(res);
+      else if (res?.success) setTemplates(res.data.templates || res.data || []);
     } catch (err) {
       console.error('Error loading templates:', err);
-      toast.error('Failed to load fee templates');
     }
   };
 
   const fetchClasses = async () => {
     try {
-      const res = await apiClient.get(API_ENDPOINTS.BRANCH_ADMIN.CLASSES.LIST, { limit: 200 });
-      if (res?.success) {
-        // Handle different response structures
-        const classesData = res.data?.classes || res.data || [];
-        setClasses(Array.isArray(classesData) ? classesData : []);
-      }
+      const res = await apiClient.get('/api/classes', { limit: 200 });
+      if (Array.isArray(res)) setClasses(res);
+      else if (res?.success) setClasses(res.data.classes || res.data || []);
     } catch (err) {
       console.error('Error loading classes:', err);
     }
   };
 
+
+  const fetchGroups = async () => {
+    try {
+      const res = await apiClient.get('/api/groups');
+      if (Array.isArray(res)) setGroups(res);
+      else if (res?.success) setGroups(res.data.groups || res.data || []);
+    } catch (err) {
+      console.error('Error loading groups:', err);
+    }
+  };
+
+  const fetchAcademicYears = async () => {
+    try {
+      const res = await apiClient.get('/api/academic-years');
+      if (Array.isArray(res)) setAcademicYears(res);
+      else if (res?.academic_years) setAcademicYears(res.academic_years);
+      else if (res?.success) setAcademicYears(res.data.academicYears || res.data || []);
+    } catch (err) {
+      console.error('Error loading academic years:', err);
+    }
+  };
+
   const fetchStudents = async () => {
     try {
-      const params = { limit: 500, classId: formData.classId };
-      const res = await apiClient.get(API_ENDPOINTS.BRANCH_ADMIN.STUDENTS.LIST, params);
-      if (res?.success) setStudents(res.data.students || []);
+      const params = { limit: 1000 };
+      const res = await apiClient.get('/api/users/students', params);
+      if (Array.isArray(res)) setStudents(res);
+      else if (res?.success) setStudents(res.data.students || res.data || []);
     } catch (err) {
       console.error('Error loading students:', err);
-      toast.error('Failed to load students');
     }
   };
 
@@ -243,12 +266,12 @@ export default function FeeVouchersPage() {
 
     // Apply month filter
     if (monthFilter) {
-      filtered = filtered.filter(v => v.month.toString() === monthFilter);
+      filtered = filtered.filter(v => v.month?.toString() === monthFilter);
     }
 
     // Apply year filter
     if (yearFilter) {
-      filtered = filtered.filter(v => v.year.toString() === yearFilter);
+      filtered = filtered.filter(v => v.year?.toString() === yearFilter || v.dueDate?.substring(0, 4) === yearFilter);
     }
 
     // Categorize by status
@@ -328,23 +351,22 @@ export default function FeeVouchersPage() {
     setSubmitting(true);
 
     try {
-      if (!formData.templateId) return toast.error('Please select a fee template');
       if (!formData.dueDate) return toast.error('Please select a due date');
 
       const payload = {
-        templateId: formData.templateId,
-        dueDate: formData.dueDate,
+        generation_type: formData.generation_type,
+        academic_year_id: formData.academic_year_id,
+        group_id: formData.groupId,
+        class_id: formData.classId,
+        section_id: formData.sectionId,
+        student_id: formData.studentId,
+        due_date: formData.dueDate,
         month: parseInt(formData.month),
         year: parseInt(formData.year),
         remarks: formData.remarks,
       };
 
-      if (formData.studentIds.length > 0 || formData.selectAllStudents) {
-        const studentIds = formData.selectAllStudents ? students.map(s => s._id) : formData.studentIds;
-        payload.studentIds = studentIds;
-      }
-
-      const res = await apiClient.post(API_ENDPOINTS.BRANCH_ADMIN.FEE_VOUCHERS.CREATE, payload);
+      const res = await apiClient.post('/api/fee-vouchers', payload);
       if (res?.success) {
         toast.success(res.message || 'Fee vouchers generated successfully!');
         setIsGenerateModalOpen(false);
@@ -370,6 +392,26 @@ export default function FeeVouchersPage() {
       }
     } catch (err) {
       toast.error(err.message || 'Failed to cancel voucher');
+    }
+  };
+
+  const handleDeleteVoucher = (id) => {
+    setDeletingVoucherId(id);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDeleteVoucher = async () => {
+    if (!deletingVoucherId) return;
+    try {
+      const res = await apiClient.delete(`/api/fee-vouchers/${deletingVoucherId}`);
+      if (res?.success) {
+        toast.success('Voucher deleted successfully');
+        setIsDeleteModalOpen(false);
+        setDeletingVoucherId(null);
+        fetchAllVouchers(); 
+      }
+    } catch (err) {
+      toast.error(err.message || 'Failed to delete voucher');
     }
   };
 
@@ -409,14 +451,20 @@ export default function FeeVouchersPage() {
       return;
     }
 
+    const outstanding = Number(selectedVoucherForPayment.remainingAmount || selectedVoucherForPayment.totalAmount || 0);
+    if (parseFloat(paymentAmount) > outstanding) {
+      toast.error(`Payment amount exceeds outstanding balance (PKR ${outstanding})`);
+      return;
+    }
+
     setProcessingPayment(true);
     try {
       const res = await apiClient.post(
-        API_ENDPOINTS.BRANCH_ADMIN.FEE_VOUCHERS.MANUAL_PAYMENT.replace(':id', selectedVoucherForPayment._id),
+        `/api/fee-vouchers/${selectedVoucherForPayment.id || selectedVoucherForPayment._id}/manual-payment`,
         {
           amount: parseFloat(paymentAmount),
           remarks: paymentRemarks,
-          paymentMethod: 'cash',
+          method: 'Cash',
         }
       );
 
@@ -426,7 +474,11 @@ export default function FeeVouchersPage() {
         setSelectedVoucherForPayment(null);
         setPaymentAmount('');
         setPaymentRemarks('');
-        fetchAllVouchers(); // Refresh data
+        
+        if (res.data) {
+          setAllVouchers(prev => prev.map(v => (v.id === res.data.id || v._id === res.data._id) ? res.data : v));
+        }
+        fetchAllVouchers(); 
       }
     } catch (err) {
       toast.error(err.message || 'Failed to process payment');
@@ -471,7 +523,6 @@ export default function FeeVouchersPage() {
               <TableRow>
                 <TableHead>Voucher #</TableHead>
                 <TableHead>Student</TableHead>
-                <TableHead>Template</TableHead>
                 <TableHead>Month/Year</TableHead>
                 <TableHead>Due Date</TableHead>
                 <TableHead className="text-right">Total Amount</TableHead>
@@ -503,13 +554,9 @@ export default function FeeVouchersPage() {
                       <div>
                         <div className="font-medium">{name}</div>
                         <div className="text-xs text-gray-500">
-                          Reg: {registrationNumber} | Roll: {rollNumber} | Sec: {section}
+                          Reg: {registrationNumber} | Roll: {rollNumber} | Sec: {voucher.section?.name || section}
                         </div>
                       </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="text-sm">{voucher.templateId?.name || '---'}</div>
-                      <div className="text-xs text-gray-500">{voucher.templateId?.code || '---'}</div>
                     </TableCell>
                     <TableCell>{MONTHS.find(m => m.value === voucher.month?.toString())?.label} {voucher.year}</TableCell>
                     <TableCell>
@@ -545,7 +592,7 @@ export default function FeeVouchersPage() {
                     </TableCell>
                     <TableCell>
                       <div className="flex gap-1">
-                        <Button variant="ghost" size="icon-sm" title="View" onClick={() => handleViewVoucher(voucher._id)}>
+                        <Button variant="ghost" size="icon-sm" title="View" onClick={() => handleViewVoucher(voucher.id || voucher._id)}>
                           <Eye className="w-4 h-4" />
                         </Button>
                         <Button variant="ghost" size="icon-sm" title="Download" onClick={() => handleDownloadVoucher(voucher)}>
@@ -556,7 +603,10 @@ export default function FeeVouchersPage() {
                             <Button variant="ghost" size="icon-sm" title="Payment" onClick={() => handleOpenManualPayment(voucher)}>
                               <CreditCard className="w-4 h-4 text-green-600" />
                             </Button>
-                            <Button variant="ghost" size="icon-sm" title="Cancel" onClick={() => handleCancelVoucher(voucher._id)}>
+                            <Button variant="ghost" size="icon-sm" title="Cancel" onClick={() => handleCancelVoucher(voucher.id || voucher._id)}>
+                              <XCircle className="w-4 h-4 text-orange-600" />
+                            </Button>
+                            <Button variant="ghost" size="icon-sm" title="Delete" onClick={() => handleDeleteVoucher(voucher.id || voucher._id)}>
                               <Trash2 className="w-4 h-4 text-red-600" />
                             </Button>
                           </>
@@ -884,23 +934,19 @@ export default function FeeVouchersPage() {
         <form onSubmit={handleGenerateVouchers} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
-              <Label>Fee Template *</Label>
+              <Label>Generation Type *</Label>
               <Dropdown
-                value={formData.templateId}
-                onChange={(e) => setFormData(prev => ({ ...prev, templateId: e.target.value }))}
-                options={templates.map(t => ({ value: t._id, label: t.name }))}
-                placeholder="Select Template"
+                value={formData.generation_type}
+                onChange={(e) => setFormData(prev => ({ ...prev, generation_type: e.target.value }))}
+                options={[
+                  { value: 'branch', label: 'Branch Wide' },
+                  { value: 'group', label: 'Group Wise' },
+                  { value: 'class', label: 'Class Wise' },
+                  { value: 'single', label: 'Single Student' },
+                ]}
               />
             </div>
-            <div>
-              <Label>Class (Optional)</Label>
-              <Dropdown
-                value={formData.classId}
-                onChange={(e) => setFormData(prev => ({ ...prev, classId: e.target.value }))}
-                options={[{ value: '', label: 'All Classes' }, ...classes.map(c => ({ value: c._id, label: c.name }))]}
-                placeholder="Select Class"
-              />
-            </div>
+
             <div>
               <Label>Due Date *</Label>
               <Input
@@ -909,6 +955,75 @@ export default function FeeVouchersPage() {
                 onChange={(e) => setFormData(prev => ({ ...prev, dueDate: e.target.value }))}
               />
             </div>
+
+            <div>
+              <Label>Academic Year *</Label>
+              <Dropdown
+                value={formData.academic_year_id}
+                onChange={(e) => setFormData(prev => ({ ...prev, academic_year_id: e.target.value, groupId: '', classId: '', sectionId: '' }))}
+                options={[
+                  { value: '', label: 'Select Academic Year' },
+                  ...academicYears.map(ay => ({ value: ay.id || ay._id, label: ay.name })),
+                ]}
+              />
+            </div>
+
+            {(formData.generation_type === 'group' || formData.generation_type === 'class') && (
+              <div>
+                <Label>Group *</Label>
+                <Dropdown
+                  value={formData.groupId}
+                  onChange={(e) => setFormData(prev => ({ ...prev, groupId: e.target.value, classId: '', sectionId: '' }))}
+                  options={[
+                    { value: '', label: 'Select Group' },
+                    ...groups.map(g => ({ value: g.id || g._id, label: g.name })),
+                  ]}
+                />
+              </div>
+            )}
+
+            {formData.generation_type === 'class' && (
+              <div>
+                <Label>Class *</Label>
+                <Dropdown
+                  value={formData.classId}
+                  onChange={(e) => setFormData(prev => ({ ...prev, classId: e.target.value, sectionId: '' }))}
+                  options={[
+                    { value: '', label: 'Select Class' },
+                    ...classes.filter(c => !formData.groupId || c.group_id === formData.groupId || c.group?.id === formData.groupId).map(c => ({ value: c.id || c._id, label: c.name })),
+                  ]}
+                  disabled={!formData.groupId}
+                />
+              </div>
+            )}
+
+            {(formData.generation_type === 'class') && formData.classId && (
+              <div>
+                <Label>Section (Optional)</Label>
+                <Dropdown
+                  value={formData.sectionId}
+                  onChange={(e) => setFormData(prev => ({ ...prev, sectionId: e.target.value }))}
+                  options={[
+                    { value: '', label: 'All Sections' },
+                    ...(classes.find(c => (c.id || c._id) === formData.classId)?.sections || []).map(s => ({ value: s.id || s._id, label: s.name }))
+                  ]}
+                />
+              </div>
+            )}
+
+            {formData.generation_type === 'single' && (
+              <div>
+                <Label>Student *</Label>
+                <Dropdown
+                  value={formData.studentId}
+                  onChange={(e) => setFormData(prev => ({ ...prev, studentId: e.target.value }))}
+                  options={[
+                    { value: '', label: 'Select Student' },
+                    ...students.map(st => ({ value: st.id || st._id, label: `${st.first_name} ${st.last_name}` })),
+                  ]}
+                />
+              </div>
+            )}
             <div>
               <Label>Month</Label>
               <Dropdown
@@ -964,29 +1079,55 @@ export default function FeeVouchersPage() {
                 </span></p>
               </div>
               <div>
-                <Label className="text-gray-500">Student</Label>
+                <Label className="text-gray-500">Student Name</Label>
                 <p className="font-semibold">{formatStudent(viewingVoucher.studentId).name}</p>
+              </div>
+              <div>
+                <Label className="text-gray-500">Registration No / Roll No</Label>
+                <p className="font-semibold">{formatStudent(viewingVoucher.studentId).registrationNumber} / {formatStudent(viewingVoucher.studentId).rollNumber}</p>
+              </div>
+              <div>
+                <Label className="text-gray-500">Month / Year</Label>
+                <p className="font-semibold">{MONTHS.find(m => m.value === viewingVoucher.month?.toString())?.label} {viewingVoucher.year}</p>
+              </div>
+              <div>
+                <Label className="text-gray-500">Fee Type</Label>
+                <p className="font-semibold">{viewingVoucher.feeType || viewingVoucher.fee_type || 'Monthly'}</p>
+              </div>
+              {(viewingVoucher.feeType === 'Installment' || viewingVoucher.fee_type === 'Installment') && (
+                <div>
+                  <Label className="text-gray-500">Installment No / Total</Label>
+                  <p className="font-semibold">{viewingVoucher.installmentNo} / {viewingVoucher.totalInstallments}</p>
+                </div>
+              )}
+              <div>
+                <Label className="text-gray-500">Academic Year</Label>
+                <p>{viewingVoucher.academicYear?.name || viewingVoucher.academic_year?.name || '---'}</p>
+              </div>
+              <div>
+                <Label className="text-gray-500">Class / Section</Label>
+                <p>{viewingVoucher.class?.name || '---'} {viewingVoucher.section?.name ? ` - ${viewingVoucher.section.name}` : ''}</p>
+              </div>
+              <div>
+                <Label className="text-gray-500">Group</Label>
+                <p>{groups.find(g => g.id === viewingVoucher.group || g._id === viewingVoucher.group)?.name || '---'}</p>
               </div>
               <div>
                 <Label className="text-gray-500">Total Amount</Label>
                 <p className="font-semibold">PKR {viewingVoucher.totalAmount?.toLocaleString()}</p>
               </div>
               <div>
+                <Label className="text-gray-500">Paid Amount</Label>
+                <p className="font-semibold text-green-600">PKR {(viewingVoucher.paidAmount || 0).toLocaleString()}</p>
+              </div>
+              <div>
+                <Label className="text-gray-500">Remaining Amount</Label>
+                <p className="font-semibold text-blue-600">PKR {(viewingVoucher.remainingAmount || viewingVoucher.totalAmount || 0).toLocaleString()}</p>
+              </div>
+              <div>
                 <Label className="text-gray-500">Due Date</Label>
                 <p>{new Date(viewingVoucher.dueDate).toLocaleDateString('en-PK')}</p>
               </div>
-              {viewingVoucher.status === 'partial' && (
-                <>
-                  <div>
-                    <Label className="text-gray-500">Paid Amount</Label>
-                    <p className="font-semibold text-green-600">PKR {viewingVoucher.paidAmount?.toLocaleString()}</p>
-                  </div>
-                  <div>
-                    <Label className="text-gray-500">Remaining</Label>
-                    <p className="font-semibold text-blue-600">PKR {viewingVoucher.remainingAmount?.toLocaleString()}</p>
-                  </div>
-                </>
-              )}
             </div>
             {viewingVoucher.paymentHistory?.length > 0 && (
               <div>
@@ -1077,6 +1218,17 @@ export default function FeeVouchersPage() {
           </div>
         )}
       </Modal>
+      {isDeleteModalOpen && (
+        <ConfirmDeleteModal
+          title="Delete Fee Voucher"
+          message="Are you sure you want to delete this fee voucher permanently? This action cannot be undone."
+          onConfirm={confirmDeleteVoucher}
+          onCancel={() => {
+            setIsDeleteModalOpen(false);
+            setDeletingVoucherId(null);
+          }}
+        />
+      )}
     </div>
   );
 }
