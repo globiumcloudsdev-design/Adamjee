@@ -190,7 +190,7 @@ const StudentFormModal = ({
       } else {
         return {
           ...prev,
-          subjects: [...prev.subjects, { id: subject.id, name: subject.name, fee: 0 }]
+          subjects: [...prev.subjects, { id: subject.id, fee: 0 }]
         };
       }
     });

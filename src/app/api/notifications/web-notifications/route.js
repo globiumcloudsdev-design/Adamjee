@@ -1,8 +1,9 @@
 import { NextResponse } from 'next/server';
-import { withAuth } from '@/backend/middleware/auth.middleware';
 
 // MOCK implementation for Web Notifications
-async function getWebNotifications(request) {
+// NOTE: Auth check removed because this is a mock endpoint returning empty data.
+// Re-add withAuth when real notification logic is implemented.
+export async function GET(request) {
     try {
         // Return empty notifications list to satisfy the frontend
         return NextResponse.json({
@@ -17,8 +18,6 @@ async function getWebNotifications(request) {
         return NextResponse.json({ success: false, message: 'Failed to fetch notifications' }, { status: 500 });
     }
 }
-
-export const GET = withAuth(getWebNotifications, ['SUPER_ADMIN', 'BRANCH_ADMIN', 'TEACHER', 'STAFF', 'STUDENT', 'PARENT']);
 
 /**
  * Web Notifications API

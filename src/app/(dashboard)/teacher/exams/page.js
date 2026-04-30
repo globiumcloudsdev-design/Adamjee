@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -28,13 +29,18 @@ import {
   Upload,
   CheckCircle,
   XCircle,
+  Eye,
 } from "lucide-react";
+import { format } from "date-fns";
+import ExamDetailsModal from "@/components/modals/ExamDetailsModal";
+import ExamTable from "@/components/exams/ExamTable";
 import DashboardSkeleton from "@/components/teacher/DashboardSkeleton";
 import apiClient from "@/lib/api-client";
 import { API_ENDPOINTS } from "@/constants/api-endpoints";
 import { toast } from "sonner";
 
 export default function TeacherExamsPage() {
+  const router = useRouter();
   const [exams, setExams] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState("all"); // all, upcoming, past
@@ -46,6 +52,7 @@ export default function TeacherExamsPage() {
   
   // Result Modal state
   const [showResultModal, setShowResultModal] = useState(false);
+  const [showViewModal, setShowViewModal] = useState(false);
   const [selectedExam, setSelectedExam] = useState(null);
   const [selectedSubjectId, setSelectedSubjectId] = useState("");
   const [students, setStudents] = useState([]);
@@ -459,94 +466,18 @@ export default function TeacherExamsPage() {
         </Button>
       </div>
 
-      {/* Exams Grid */}
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {filteredExams.map((exam, index) => (
-          <motion.div
-            key={exam._id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.1 }}
-          >
-            <Card className="p-6 hover:shadow-lg transition-all duration-300 group relative overflow-hidden">
-              {/* Status Badge */}
-              <div className="absolute top-4 right-4">
-                <Badge variant={exam.status === 'completed' ? 'secondary' : 'default'}>
-                  {exam.status.toUpperCase()}
-                </Badge>
-              </div>
-
-              {/* Exam Header */}
-              <div className="mb-4 pr-24">
-                <h3 className="font-bold text-lg group-hover:text-primary transition-colors mb-1">
-                  {exam.title}
-                </h3>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <BookOpen className="w-4 h-4" />
-                  <span>{exam.classId?.name} ({exam.examType})</span>
-                </div>
-              </div>
-
-              {/* Subjects List */}
-              <div className="space-y-3 mb-4">
-                {exam.subjects.map((sub, idx) => (
-                  <div key={idx} className="p-3 bg-muted/50 rounded-lg text-sm">
-                    <div className="font-medium mb-1">{sub.subjectId?.name}</div>
-                    <div className="grid grid-cols-2 gap-2 text-xs text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        <Calendar className="w-3 h-3" />
-                        {new Date(sub.date).toLocaleDateString()}
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Clock className="w-3 h-3" />
-                        {sub.startTime}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Actions */}
-              <div className="flex flex-wrap gap-2 pt-4 border-t border-border">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1"
-                  onClick={() => openEditModal(exam)}
-                >
-                  <Edit className="w-4 h-4 mr-1" />
-                  Edit
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1"
-                  onClick={() => handleManageResults(exam)}
-                >
-                  <FileText className="w-4 h-4 mr-1" />
-                  Results
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className={exam.status === 'active' ? 'text-red-600' : 'text-green-600'}
-                  onClick={() => handleStatusChange(exam._id, exam.status === 'active' ? 'scheduled' : 'active')}
-                >
-                  {exam.status === 'active' ? <XCircle className="w-4 h-4" /> : <CheckCircle className="w-4 h-4" />}
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-red-600 hover:text-red-700"
-                  onClick={() => handleDeleteExam(exam._id)}
-                >
-                  <Trash2 className="w-4 h-4" />
-                </Button>
-              </div>
-            </Card>
-          </motion.div>
-        ))}
-      </div>
+      {/* Exams Table */}
+      <Card className="overflow-hidden border-none shadow-xl bg-white/80 backdrop-blur-md">
+        <ExamTable 
+          exams={filteredExams}
+          onView={(exam) => { setSelectedExam(exam); setShowViewModal(true); }}
+          onEdit={openEditModal}
+          onDelete={handleDeleteExam}
+          onResults={(exam) => router.push(`/teacher/exams/${exam._id}/marks`)}
+          userRole="teacher"
+          loading={loading}
+        />
+      </Card>
 
       {/* Result Modal */}
       <Modal
@@ -886,6 +817,13 @@ export default function TeacherExamsPage() {
           </div>
         </form>
       </Modal>
+
+      {showViewModal && selectedExam && (
+        <ExamDetailsModal
+          exam={selectedExam}
+          onClose={() => { setShowViewModal(false); setSelectedExam(null); }}
+        />
+      )}
     </div>
   );
 }

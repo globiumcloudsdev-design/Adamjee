@@ -124,8 +124,24 @@ const User = sequelize.define(
       },
     },
     scopes: {
-      withPassword: { attributes: { include: ["password_hash"] } },
-      withPlainPassword: { attributes: { include: ["plain_password"] } },
+      withPassword: {
+        attributes: {
+          exclude: [
+            "plain_password",
+            "password_reset_token",
+            "password_reset_expires",
+          ],
+        },
+      },
+      withPlainPassword: {
+        attributes: {
+          exclude: [
+            "password_hash",
+            "password_reset_token",
+            "password_reset_expires",
+          ],
+        },
+      },
     },
     indexes: [
       { fields: ["role"] },

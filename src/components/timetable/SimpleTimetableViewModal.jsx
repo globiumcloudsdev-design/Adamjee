@@ -109,13 +109,30 @@ const SimpleTimetableView = ({ timetable, teachers = [], subjects = [] }) => {
     <div id="printable-timetable" className="print:p-0">
       <style jsx global>{`
         @media print {
-          @page { size: landscape; margin: 1cm; }
+          @page { size: landscape; margin: 0; }
+          html, body {
+            height: 100% !important;
+            overflow: hidden !important;
+            background: white !important;
+          }
+          body * {
+            visibility: hidden !important;
+          }
+          #printable-timetable, #printable-timetable * {
+            visibility: visible !important;
+          }
+          #printable-timetable {
+            position: fixed !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            height: 100% !important;
+            padding: 1.5cm !important;
+            background: white !important;
+            box-shadow: none !important;
+            overflow: visible !important;
+          }
           .no-print { display: none !important; }
-          body { background: white !important; }
-          .print-shadow-none { box-shadow: none !important; }
-          .print-border { border: 1px solid #e2e8f0 !important; }
-          .print-bg-white { background-color: white !important; }
-          .print-text-black { color: black !important; }
         }
       `}</style>
 
@@ -175,8 +192,8 @@ const SimpleTimetableView = ({ timetable, teachers = [], subjects = [] }) => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {periodNumbers.map((periodNum) => (
-                    <TableRow key={periodNum} className="hover:bg-transparent group border-b border-slate-100 dark:border-slate-800 last:border-0 print:border-slate-300">
+                  {periodNumbers.map((periodNum, index) => (
+                    <TableRow key={`period-row-${periodNum}-${index}`} className="hover:bg-transparent group border-b border-slate-100 dark:border-slate-800 last:border-0 print:border-slate-300">
                       <TableCell className="font-medium bg-slate-50/30 dark:bg-slate-900/10 text-center border-r border-slate-200 dark:border-slate-800 print:border-slate-400 print:bg-white">
                         <div className="flex flex-col items-center py-2 print:py-1">
                           <span className="text-[9px] text-slate-400 uppercase font-black tracking-widest mb-1 print:text-slate-500">Slot</span>
@@ -285,6 +302,7 @@ const SimpleTimetableViewModal = ({ isOpen, onClose, timetable, teachers = [], s
       open={isOpen}
       onClose={onClose}
       size="xl"
+      headerClassName="no-print"
       title={
         <div className="flex items-center gap-2">
           <Clock className="h-5 w-5 text-indigo-500" />

@@ -35,6 +35,15 @@ const MONTHS = [
   { value: '12', label: 'December' },
 ];
 
+const YEARS = (() => {
+  const current = new Date().getFullYear();
+  const list = [];
+  for (let y = current; y >= 2020; y--) {
+    list.push({ value: String(y), label: String(y) });
+  }
+  return list;
+})();
+
 const ITEMS_PER_PAGE = 10;
 
 const getStatusBadge = (status) => {
@@ -1034,10 +1043,10 @@ export default function FeeVouchersPage() {
             </div>
             <div>
               <Label>Year</Label>
-              <Input
-                type="number"
+              <Dropdown
                 value={formData.year}
                 onChange={(e) => setFormData(prev => ({ ...prev, year: e.target.value }))}
+                options={YEARS}
               />
             </div>
           </div>

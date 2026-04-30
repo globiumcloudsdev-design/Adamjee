@@ -134,7 +134,7 @@ export default function NotificationBell() {
   useEffect(() => {
     if (user) {
       fetchNotis();
-      const interval = setInterval(fetchNotis, 30000); // 30s instead of 15s to save resources
+      const interval = setInterval(fetchNotis, 60000); // 60s – reduce DB pressure (mock endpoint)
       return () => clearInterval(interval);
     }
   }, [user]);

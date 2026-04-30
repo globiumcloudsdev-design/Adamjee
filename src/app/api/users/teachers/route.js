@@ -27,9 +27,10 @@ async function createTeacher(req) {
     const finalFirstName = first_name || firstName;
     const finalLastName = last_name || lastName;
     const finalBranchId = branch_id || branchId || (currentUser.role === "BRANCH_ADMIN" ? currentUser.branch_id : null);
+    const finalPassword = password || "Welcome@123";
     
     // Validation
-    if (!finalFirstName || !finalLastName || !phone || !password) {
+    if (!finalFirstName || !finalLastName || !phone || !finalPassword) {
       return NextResponse.json(
         { error: "Missing required fields: first_name, last_name, phone, and password are required." },
         { status: 400 }
@@ -53,7 +54,7 @@ async function createTeacher(req) {
       role: "TEACHER",
       registration_no: finalRegNo,
       branch_id: finalBranchId,
-      password_hash: password, 
+      password_hash: finalPassword, 
       details: {
         teacher: {
           qualification: details?.qualification || details?.teacher?.qualification || "",
@@ -94,7 +95,7 @@ async function createTeacher(req) {
           role: "TEACHER",
           id: finalRegNo,
           email: email,
-          password: password,
+          password: finalPassword,
           branchName: branch?.name || "Adamjee Coaching",
         });
 
@@ -106,6 +107,7 @@ async function createTeacher(req) {
 
     return NextResponse.json(
       {
+        success: true,
         message: "Teacher added successfully",
         teacher: {
           id: teacher.id,

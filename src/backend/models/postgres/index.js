@@ -13,6 +13,8 @@ import Expense from "./Expense.model.js";
 import Timetable from "./TimeTable.model.js";
 import LeaveRequest from "./LeaveRequest.model.js";
 import FeeVoucher from "./FeeVoucher.model.js";
+import Exam from "./Exam.model.js";
+import ExamMark from "./ExamMark.model.js";
 
 const models = {
   AcademicYear,
@@ -29,6 +31,8 @@ const models = {
   Timetable,
   LeaveRequest,
   FeeVoucher,
+  Exam,
+  ExamMark,
 };
 
 
@@ -55,7 +59,9 @@ export {
   Timetable,
   LeaveRequest,
   FeeVoucher,
+  Exam,
+  ExamMark,
 };
 
-export default models;
 
+export default models;

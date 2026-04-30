@@ -34,9 +34,9 @@ const config = {
     password: process.env.DB_PASSWORD || "postgres",
     dialect: "postgres",
     pool: {
-      max: parseInt(process.env.DB_POOL_MAX, 10) || 5,
+      max: parseInt(process.env.DB_POOL_MAX, 10) || 10,
       min: parseInt(process.env.DB_POOL_MIN, 10) || 0,
-      acquire: 60000,
+      acquire: 90000,
       idle: 20000,
       evict: 10000,
     },

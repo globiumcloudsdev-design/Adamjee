@@ -72,7 +72,6 @@ export default function UserManagementTable({
               <TableHead className="w-[280px]">User Profile</TableHead>
               <TableHead className="w-[250px]">Contact Information</TableHead>
               <TableHead className="w-[180px]">Branch & Location</TableHead>
-              <TableHead className="w-[150px]">Classification</TableHead>
               <TableHead className="w-[120px]">Account Status</TableHead>
               <TableHead className="text-right w-[150px]">Actions</TableHead>
             </TableRow>
@@ -143,23 +142,6 @@ export default function UserManagementTable({
                     </div>
                     <span className="text-[10px] text-gray-400 font-bold uppercase ml-6">
                       {user.branch?.city || 'Karachi'}
-                    </span>
-                  </div>
-                </TableCell>
-
-                {/* Classification (Role/Type) Cell */}
-                <TableCell>
-                  <div className="flex flex-col items-start gap-1">
-                    <span className={`px-2.5 py-1 rounded-lg text-[10px] font-extrabold uppercase tracking-widest border ${
-                      user.role === 'STUDENT' ? 'bg-emerald-50 text-emerald-700 border-emerald-100' :
-                      user.role === 'TEACHER' ? 'bg-purple-50 text-purple-700 border-purple-100' :
-                      user.role === 'STAFF' ? 'bg-orange-50 text-orange-700 border-orange-100' :
-                      'bg-blue-50 text-blue-700 border-blue-100'
-                    }`}>
-                      {user.role}
-                    </span>
-                    <span className="text-[10px] font-bold text-gray-400 ml-1">
-                      {user.staff_sub_type || user.staffSubType || user.details?.designation || 'General'}
                     </span>
                   </div>
                 </TableCell>

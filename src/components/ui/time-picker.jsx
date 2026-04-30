@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useRef } from "react";
 import { Clock, ChevronUp, ChevronDown } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
 
 const TimePicker = ({ value, onChange, label, className = "" }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -54,55 +55,63 @@ const TimePicker = ({ value, onChange, label, className = "" }) => {
 
   return (
     <div className={`relative ${className}`} ref={containerRef}>
-      {label && <label className="text-xs font-medium text-gray-500 mb-1 block">{label}</label>}
+      {label && <label className="text-sm font-medium text-slate-700 mb-1.5 block">{label}</label>}
       <div 
         onClick={() => setIsOpen(!isOpen)}
-        className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg cursor-pointer hover:border-blue-400 transition-all shadow-sm group"
+        className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-lg cursor-pointer hover:border-indigo-400 transition-all shadow-sm group min-h-[42px]"
       >
-        <Clock className="h-4 w-4 text-slate-400 group-hover:text-blue-500" />
+        <Clock className="h-4 w-4 text-slate-400 group-hover:text-indigo-500" />
         <span className="text-sm font-semibold tabular-nums">
           {String(hours).padStart(2, "0")}:{String(minutes).padStart(2, "0")} {ampm}
         </span>
       </div>
 
-      {isOpen && (
-        <div className="absolute z-50 mt-2 p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl flex gap-4 animate-in fade-in zoom-in duration-200 origin-top">
-          {/* Hours */}
-          <div className="flex flex-col items-center gap-1">
-            <button type="button" onClick={() => handleHourChange(1)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded">
-              <ChevronUp className="h-4 w-4" />
-            </button>
-            <span className="text-lg font-bold w-8 text-center">{String(hours).padStart(2, "0")}</span>
-            <button type="button" onClick={() => handleHourChange(-1)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded">
-              <ChevronDown className="h-4 w-4" />
-            </button>
-          </div>
+      <AnimatePresence>
+        {isOpen && (
+          <motion.div 
+            initial={{ opacity: 0, y: 10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 5, scale: 1 }}
+            exit={{ opacity: 0, y: 10, scale: 0.95 }}
+            transition={{ duration: 0.15, ease: "easeOut" }}
+            className="absolute z-[100] mt-2 p-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl shadow-2xl flex gap-4 origin-top"
+          >
+            {/* Hours */}
+            <div className="flex flex-col items-center gap-1">
+              <button type="button" onClick={() => handleHourChange(1)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded">
+                <ChevronUp className="h-4 w-4" />
+              </button>
+              <span className="text-lg font-bold w-8 text-center">{String(hours).padStart(2, "0")}</span>
+              <button type="button" onClick={() => handleHourChange(-1)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded">
+                <ChevronDown className="h-4 w-4" />
+              </button>
+            </div>
 
-          <span className="text-lg font-bold self-center">:</span>
+            <span className="text-lg font-bold self-center">:</span>
 
-          {/* Minutes */}
-          <div className="flex flex-col items-center gap-1">
-            <button type="button" onClick={() => handleMinuteChange(5)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded">
-              <ChevronUp className="h-4 w-4" />
-            </button>
-            <span className="text-lg font-bold w-8 text-center">{String(minutes).padStart(2, "0")}</span>
-            <button type="button" onClick={() => handleMinuteChange(-5)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded">
-              <ChevronDown className="h-4 w-4" />
-            </button>
-          </div>
+            {/* Minutes */}
+            <div className="flex flex-col items-center gap-1">
+              <button type="button" onClick={() => handleMinuteChange(5)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded">
+                <ChevronUp className="h-4 w-4" />
+              </button>
+              <span className="text-lg font-bold w-8 text-center">{String(minutes).padStart(2, "0")}</span>
+              <button type="button" onClick={() => handleMinuteChange(-5)} className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded">
+                <ChevronDown className="h-4 w-4" />
+              </button>
+            </div>
 
-          {/* AM/PM */}
-          <div className="flex flex-col justify-center">
-            <button 
-              type="button"
-              onClick={toggleAmpm}
-              className="px-2 py-1 bg-blue-50 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400 text-xs font-black rounded uppercase tracking-tighter hover:bg-blue-100 transition-colors"
-            >
-              {ampm}
-            </button>
-          </div>
-        </div>
-      )}
+            {/* AM/PM */}
+            <div className="flex flex-col justify-center">
+              <button 
+                type="button"
+                onClick={toggleAmpm}
+                className="px-2 py-1 bg-indigo-50 dark:bg-indigo-900/30 text-indigo-600 dark:text-indigo-400 text-xs font-bold rounded uppercase tracking-tighter hover:bg-indigo-100 transition-colors"
+              >
+                {ampm}
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

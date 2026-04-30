@@ -5,8 +5,9 @@ import { deleteFromCloudinary } from "@/backend/utils/cloudinary";
 
 // 1. GET SINGLE SUBJECT
 export async function GET(req, { params }) {
+  const { id } = await params;
   const user = await getCurrentUser(req);
-  const subject = await Subject.findByPk(params.id, { include: ["class"] });
+  const subject = await Subject.findByPk(id, { include: ["class"] });
 
   if (!subject)
     return NextResponse.json({ error: "Not Found" }, { status: 404 });
@@ -20,9 +21,10 @@ export async function GET(req, { params }) {
 // 2. PUT: UPDATE SUBJECT (Details Only)
 export async function PUT(req, { params }) {
   try {
+    const { id } = await params;
     const user = await getCurrentUser(req);
     const body = await req.json();
-    const subject = await Subject.findByPk(params.id);
+    const subject = await Subject.findByPk(id);
 
     if (!subject)
       return NextResponse.json({ error: "Not Found" }, { status: 404 });
@@ -42,8 +44,9 @@ export async function PUT(req, { params }) {
 // 3. DELETE: SUBJECT & CLOUDINARY CLEANUP
 export async function DELETE(req, { params }) {
   try {
+    const { id } = await params;
     const user = await getCurrentUser(req);
-    const subject = await Subject.findByPk(params.id);
+    const subject = await Subject.findByPk(id);
 
     if (!subject)
       return NextResponse.json({ error: "Not Found" }, { status: 404 });

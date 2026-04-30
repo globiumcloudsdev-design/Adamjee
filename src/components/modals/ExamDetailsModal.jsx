@@ -1,267 +1,255 @@
 'use client';
+
 import React from 'react';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import Modal from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import {
-  X,
-  Calendar,
-  Clock,
-  Building2,
-  Users,
-  BookOpen,
-  FileText,
-  MapPin,
-  CheckCircle,
-  XCircle
-} from 'lucide-react';
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Clock, MapPin, Printer, Info, GraduationCap, Building2, BookOpen, Trophy, User } from 'lucide-react';
+import { format } from 'date-fns';
 
 export default function ExamDetailsModal({ exam, onClose }) {
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'scheduled': return 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200';
-      case 'ongoing': return 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200';
-      case 'completed': return 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200';
-      case 'cancelled': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
-      case 'postponed': return 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200';
-      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
+  if (!exam) return null;
+
+  const handlePrint = () => {
+    window.print();
+  };
+
+  const formatDate = (dateStr) => {
+    if (!dateStr) return "TBA";
+    try {
+      return format(new Date(dateStr), "PPP");
+    } catch (e) {
+      return dateStr;
     }
   };
 
-  const getExamTypeColor = (type) => {
-    switch (type) {
-      case 'midterm': return 'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200';
-      case 'final': return 'bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200';
-      case 'quiz': return 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-200';
-      case 'unit_test': return 'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-200';
-      case 'mock': return 'bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-200';
-      case 'surprise': return 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200';
-      case 'practical': return 'bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200';
-      case 'oral': return 'bg-lime-100 text-lime-800 dark:bg-lime-900 dark:text-lime-200';
-      default: return 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-200';
-    }
+  const formatTime = (timeStr) => {
+    if (!timeStr) return "";
+    const [h, m] = timeStr.split(":").map(Number);
+    const ampm = h >= 12 ? "PM" : "AM";
+    const hours = h % 12 || 12;
+    return `${String(hours).padStart(2, "0")}:${String(m).padStart(2, "0")} ${ampm}`;
   };
 
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
-  };
-
-  const formatTime = (timeString) => {
-    if (!timeString) return '';
-    const [hours, minutes] = timeString.split(':');
-    const hour = parseInt(hours);
-    const ampm = hour >= 12 ? 'PM' : 'AM';
-    const displayHour = hour % 12 || 12;
-    return `${displayHour}:${minutes} ${ampm}`;
-  };
-
-  const getGradeStatus = (marks, passingMarks) => {
-    if (marks === null || marks === undefined) return null;
-    return marks >= passingMarks ? 'pass' : 'fail';
-  };
+  const campusName = exam.branchId?.name || exam.branch?.name || (typeof exam.branchId === 'string' ? exam.branchId : "Campus-12");
 
   return (
-    <Modal
+    <>
+      <style>{`
+        @media print {
+          .no-print {
+            display: none !important;
+          }
+        }
+      `}</style>
+      <Modal
       open={true}
       onClose={onClose}
-      title={<><FileText className="w-5 h-5 mr-2" />{exam?.title || 'Exam Details'}</>}
-      size="lg"
-      footer={null}
+      size="xl"
+      headerClassName="no-print"
+      title={
+        <div className="flex items-center gap-2">
+          <Clock className="h-5 w-5 text-indigo-500" />
+          <span>Exam Schedule Overview</span>
+        </div>
+      }
+      footer={
+        <div className="flex justify-between items-center w-full no-print">
+          <p className="text-[10px] text-muted-foreground italic font-medium hidden sm:block">
+            * Schedules are subject to change by administration.
+          </p>
+          <div className="flex gap-2">
+            <Button variant="outline" size="sm" onClick={handlePrint} className="font-bold border-indigo-200 text-indigo-700 hover:bg-indigo-50">
+              <Printer className="h-4 w-4 mr-2" />
+              Print PDF
+            </Button>
+            <Button onClick={onClose} variant="default" className="font-bold px-6">Close</Button>
+          </div>
+        </div>
+      }
     >
-      <div className="max-h-[70vh] overflow-y-auto">
-        <Card className="border-0 shadow-none">
-          <CardContent className="space-y-6">
-            {/* Basic Information */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div className="space-y-4">
-                <div>
-                  <h3 className="text-lg font-semibold mb-3">Exam Information</h3>
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <Building2 className="w-4 h-4 text-gray-500" />
-                      <span className="text-sm">
-                        <strong>Branch:</strong> {exam.branchId?.name || 'N/A'}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <Users className="w-4 h-4 text-gray-500" />
-                      <span className="text-sm">
-                        <strong>Class:</strong> {exam.classId?.name || 'N/A'}
-                        {exam.section && ` - Section ${exam.section}`}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm">
-                        <strong>Created By:</strong> {exam.createdBy?.name || 'N/A'}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-sm">
-                        <strong>Created:</strong> {formatDate(exam.createdAt)}
-                      </span>
-                    </div>
-                  </div>
-                </div>
+      <div id="printable-timetable" className="print:p-0 p-1 sm:p-2">
+        <style jsx global>{`
+          @media print {
+            @page { size: portrait; margin: 1cm; }
+            .no-print { display: none !important; }
+            body { background: white !important; }
+            .print-shadow-none { box-shadow: none !important; }
+            .print-border { border: 1px solid #e2e8f0 !important; }
+            .print-bg-white { background-color: white !important; }
+            .print-text-black { color: black !important; }
+          }
+        `}</style>
 
-                <div>
-                  <h3 className="text-lg font-semibold mb-3">Status & Type</h3>
-                  <div className="flex flex-wrap gap-2">
-                    <Badge className={getExamTypeColor(exam.examType)}>
-                      {exam.examType?.replace('_', ' ').toUpperCase()}
-                    </Badge>
-                    <Badge className={getStatusColor(exam.status)}>
-                      {exam.status?.toUpperCase()}
-                    </Badge>
-                  </div>
+        <Card className="border-none shadow-none print:shadow-none print:bg-white">
+          <CardHeader className="px-0 pt-0 pb-6 border-b mb-6 print:pb-4 print:mb-4 print:border-slate-300">
+            <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2 text-indigo-600 dark:text-indigo-400 print:text-indigo-700">
+                  <GraduationCap className="h-6 w-6" />
+                  <span className="text-sm font-black uppercase tracking-[0.2em]">Adamjee Coaching Centre</span>
+                </div>
+                <CardTitle className="text-3xl font-black text-slate-900 dark:text-white uppercase tracking-tight print:text-2xl print:text-black">
+                  {exam.title || "Exam Schedule"}
+                </CardTitle>
+                <div className="flex flex-wrap items-center gap-2 text-sm font-medium text-muted-foreground print:text-black">
+                  <Badge variant="secondary" className="rounded-md font-bold bg-slate-100 text-slate-700 print:bg-white print:border-slate-300 print:text-black">
+                    <Building2 className="h-3 w-3 mr-1.5" />
+                    {campusName}
+                  </Badge>
+                  <span className="text-slate-300 print:text-slate-400">•</span>
+                  <Badge variant="secondary" className="rounded-md font-bold bg-indigo-50 text-indigo-700 print:bg-white print:border-slate-300 print:text-black">
+                    {exam.class?.name || exam.classId?.name || (typeof exam.class === 'string' ? exam.class : "Class")}
+                  </Badge>
+                  <span className="text-slate-300 print:text-slate-400">•</span>
+                  <Badge variant="outline" className="rounded-md font-bold bg-blue-50/50 text-blue-600 border-blue-100 print:bg-white print:border-slate-300 print:text-black">
+                    Section: {exam.section?.name || exam.sectionId?.name || (typeof exam.section === 'string' ? exam.section : "All")}
+                  </Badge>
+                  <span className="text-slate-300 print:text-slate-400">•</span>
+                  <span className="flex items-center gap-1 font-bold text-slate-600 print:text-black">
+                    <Info className="h-3 w-3" />
+                    {exam.academicYear?.name || exam.academic_year?.name || exam.academicYearId?.name || (typeof exam.academicYear === 'string' ? exam.academicYear : "Academic Year")}
+                  </span>
                 </div>
               </div>
-
-              <div>
-                <h3 className="text-lg font-semibold mb-3">Subjects Overview</h3>
-                <div className="text-sm text-gray-600 dark:text-gray-400">
-                  <p><strong>Total Subjects:</strong> {exam.subjects?.length || 0}</p>
-                  <p><strong>Exam Dates:</strong> {
-                    exam.subjects && exam.subjects.length > 0
-                      ? `${formatDate(exam.subjects[0].date)}${exam.subjects.length > 1 ? ` to ${formatDate(exam.subjects[exam.subjects.length - 1].date)}` : ''}`
-                      : 'N/A'
-                  }</p>
-                </div>
+              
+              <div className="hidden print:block text-right">
+                <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Date Generated</p>
+                <p className="text-sm font-black text-slate-900">{new Date().toLocaleDateString()}</p>
               </div>
             </div>
-
-            {/* Subjects Details */}
-            <div>
-              <h3 className="text-lg font-semibold mb-4">Subject Details</h3>
-              <div className="space-y-4">
-                {exam.subjects?.map((subject, index) => (
-                  <Card key={index} className="border border-gray-200 dark:border-gray-700">
-                    <CardContent className="p-4">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-center gap-2">
-                          <BookOpen className="w-4 h-4 text-blue-500" />
-                          <h4 className="font-medium">
-                            {subject.subjectId?.name || 'Unknown Subject'}
-                          </h4>
-                        </div>
-                        <Badge variant="outline">
-                          Subject {index + 1}
-                        </Badge>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-3">
-                        <div className="flex items-center gap-2">
-                          <Calendar className="w-4 h-4 text-gray-500" />
-                          <span className="text-sm">{formatDate(subject.date)}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <Clock className="w-4 h-4 text-gray-500" />
-                          <span className="text-sm">
-                            {formatTime(subject.startTime)} - {formatTime(subject.endTime)}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm">
-                            <strong>Duration:</strong> {subject.duration} min
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm">
-                            <strong>Marks:</strong> {subject.totalMarks} (Pass: {subject.passingMarks})
-                          </span>
-                        </div>
-                      </div>
-
-                      {subject.room && (
-                        <div className="flex items-center gap-2 mb-3">
-                          <MapPin className="w-4 h-4 text-gray-500" />
-                          <span className="text-sm"><strong>Room:</strong> {subject.room}</span>
-                        </div>
-                      )}
-
-                      {subject.instructions && (
-                        <div className="mb-3">
-                          <h5 className="font-medium text-sm mb-1">Instructions:</h5>
-                          <p className="text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-700 p-2 rounded">
-                            {subject.instructions}
-                          </p>
-                        </div>
-                      )}
-
-                      {subject.syllabus && (
-                        <div>
-                          <h5 className="font-medium text-sm mb-1">Syllabus:</h5>
-                          <p className="text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-700 p-2 rounded">
-                            {subject.syllabus}
-                          </p>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-                ))}
-
-                {(!exam.subjects || exam.subjects.length === 0) && (
-                  <div className="text-center py-8 text-gray-500">
-                    <BookOpen className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                    <p>No subjects configured for this exam.</p>
-                  </div>
-                )}
+          </CardHeader>
+          
+          <CardContent className="px-0">
+            <div className="rounded-xl border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm bg-white dark:bg-slate-950 print:border-slate-400 print:rounded-none">
+              <div className="overflow-x-auto">
+                <Table className="w-full">
+                  <TableHeader>
+                    <TableRow className="bg-slate-50 dark:bg-slate-900/50 border-b border-slate-200 dark:border-slate-800 print:bg-slate-100 print:border-slate-400">
+                      <TableHead className="w-[180px] font-black text-slate-500 uppercase text-[10px] tracking-widest py-4 pl-6 print:pl-4 border-r border-slate-200 dark:border-slate-800 print:border-slate-400">
+                        Date & Day
+                      </TableHead>
+                      <TableHead className="font-black text-slate-500 uppercase text-[10px] tracking-widest py-4 pl-4 border-r border-slate-200 dark:border-slate-800 print:border-slate-400">
+                        Subject
+                      </TableHead>
+                      <TableHead className="font-black text-slate-500 uppercase text-[10px] tracking-widest py-4 text-center border-r border-slate-200 dark:border-slate-800 print:border-slate-400">
+                        Timing
+                      </TableHead>
+                      <TableHead className="font-black text-slate-500 uppercase text-[10px] tracking-widest py-4 text-center border-r border-slate-200 dark:border-slate-800 print:border-slate-400">
+                        Marks
+                      </TableHead>
+                      <TableHead className="font-black text-slate-500 uppercase text-[10px] tracking-widest py-4 text-center">
+                        Room
+                      </TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {exam.subjects && exam.subjects.length > 0 ? (
+                      exam.subjects.map((sub, idx) => (
+                        <TableRow key={idx} className="hover:bg-transparent group border-b border-slate-100 dark:border-slate-800 last:border-0 print:border-slate-300">
+                          <TableCell className="py-4 pl-6 print:pl-4 border-r border-slate-100 dark:border-slate-800 print:border-slate-300">
+                            <div className="flex flex-col">
+                              <span className="text-[12px] font-black text-slate-900 dark:text-slate-100 uppercase tracking-tight print:text-black">
+                                {formatDate(sub.date)}
+                              </span>
+                              <span className="text-[9px] text-slate-400 uppercase font-black tracking-widest print:text-slate-500">
+                                {sub.date ? format(new Date(sub.date), "EEEE") : ""}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="py-4 pl-4 border-r border-slate-100 dark:border-slate-800 print:border-slate-300">
+                            <div className="flex items-center gap-3">
+                              <div className="h-8 w-8 rounded-full bg-indigo-50 dark:bg-indigo-900/20 border border-indigo-100 dark:border-indigo-900/30 flex items-center justify-center shadow-sm print:shadow-none print:border-slate-400 print:h-7 print:w-7">
+                                <span className="text-xs font-black text-indigo-700 dark:text-indigo-400 print:text-black">{idx + 1}</span>
+                              </div>
+                              <span className="text-[12px] font-black text-slate-900 dark:text-white uppercase tracking-tight print:text-black">
+                                {sub.subjectId?.name || sub.subject?.name || sub.subject_name || (typeof sub.subjectId === 'string' ? sub.subjectId : "Subject")}
+                              </span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="py-4 text-center border-r border-slate-100 dark:border-slate-800 print:border-slate-300">
+                            <div className="flex flex-col items-center gap-1">
+                              <div className="flex items-center gap-1.5 text-[10px] text-slate-500 dark:text-slate-400 font-semibold print:text-black">
+                                <Clock className="h-3 w-3 text-slate-400" />
+                                <span className="tabular-nums font-bold">
+                                  {formatTime(sub.startTime || sub.start_time)} - {formatTime(sub.endTime || sub.end_time)}
+                                </span>
+                              </div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="py-4 text-center border-r border-slate-100 dark:border-slate-800 print:border-slate-300">
+                            <div className="flex flex-col items-center">
+                              <span className="text-[12px] font-black text-slate-900 dark:text-white print:text-black">{sub.totalMarks || sub.total_marks || 100}</span>
+                              <span className="text-[9px] text-emerald-600 font-bold uppercase tracking-tighter">Pass: {sub.passingMarks || sub.passing_marks || 40}</span>
+                            </div>
+                          </TableCell>
+                          <TableCell className="py-4 text-center">
+                            {sub.room ? (
+                              <div className="flex items-center justify-center gap-1.5 text-[10px] text-indigo-600 dark:text-indigo-400 font-black uppercase tracking-tighter print:text-black">
+                                <MapPin className="h-3 w-3" />
+                                <span>{sub.room}</span>
+                              </div>
+                            ) : (
+                              <div className="h-1.5 w-1.5 rounded-full bg-slate-100 dark:bg-slate-800 mx-auto" />
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    ) : (
+                      <TableRow>
+                        <TableCell colSpan={5} className="py-20 text-center text-slate-400 italic">
+                          No subjects configured for this exam.
+                        </TableCell>
+                      </TableRow>
+                    )}
+                  </TableBody>
+                </Table>
               </div>
             </div>
+            
+            <div className="mt-8 hidden print:flex justify-between items-end border-t pt-4 border-slate-200">
+              <div className="space-y-1">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Authorized Signature</p>
+                <div className="h-10 w-48 border-b border-slate-300" />
+              </div>
+              <p className="text-[9px] text-slate-400 italic font-medium">
+                This is a computer-generated schedule. Adamjee Coaching Centre © {new Date().getFullYear()}
+              </p>
+            </div>
 
-            {/* Results Summary (if available) */}
-            {exam.results && exam.results.length > 0 && (
-              <div>
-                <h3 className="text-lg font-semibold mb-4">Results Summary</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                  <Card className="border border-gray-200 dark:border-gray-700">
-                    <CardContent className="p-4 text-center">
-                      <div className="text-2xl font-bold text-blue-600">
-                        {exam.results.length}
-                      </div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400">
-                        Total Results
-                      </div>
-                    </CardContent>
-                  </Card>
-                  <Card className="border border-gray-200 dark:border-gray-700">
-                    <CardContent className="p-4 text-center">
-                      <div className="text-2xl font-bold text-green-600">
-                        {exam.results.filter(r => getGradeStatus(r.marksObtained, r.subjectId ? exam.subjects.find(s => s.subjectId === r.subjectId)?.passingMarks : 0) === 'pass').length}
-                      </div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400">
-                        Passed
-                      </div>
-                    </CardContent>
-                  </Card>
-                  <Card className="border border-gray-200 dark:border-gray-700">
-                    <CardContent className="p-4 text-center">
-                      <div className="text-2xl font-bold text-red-600">
-                        {exam.results.filter(r => r.isAbsent).length}
-                      </div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400">
-                        Absent
-                      </div>
-                    </CardContent>
-                  </Card>
+            <div className="mt-8 no-print grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="p-4 rounded-xl border border-indigo-100 bg-indigo-50/30 flex items-start gap-3">
+                <Info className="h-5 w-5 text-indigo-500 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <h4 className="text-sm font-bold text-indigo-900">Important Note</h4>
+                  <p className="text-xs text-indigo-700 leading-relaxed">
+                    Students must arrive 15 minutes before the exam starts. Late entry may not be permitted.
+                  </p>
                 </div>
               </div>
-            )}
-
-            {/* Action Buttons */}
-            <div className="flex justify-end gap-3 pt-6 border-t border-gray-200 dark:border-gray-700">
-              <Button variant="outline" onClick={onClose}>
-                Close
-              </Button>
+              <div className="p-4 rounded-xl border border-emerald-100 bg-emerald-50/30 flex items-start gap-3">
+                <Trophy className="h-5 w-5 text-emerald-500 shrink-0 mt-0.5" />
+                <div className="space-y-1">
+                  <h4 className="text-sm font-bold text-emerald-900">Grading Policy</h4>
+                  <p className="text-xs text-emerald-700 leading-relaxed">
+                    Results will be announced as per the academic calendar. Please check the portal for updates.
+                  </p>
+                </div>
+              </div>
             </div>
           </CardContent>
         </Card>
       </div>
     </Modal>
+    </>
   );
 }

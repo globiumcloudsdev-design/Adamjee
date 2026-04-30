@@ -242,7 +242,6 @@ export default function TeachersPage() {
                   <TableHead>Contact</TableHead>
                   {/* <TableHead>Department</TableHead> */}
                   <TableHead>Designation</TableHead>
-                  <TableHead>Classes/Subjects</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead>Actions</TableHead>
                 </TableRow>
@@ -278,15 +277,6 @@ export default function TeachersPage() {
                         <Award className="h-3 w-3" />
                         {teacher.details?.teacher?.designation || 'Teacher'}
                       </span>
-                    </TableCell>
-
-                    <TableCell>
-                      <div className="text-sm text-gray-900">
-                        {teacher.details?.teacher?.classes?.length || 0} Classes
-                      </div>
-                      <div className="text-xs text-gray-500">
-                        {teacher.details?.teacher?.subjects?.length || 0} Subjects
-                      </div>
                     </TableCell>
 
                     <TableCell>

@@ -13,7 +13,7 @@ import React from 'react';
  *    className: extra classes for dialog
  *    size: 'sm' | 'md' | 'lg' | 'xl' (controls max width)
  */
-export default function Modal({ open, onClose, title, children, footerClassName = '', className = '', size = 'md', footer = null, closeOnBackdrop = true }) {
+export default function Modal({ open, onClose, title, children, headerClassName = '', footerClassName = '', className = '', size = 'md', footer = null, closeOnBackdrop = true }) {
   if (!open) return null;
 
   const sizeClass = {
@@ -40,7 +40,7 @@ export default function Modal({ open, onClose, title, children, footerClassName 
 
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-lg overflow-hidden flex flex-col max-h-[calc(100vh-4rem)]">
           {/* Header (sticky) */}
-          <div className="sticky top-0 z-20 bg-white dark:bg-gray-800 border-b px-6 py-4 flex items-center justify-between">
+          <div className={`sticky top-0 z-20 bg-white dark:bg-gray-800 border-b px-6 py-4 flex items-center justify-between ${headerClassName}`}>
             <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">{title}</h3>
             <button onClick={onClose} className="text-gray-500 hover:text-gray-700 dark:text-gray-300">✕</button>
           </div>

@@ -230,8 +230,13 @@ const ROLE_MENUS = {
       category: "Academic",
       isCollapsible: true,
       items: [
-        { name: "Academic Management", path: "/branch-admin/academic", icon: GraduationCap },
+        {
+          name: "Academic Management",
+          path: "/branch-admin/academic",
+          icon: GraduationCap,
+        },
         { name: "Timetable", path: "/branch-admin/timetable", icon: Clock },
+        { name: "Exams", path: "/branch-admin/exams", icon: FileText },
         // { name: "Syllabus", path: "/branch-admin/syllabus", icon: FileText },
         // { name: "Departments", path: "/branch-admin/departments", icon: Building2 },
         // { name: "Academic Structure", path: "/branch-admin/academic-structure", icon: LayoutDashboard },
@@ -263,21 +268,21 @@ const ROLE_MENUS = {
       category: "Attendance",
       isCollapsible: true,
       items: [
-        { name: "Student Attendance", path: "/branch-admin/attendance", icon: Clock },
-        { name: "Staff Attendance", path: "/branch-admin/staff-attendance", icon: UserCheck },
+        {
+          name: "Student Attendance",
+          path: "/branch-admin/attendance",
+          icon: Clock,
+        },
+        {
+          name: "Staff Attendance",
+          path: "/branch-admin/staff-attendance",
+          icon: UserCheck,
+        },
         {
           name: "Leaves",
           path: "/branch-admin/leaves",
           icon: Calendar,
         },
-      ],
-    },
-    {
-      category: "Operations",
-      isCollapsible: true,
-      items: [
-        // { name: "Events", path: "/branch-admin/events", icon: Calendar },
-        { name: "Exams", path: "/branch-admin/exams", icon: FileText },
       ],
     },
     {

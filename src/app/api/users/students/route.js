@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { Op } from "sequelize";
-import { sequelize, User, Branch, Class, Section, AcademicYear } from "@/backend/models/postgres";
+import { sequelize, User, Branch, Class, Section, AcademicYear, Subject } from "@/backend/models/postgres";
 import { generateStudentQR } from "@/lib/qr-generator";
 import { uploadQR, uploadProfilePhoto, uploadStudentDocument } from "@/backend/utils/cloudinary";
 import { sendEmail } from "@/backend/utils/emailService";
@@ -86,6 +86,22 @@ export async function POST(req) {
     );
     const payable_fee = total_subject_fee - (discount || 0);
 
+    // Lookup subject names from DB using subject ids
+    let enrichedSubjects = subjects;
+    if (subjects && subjects.length > 0) {
+      const subjectIds = subjects.map((s) => s.id).filter(Boolean);
+      const subjectRecords = await Subject.findAll({
+        where: { id: subjectIds },
+        attributes: ["id", "name"],
+      });
+      const subjectMap = {};
+      subjectRecords.forEach((s) => { subjectMap[s.id] = s.name; });
+      enrichedSubjects = subjects.map((s) => ({
+        ...s,
+        name: subjectMap[s.id] || "Unknown Subject",
+      }));
+    }
+
     // 4. Create User (Student)
     const student = await User.create({
       first_name,
@@ -103,7 +119,7 @@ export async function POST(req) {
           class_id,
           section_id,
           roll_no: finalRollNo,
-          subjects,
+          subjects: enrichedSubjects,
           total_fee: total_subject_fee,
           discount: discount || 0,
           payable_fee,

@@ -39,7 +39,6 @@ import FullPageLoader from "@/components/ui/full-page-loader";
 import SimpleTimetableViewModal from "@/components/timetable/SimpleTimetableViewModal";
 import TimePicker from "@/components/ui/time-picker";
 
-
 const DAYS = [
   "Monday",
   "Tuesday",
@@ -67,6 +66,7 @@ export default function TimetablePage() {
   const [sections, setSections] = useState([]);
 
   const [teachers, setTeachers] = useState([]);
+  const [allTeachers, setAllTeachers] = useState([]);
   const [academicYears, setAcademicYears] = useState([]);
   // Map of teacherId -> array of occupied periods across branch timetables
   const [teacherSchedulesMap, setTeacherSchedulesMap] = useState({});
@@ -109,6 +109,7 @@ export default function TimetablePage() {
 
   useEffect(() => {
     fetchBranches();
+    fetchAllTeachers();
   }, []);
 
   useEffect(() => {
@@ -179,6 +180,18 @@ export default function TimetablePage() {
     } catch (error) {
       console.error("Failed to fetch branches:", error);
       toast.error("Failed to load branches");
+    }
+  };
+
+  const fetchAllTeachers = async () => {
+    try {
+      const url = `${API_ENDPOINTS.SUPER_ADMIN.TEACHERS.LIST}`;
+      const response = await apiClient.get(url);
+      if (response.success) {
+        setAllTeachers(response.data || []);
+      }
+    } catch (error) {
+      console.error("Failed to fetch all teachers:", error);
     }
   };
 
@@ -1934,7 +1947,7 @@ export default function TimetablePage() {
         isOpen={!!viewingTimetable}
         onClose={() => setViewingTimetable(null)}
         timetable={viewingTimetable}
-        teachers={teachers}
+        teachers={allTeachers.length > 0 ? allTeachers : teachers}
       />
 
       {/* Loading Overlay */}

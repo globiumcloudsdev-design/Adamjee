@@ -64,6 +64,14 @@ export const API_ENDPOINTS = {
       RESET: '/api/super-admin/settings/reset',
     },
 
+    EXAMS: {
+      CREATE: "/api/exams",
+      LIST: "/api/exams",
+      GET: (id) => `/api/exams/${id}`,
+      UPDATE: (id) => `/api/exams/${id}`,
+      DELETE: (id) => `/api/exams/${id}`,
+    },
+
     POLICIES: {
       CREATE: '/api/policies',
       LIST: '/api/policies',
@@ -525,11 +533,13 @@ export const API_ENDPOINTS = {
 
     // Exams Management
     EXAMS: {
-      CREATE: '/api/branch-admin/exams', // POST
-      LIST: '/api/branch-admin/exams', // GET
-      GET: '/api/branch-admin/exams/:id', // GET
-      UPDATE: '/api/branch-admin/exams/:id', // PUT
-      DELETE: '/api/branch-admin/exams/:id', // DELETE
+      CREATE: "/api/exams",
+      LIST: "/api/exams",
+      GET: (id) => `/api/exams/${id}`,
+      UPDATE: (id) => `/api/exams/${id}`,
+      DELETE: (id) => `/api/exams/${id}`,
+      STUDENTS: (id) => `/api/exams/${id}/students`,
+      MARKS: (id) => `/api/exams/${id}/marks`,
     },
 
     // Attendance Management
