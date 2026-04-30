@@ -6,7 +6,7 @@ import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import Modal from "@/components/ui/modal";
-import AssignmentFormModal from "@/components/forms/AssignmentFormModal";
+// import AssignmentFormModal from "@/components/forms/AssignmentFormModal";
 import {
   FileText,
   Calendar,
@@ -338,7 +338,7 @@ export default function TeacherAssignmentsPage() {
       )}
 
       {/* Create/Edit Assignment Modal */}
-      <AssignmentFormModal
+      {/* <AssignmentFormModal
         isOpen={showFormModal}
         onClose={() => {
           setShowFormModal(false);
@@ -347,7 +347,7 @@ export default function TeacherAssignmentsPage() {
         onSubmit={handleCreateOrUpdate}
         editingAssignment={selectedAssignment}
         isSubmitting={isSubmitting}
-      />
+      /> */}
 
       {/* Assignment Detail Modal */}
       {selectedAssignment && (
