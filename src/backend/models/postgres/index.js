@@ -15,6 +15,9 @@ import LeaveRequest from "./LeaveRequest.model.js";
 import FeeVoucher from "./FeeVoucher.model.js";
 import Exam from "./Exam.model.js";
 import ExamMark from "./ExamMark.model.js";
+import Notification from "./Notification.model.js";
+import Assignment from "./Assignment.model.js";
+import AssignmentSubmission from "./AssignmentSubmission.model.js";
 
 const models = {
   AcademicYear,
@@ -33,6 +36,9 @@ const models = {
   FeeVoucher,
   Exam,
   ExamMark,
+  Notification,
+  Assignment,
+  AssignmentSubmission,
 };
 
 
@@ -61,6 +67,9 @@ export {
   FeeVoucher,
   Exam,
   ExamMark,
+  Notification,
+  Assignment,
+  AssignmentSubmission,
 };
 
 

@@ -45,184 +45,14 @@ export default function TeacherDashboard() {
   const fetchDashboardData = async () => {
     try {
       setLoading(true);
+      setError(null);
 
-      // Fetch real my-classes data from API (automatic token handling)
-      const classesResponse = await apiClient.get(API_ENDPOINTS.TEACHER.MY_CLASSES.LIST);
-      
-      const mockData = {
-        stats: {
-          classes: { 
-            total: classesResponse.data?.length || 0, 
-            active: classesResponse.data?.filter(c => c.schedule?.length > 0).length || 0, 
-            change: 0 
-          },
-          students: { 
-            total: classesResponse.data?.reduce((sum, c) => sum + (c.studentCount || 0), 0) || 0, 
-            change: 0 
-          },
-          attendance: { average: 92, change: 3 },
-          exams: { total: 8, thisWeek: 2, change: 1 },
-        },
-        myClasses: classesResponse.data || [],
-        upcomingExams: [
-          {
-            _id: "1",
-            title: "Mid-term Exam - Mathematics",
-            date: new Date(Date.now() + 86400000).toISOString(), // Tomorrow
-            classId: { name: "Mathematics 101" },
-            duration: 120,
-            room: "A101",
-            subject: "Mathematics",
-          },
-          {
-            _id: "2",
-            title: "Final Exam - Physics",
-            date: new Date(Date.now() + 86400000 * 7).toISOString(), // Next week
-            classId: { name: "Physics 201" },
-            duration: 180,
-            room: "B205",
-            subject: "Physics",
-          },
-          {
-            _id: "3",
-            title: "Quiz - Chemistry",
-            date: new Date(Date.now() + 86400000 * 3).toISOString(), // 3 days
-            classId: { name: "Chemistry 301" },
-            duration: 60,
-            room: "C102",
-            subject: "Chemistry",
-          },
-        ],
-        branchInfo: {
-          branchName: "Main Campus",
-          branchCode: "MC001",
-        },
-        todayAttendance: {
-          totalClasses: 4,
-          completedClasses: 2,
-          pendingClasses: 2,
-          totalStudents: 120,
-          presentStudents: 110,
-          absentStudents: 8,
-          lateStudents: 2,
-          attendanceRate: 92,
-        },
-        recentActivity: [
-          {
-            _id: "1",
-            type: "attendance",
-            title: "Attendance marked",
-            description: "Marked attendance for Mathematics 101",
-            timestamp: new Date(Date.now() - 3600000).toISOString(), // 1 hour ago
-            className: "Mathematics 101",
-            status: "completed",
-          },
-          {
-            _id: "2",
-            type: "exam",
-            title: "Exam scheduled",
-            description: "Mid-term exam scheduled for Mathematics 101",
-            timestamp: new Date(Date.now() - 7200000).toISOString(), // 2 hours ago
-            className: "Mathematics 101",
-            status: "pending",
-          },
-          {
-            _id: "3",
-            type: "assignment",
-            title: "Assignment created",
-            description: "New assignment posted for Physics 201",
-            timestamp: new Date(Date.now() - 10800000).toISOString(), // 3 hours ago
-            className: "Physics 201",
-            status: "completed",
-          },
-          {
-            _id: "4",
-            type: "announcement",
-            title: "Announcement posted",
-            description: "Holiday notice for next week",
-            timestamp: new Date(Date.now() - 14400000).toISOString(), // 4 hours ago
-            status: "completed",
-          },
-        ],
-        teacherAttendance: {
-          status: "checked_in",
-          checkInTime: new Date(Date.now() - 28800000).toISOString(), // 8 hours ago
-          checkOutTime: null,
-          workingHours: null,
-        },
-        attendanceHistory: [
-          {
-            _id: "1",
-            date: new Date(Date.now() - 86400000).toISOString(), // Yesterday
-            status: "present",
-            checkInTime: new Date(
-              Date.now() - 86400000 - 28800000
-            ).toISOString(),
-            checkOutTime: new Date(
-              Date.now() - 86400000 - 3600000
-            ).toISOString(),
-            workingHours: "9h 0m",
-          },
-          {
-            _id: "2",
-            date: new Date(Date.now() - 86400000 * 2).toISOString(), // 2 days ago
-            status: "present",
-            checkInTime: new Date(
-              Date.now() - 86400000 * 2 - 28800000
-            ).toISOString(),
-            checkOutTime: new Date(
-              Date.now() - 86400000 * 2 - 3600000
-            ).toISOString(),
-            workingHours: "8h 30m",
-          },
-          {
-            _id: "3",
-            date: new Date(Date.now() - 86400000 * 3).toISOString(), // 3 days ago
-            status: "late",
-            checkInTime: new Date(
-              Date.now() - 86400000 * 3 - 25200000
-            ).toISOString(),
-            checkOutTime: new Date(
-              Date.now() - 86400000 * 3 - 3600000
-            ).toISOString(),
-            workingHours: "8h 0m",
-          },
-          {
-            _id: "4",
-            date: new Date(Date.now() - 86400000 * 4).toISOString(), // 4 days ago
-            status: "present",
-            checkInTime: new Date(
-              Date.now() - 86400000 * 4 - 28800000
-            ).toISOString(),
-            checkOutTime: new Date(
-              Date.now() - 86400000 * 4 - 3600000
-            ).toISOString(),
-            workingHours: "9h 15m",
-          },
-          {
-            _id: "5",
-            date: new Date(Date.now() - 86400000 * 5).toISOString(), // 5 days ago
-            status: "present",
-            checkInTime: new Date(
-              Date.now() - 86400000 * 5 - 28800000
-            ).toISOString(),
-            checkOutTime: new Date(
-              Date.now() - 86400000 * 5 - 3600000
-            ).toISOString(),
-            workingHours: "8h 45m",
-          },
-        ],
-      };
-
-      setDashboardData(mockData);
-
-      // UNCOMMENT THIS WHEN BACKEND IS READY:
-      // const response = await apiClient.get(API_ENDPOINTS.TEACHER.DASHBOARD);
-      // if (response.success) {
-      //   setDashboardData(response.data);
-      // } else {
-      //   setError(response.message || "Failed to load dashboard");
-      // }
+      const response = await apiClient.get(API_ENDPOINTS.TEACHER.DASHBOARD);
+      if (response.success) {
+        setDashboardData(response.data);
+      } else {
+        setError(response.message || "Failed to load dashboard");
+      }
     } catch (err) {
       setError(err.message || "Failed to load dashboard data");
       console.error("Dashboard fetch error:", err);
@@ -265,7 +95,7 @@ export default function TeacherDashboard() {
 
       // Calculate working hours
       const checkInTime = new Date(
-        dashboardData?.teacherAttendance?.checkInTime
+        dashboardData?.teacherAttendance?.checkInTime,
       );
       const checkOutTime = new Date();
       const diffMs = checkOutTime - checkInTime;

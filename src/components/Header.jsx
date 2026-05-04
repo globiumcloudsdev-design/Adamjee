@@ -1,16 +1,30 @@
+//src/components/Header.jsx
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
-import { Search, User, ChevronDown, Menu, X } from "lucide-react";
+import { 
+  Search, 
+  User, 
+  ChevronDown, 
+  Menu as MenuIcon, 
+  X, 
+  Settings, 
+  LogOut, 
+  Bell, 
+  LayoutGrid,
+  Sparkles,
+  Command
+} from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import NotificationBell from "@/components/NotificationBell";
 
 export default function Header({ mobileOpen, setMobileOpen }) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isSearchFocused, setIsSearchFocused] = useState(false);
   const { user, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
@@ -18,21 +32,9 @@ export default function Header({ mobileOpen, setMobileOpen }) {
 
   const handleProfileClick = () => {
     setIsDropdownOpen(false);
-    // Directly use the correct path based on role
     const userRole = user?.role?.toUpperCase();
-    if (userRole === "SUPER_ADMIN") {
-      router.push("/super-admin/profile");
-    } else if (userRole === "BRANCH_ADMIN") {
-      router.push("/branch-admin/profile");
-    } else if (userRole === "TEACHER") {
-      router.push("/teacher/profile");
-    } else if (userRole === "PARENT") {
-      router.push("/parent/profile");
-    } else if (userRole === "STUDENT") {
-      router.push("/student/profile");
-    } else {
-      router.push("/profile");
-    }
+    const rolePath = userRole?.toLowerCase().replace("_", "-");
+    router.push(`/${rolePath}/profile`);
   };
 
   const handleLogoutClick = () => {
@@ -46,35 +48,18 @@ export default function Header({ mobileOpen, setMobileOpen }) {
   };
 
   // Get page title based on pathname
-  const getPageTitle = () => {
-    if (pathname.includes("/super-admin")) {
-      return pathname.includes("/profile")
-        ? "My Profile"
-        : "Super Admin Dashboard";
-    }
-    if (pathname.includes("/branch-admin")) {
-      return pathname.includes("/profile") ? "My Profile" : "Branch Dashboard";
-    }
-    if (pathname.includes("/teacher")) {
-      return pathname.includes("/profile") ? "My Profile" : "Teacher Dashboard";
-    }
-    if (pathname.includes("/parent")) {
-      return pathname.includes("/profile") ? "My Profile" : "Parent Dashboard";
-    }
-    if (pathname.includes("/student")) {
-      return pathname.includes("/profile") ? "My Profile" : "Student Dashboard";
-    }
+  const getPageTitle = useMemo(() => {
+    const parts = pathname.split('/').filter(Boolean);
+    if (parts.length <= 1) return "Dashboard Overview";
+    
+    const lastPart = parts[parts.length - 1];
+    return lastPart.charAt(0).toUpperCase() + lastPart.slice(1).replace(/-/g, ' ');
+  }, [pathname]);
 
-    const role = user?.role || "";
-    return `${role.charAt(0).toUpperCase() + role.slice(1).replace("_", " ")} Dashboard`;
-  };
-
-  // Get welcome message
-  const getWelcomeMessage = () => {
-    const firstName =
-      user?.fullName?.split(" ")[0] || user?.name?.split(" ")[0] || "User";
-    return `Welcome back, ${firstName}`;
-  };
+  const getBreadcrumbs = useMemo(() => {
+    const parts = pathname.split('/').filter(Boolean);
+    return parts.map(p => p.charAt(0).toUpperCase() + p.slice(1).replace(/-/g, ' '));
+  }, [pathname]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -90,146 +75,150 @@ export default function Header({ mobileOpen, setMobileOpen }) {
     };
   }, []);
 
-  // Get user initials
   const getUserInitials = () => {
-    if (user?.fullName) {
-      return user.fullName.charAt(0).toUpperCase();
-    }
-    if (user?.name) {
-      return user.name.charAt(0).toUpperCase();
-    }
-    return "U";
+    const name = user?.fullName || user?.name || "User";
+    return name.charAt(0).toUpperCase();
   };
 
   return (
-    <header
-      className={cn(
-        "bg-white border-b border-gray-200 sticky top-0 z-50 shadow-sm",
-        mobileOpen && "md:block hidden",
-      )}
-    >
-      <div className="flex items-center justify-between px-4 sm:px-6 py-3 sm:py-4">
-        {/* Page Title */}
-        <div className="flex-1 min-w-0">
-          <h1 className="text-lg sm:text-xl font-semibold text-gray-900 truncate">
-            {getPageTitle()}
-          </h1>
-          <p className="text-xs sm:text-sm text-gray-500 mt-0.5 sm:mt-1 truncate">
-            {getWelcomeMessage()}
-          </p>
+    <header className="sticky top-0 z-40 w-full bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl border-b border-slate-200/50 dark:border-slate-800/50 transition-all duration-300">
+      <div className="flex h-20 items-center justify-between px-6 lg:px-8">
+        
+        {/* Left Section: Title & Breadcrumbs */}
+        <div className="flex flex-col animate-in fade-in slide-in-from-top-2 duration-500">
+           <div className="flex items-center gap-2 text-[10px] font-bold uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-0.5">
+              <Link href="/" className="hover:text-indigo-600 transition-colors">Adamjee</Link>
+              <ChevronDown className="w-2.5 h-2.5 -rotate-90" />
+              <span className="text-slate-600 dark:text-slate-400">{getBreadcrumbs[0]}</span>
+           </div>
+           <h1 className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+              {getPageTitle}
+           </h1>
         </div>
 
-        {/* Right Side Actions */}
-        <div className="flex items-center gap-1 sm:gap-2 md:gap-4">
-          {/* Mobile Sidebar Toggle */}
-          <Button
-            variant="ghost"
-            size="icon"
-            className="md:hidden hover:bg-gray-100 h-8 w-8 sm:h-9 sm:w-9"
-            onClick={() => setMobileOpen(!mobileOpen)}
-          >
-            {mobileOpen ? (
-              <X className="h-4 w-4 sm:h-5 sm:w-5 text-gray-600" />
-            ) : (
-              <Menu className="h-4 w-4 sm:h-5 sm:w-5 text-gray-600" />
-            )}
-          </Button>
-
-          {/* Search */}
-          <div className="hidden md:block">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+        {/* Center Section: Search Bar (Desktop) */}
+        <div className="hidden lg:flex flex-1 max-w-md mx-8 group">
+          <div className={cn(
+            "relative w-full transition-all duration-300",
+            isSearchFocused ? "scale-[1.02]" : "scale-100"
+          )}>
+            <div className={cn(
+              "absolute inset-0 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 rounded-2xl blur-lg transition-opacity duration-300",
+              isSearchFocused ? "opacity-100" : "opacity-0"
+            )} />
+            <div className="relative flex items-center">
+              <Search className={cn(
+                "absolute left-4 w-4 h-4 transition-colors duration-300",
+                isSearchFocused ? "text-indigo-600" : "text-slate-400"
+              )} />
               <input
                 type="text"
-                placeholder="Search..."
-                className="pl-10 pr-4 py-2 w-48 lg:w-64 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-gray-50 text-gray-900 placeholder-gray-500 transition-colors text-sm"
+                placeholder="Search anything..."
+                onFocus={() => setIsSearchFocused(true)}
+                onBlur={() => setIsSearchFocused(false)}
+                className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl py-2.5 pl-11 pr-12 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all placeholder:text-slate-400"
               />
+              <div className="absolute right-3 flex items-center gap-1 px-1.5 py-1 rounded-md bg-slate-200/50 dark:bg-slate-800/50 text-[10px] font-bold text-slate-500">
+                <Command className="w-3 h-3" />
+                <span>K</span>
+              </div>
             </div>
           </div>
+        </div>
 
-          {/* Mobile Search Button */}
+        {/* Right Section: Actions & Profile */}
+        <div className="flex items-center gap-2 sm:gap-4">
+          
+          {/* Mobile Menu Toggle */}
           <Button
             variant="ghost"
             size="icon"
-            className="md:hidden hover:bg-gray-100 h-8 w-8 sm:h-9 sm:w-9"
+            className="md:hidden h-10 w-10 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-900 transition-all"
+            onClick={() => setMobileOpen(!mobileOpen)}
           >
-            <Search className="h-4 w-4 sm:h-5 sm:w-5 text-gray-600" />
+            {mobileOpen ? <X className="w-5 h-5 text-slate-600" /> : <MenuIcon className="w-5 h-5 text-slate-600" />}
           </Button>
 
-          {/* Notifications */}
-          <NotificationBell />
+          {/* Quick Actions (Desktop) */}
+          <div className="hidden sm:flex items-center gap-1">
+             <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-all">
+                <Sparkles className="w-5 h-5" />
+             </Button>
+             <NotificationBell />
+          </div>
 
-          {/* Profile Dropdown */}
+          <div className="w-px h-8 bg-slate-200 dark:bg-slate-800 mx-1 hidden sm:block" />
+
+          {/* User Profile Dropdown */}
           <div className="relative" ref={dropdownRef}>
             <button
               onClick={toggleDropdown}
-              className="flex items-center gap-2 sm:gap-3 hover:bg-gray-50 rounded-lg px-2 sm:px-3 py-2 transition-colors min-w-0"
+              className="flex items-center gap-3 p-1.5 rounded-2xl hover:bg-slate-50 dark:hover:bg-slate-900/50 transition-all duration-300 ring-1 ring-transparent hover:ring-slate-200/50 dark:hover:ring-slate-800 group"
             >
-              {/* User Avatar */}
-              <div className="w-8 h-8 sm:w-9 sm:h-9 bg-gradient-to-br from-blue-600 to-blue-700 rounded-full flex items-center justify-center text-white font-semibold text-xs sm:text-sm flex-shrink-0">
-                {getUserInitials()}
+              <div className="relative">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-600 via-purple-600 to-indigo-700 flex items-center justify-center text-white font-bold text-sm shadow-lg shadow-indigo-500/20 group-hover:scale-105 transition-transform duration-300">
+                  {getUserInitials()}
+                </div>
+                <div className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-950 shadow-sm" />
               </div>
 
-              {/* User Info - Hidden on mobile */}
-              <div className="hidden md:block text-left min-w-0">
-                <p className="text-sm font-medium text-gray-900 truncate max-w-[100px] lg:max-w-[120px]">
-                  {user?.fullName || user?.name || "User"}
+              <div className="hidden md:flex flex-col text-left">
+                <p className="text-sm font-bold text-slate-900 dark:text-white leading-tight">
+                  {user?.fullName || "User Account"}
                 </p>
-                <p className="text-xs text-gray-500 capitalize">
-                  {user?.role?.replace("_", " ") || "Role"}
-                </p>
+                <div className="flex items-center gap-1">
+                  <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none">
+                    {user?.role?.replace("_", " ")}
+                  </span>
+                  <ChevronDown className={cn(
+                    "w-3 h-3 text-slate-400 transition-transform duration-300",
+                    isDropdownOpen && "rotate-180"
+                  )} />
+                </div>
               </div>
-
-              <ChevronDown
-                className={`h-3 w-3 sm:h-4 sm:w-4 text-gray-500 transition-transform duration-200 flex-shrink-0 ${
-                  isDropdownOpen ? "rotate-180" : ""
-                }`}
-              />
             </button>
 
             {/* Dropdown Menu */}
             {isDropdownOpen && (
-              <div className="absolute right-0 mt-2 w-40 bg-white border border-gray-200 rounded-lg shadow-lg z-50 py-2">
-                {/* Profile Option - Hidden for teachers */}
-                {user?.role?.toUpperCase() !== "TEACHER" && (
-                  <>
-                    <Link
-                      href="/profile"
-                      onClick={() => setIsDropdownOpen(false)}
-                      className="flex items-center w-full text-left px-4 py-3 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                    >
-                      <div className="w-5 h-5 mr-3 text-gray-500">
-                        <User className="h-4 w-4" />
-                      </div>
-                      <span className="font-medium">Profile</span>
-                    </Link>
+              <div className="absolute right-0 mt-3 w-64 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl z-50 py-2 animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
+                
+                <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800">
+                   <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Signed in as</p>
+                   <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{user?.email}</p>
+                </div>
 
-                    {/* Divider */}
-                    <div className="border-t border-gray-100 mx-3 my-1"></div>
-                  </>
-                )}
+                <div className="p-2 space-y-1">
+                  <button
+                    onClick={handleProfileClick}
+                    className="flex items-center w-full gap-3 px-3 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-xl transition-all"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center">
+                      <User className="w-4 h-4" />
+                    </div>
+                    <span>My Profile</span>
+                  </button>
 
-                <button
-                  onClick={handleLogoutClick}
-                  className="flex items-center w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 transition-colors"
-                >
-                  <div className="w-5 h-5 mr-3">
-                    <svg
-                      className="h-4 w-4 text-red-600"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
-                      />
-                    </svg>
-                  </div>
-                  <span className="font-medium">Logout</span>
-                </button>
+                  <button
+                    className="flex items-center w-full gap-3 px-3 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900/50 hover:text-slate-900 dark:hover:text-white rounded-xl transition-all"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+                      <Settings className="w-4 h-4" />
+                    </div>
+                    <span>Account Settings</span>
+                  </button>
+                </div>
+
+                <div className="px-2 pt-1 border-t border-slate-100 dark:border-slate-800 mt-1">
+                  <button
+                    onClick={handleLogoutClick}
+                    className="flex items-center w-full gap-3 px-3 py-2.5 text-sm font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-xl transition-all"
+                  >
+                    <div className="w-8 h-8 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
+                      <LogOut className="w-4 h-4" />
+                    </div>
+                    <span>Sign Out</span>
+                  </button>
+                </div>
               </div>
             )}
           </div>

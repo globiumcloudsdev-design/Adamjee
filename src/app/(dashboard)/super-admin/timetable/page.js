@@ -72,6 +72,8 @@ export default function TimetablePage() {
   const [teacherSchedulesMap, setTeacherSchedulesMap] = useState({});
   const [schedulesFetchedForBranch, setSchedulesFetchedForBranch] =
     useState(null);
+  const [allSubjects, setAllSubjects] = useState([]);
+  const [classSubjects, setClassSubjects] = useState([]);
 
   const [selectedBranch, setSelectedBranch] = useState("");
   const [selectedClass, setSelectedClass] = useState("");
@@ -110,6 +112,7 @@ export default function TimetablePage() {
   useEffect(() => {
     fetchBranches();
     fetchAllTeachers();
+    fetchAllSubjects();
   }, []);
 
   useEffect(() => {
@@ -438,6 +441,42 @@ export default function TimetablePage() {
     } catch (error) {
       console.error("Failed to fetch teachers:", error);
       toast.error("Failed to load teachers");
+    }
+  };
+
+  const fetchAllSubjects = async () => {
+    try {
+      const response = await apiClient.get(
+        API_ENDPOINTS.BRANCH_ADMIN.SUBJECTS.LIST,
+      );
+      const data = response.success
+        ? response.data
+        : Array.isArray(response)
+          ? response
+          : [];
+      setAllSubjects(data);
+    } catch (error) {
+      console.error("Failed to fetch all subjects:", error);
+    }
+  };
+
+  const fetchSubjects = async (classId) => {
+    if (!classId) return;
+    try {
+      const response = await apiClient.get(
+        API_ENDPOINTS.BRANCH_ADMIN.SUBJECTS.LIST,
+        {
+          class_id: classId,
+        },
+      );
+      const data = response.success
+        ? response.data
+        : Array.isArray(response)
+          ? response
+          : [];
+      setClassSubjects(data);
+    } catch (error) {
+      console.error("Failed to fetch subjects:", error);
     }
   };
 
@@ -1006,7 +1045,9 @@ export default function TimetablePage() {
     // Check for duplicates/conflicts when updating time, day, or teacher
     if (["day", "startTime", "endTime", "teacherId"].includes(field)) {
       if (isDuplicatePeriod(period, index)) {
-        toast.error("This time slot is already occupied on this day for this section!");
+        toast.error(
+          "This time slot is already occupied on this day for this section!",
+        );
         return;
       }
 
@@ -1016,12 +1057,14 @@ export default function TimetablePage() {
           period.day,
           period.startTime,
           period.endTime,
-          index
+          index,
         );
         // Since isTeacherAvailable in Super Admin returns boolean (true for available),
         // I need to check for false.
         if (conflict === false) {
-          toast.error("Teacher Conflict: This teacher is already assigned to another period at this time.");
+          toast.error(
+            "Teacher Conflict: This teacher is already assigned to another period at this time.",
+          );
           return;
         }
       }
@@ -1109,9 +1152,9 @@ export default function TimetablePage() {
               <Filter className="h-5 w-5 text-indigo-500" />
               Advanced Filters
             </CardTitle>
-            <Button 
-              variant="ghost" 
-              size="sm" 
+            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => {
                 setSelectedBranch("");
                 setSelectedClass("");
@@ -1313,7 +1356,7 @@ export default function TimetablePage() {
                               <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-50 text-indigo-600 dark:bg-indigo-900/20 dark:text-indigo-400 group-hover:scale-110 transition-transform">
                                 <BookOpen className="h-5 w-5" />
                               </div>
-                              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                              <div className="flex gap-1 transition-opacity">
                                 <Button
                                   variant="ghost"
                                   size="icon"
@@ -1637,7 +1680,9 @@ export default function TimetablePage() {
                   const isUsed = branchTimetables.some((tt) => {
                     const ttBranchId = String(tt.branchId?.id || tt.branchId);
                     const ttClassId = String(tt.classId?.id || tt.classId);
-                    const ttAcademicYear = String(tt.academicYear?.id || tt.academicYear);
+                    const ttAcademicYear = String(
+                      tt.academicYear?.id || tt.academicYear,
+                    );
                     const ttSection = String(tt.section?.name || tt.section);
 
                     return (
@@ -1891,6 +1936,25 @@ export default function TimetablePage() {
                       </div>
 
                       <div className="space-y-2">
+                        <Label>Subject</Label>
+                        <Dropdown
+                          value={period.subjectId}
+                          onChange={(e) =>
+                            updatePeriod(index, "subjectId", e.target.value)
+                          }
+                          options={[
+                            { value: "", label: "Select Subject" },
+                            ...classSubjects.map((sub) => ({
+                              value: sub.id,
+                              label: sub.name,
+                            })),
+                          ]}
+                          placeholder="Select subject"
+                          disabled={!formData.classId}
+                        />
+                      </div>
+
+                      <div className="space-y-2">
                         <Label>Teacher</Label>
                         <Dropdown
                           value={period.teacherId}
@@ -1948,6 +2012,7 @@ export default function TimetablePage() {
         onClose={() => setViewingTimetable(null)}
         timetable={viewingTimetable}
         teachers={allTeachers.length > 0 ? allTeachers : teachers}
+        subjects={allSubjects}
       />
 
       {/* Loading Overlay */}

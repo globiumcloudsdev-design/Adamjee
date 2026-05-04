@@ -91,15 +91,23 @@ const SimpleTimetableView = ({ timetable, teachers = [], subjects = [] }) => {
   // Helper to get subject name
   const getSubjectName = (period) => {
     if (!period) return "Subject";
-    const sId = period.subjectId;
     
+    // 1. Check if subjectId is a populated object
+    const sId = period.subjectId;
     if (sId && typeof sId === 'object') return sId.name || sId.title || "Subject";
     
+    // 2. Check if there's a separate subject object
+    const s = period.subject;
+    if (s && typeof s === 'object') return s.name || s.title || "Subject";
+
+    // 3. Lookup in subjects array if it's an ID string
     if (sId && typeof sId === 'string' && subjects.length > 0) {
-      const found = subjects.find(s => String(s.id || s._id) === String(sId));
+      const found = subjects.find(sub => String(sub.id || sub._id) === String(sId));
       if (found) return found.name || found.title || "Subject";
     }
 
+    // 4. Fallback to ID if it's a descriptive string, otherwise "Subject"
+    if (sId && typeof sId === 'string' && sId.length > 20) return "Subject"; // Likely an ID
     return sId || "Subject";
   };
 

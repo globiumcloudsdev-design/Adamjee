@@ -13,6 +13,7 @@ import Tabs, { TabPanel } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import Modal from '@/components/ui/modal';
+import DatePicker from '@/components/ui/date-picker';
 import LiveJsQRScanner from '@/components/LiveJsQRScanner';
 import apiClient from '@/lib/api-client';
 import API_ENDPOINTS from '@/constants/api-endpoints';
@@ -50,6 +51,7 @@ export default function BranchAdminAttendancePage() {
   const [classes, setClasses] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [students, setStudents] = useState([]);
+  const [allClasses, setAllClasses] = useState([]);
   const [allSections, setAllSections] = useState([]);
   const [filteredStudents, setFilteredStudents] = useState([]);
 
@@ -97,6 +99,14 @@ export default function BranchAdminAttendancePage() {
   const [manualSelectedStudents, setManualSelectedStudents] = useState([]);
   const [manualFetchingStudents, setManualFetchingStudents] = useState(false);
   const [manualMarkingAttendance, setManualMarkingAttendance] = useState(false);
+  const [manualHasFetched, setManualHasFetched] = useState(false);
+
+  useEffect(() => {
+    if (manualAttendanceModalOpen) {
+      setManualHasFetched(false);
+      setManualAttendanceStudents([]);
+    }
+  }, [manualAttendanceModalOpen]);
 
 
   // Fetch classes and today's attendance on mount
@@ -171,15 +181,13 @@ export default function BranchAdminAttendancePage() {
   const fetchClasses = async () => {
     try {
       setLoading(true);
-      const response = await apiClient.get(API_ENDPOINTS.BRANCH_ADMIN.CLASSES.LIST);
+      const response = await apiClient.get('/api/classes');
       const classesData = Array.isArray(response) ? response : (response.data?.classes || response.data || []);
       
-      if (user?.branch_id && classesData.some(c => c.branch_id || c.branchId)) {
-        const branchClasses = classesData.filter(c => c.branch_id === user.branch_id || c.branchId === user.branch_id);
-        setClasses(branchClasses.length > 0 ? branchClasses : classesData);
-      } else {
-        setClasses(classesData);
-      }
+      setAllClasses(classesData);
+      const branchId = user.branchId || user.branch_id;
+      const filtered = classesData.filter(c => c.branch_id === branchId || c.branchId === branchId);
+      setClasses(filtered);
     } catch (error) {
       toast.error('Failed to fetch classes');
     } finally {
@@ -293,10 +301,7 @@ export default function BranchAdminAttendancePage() {
   const fetchExistingAttendance = async (studentList) => {
     try {
       const response = await apiClient.get('/api/attendance', {
-
-        params: {
-          date: attendanceDate
-        }
+        date: attendanceDate
       });
       const attendanceData = Array.isArray(response) ? response : (response.data || []);
       const records = {};
@@ -552,6 +557,7 @@ export default function BranchAdminAttendancePage() {
       setManualFetchingStudents(true);
       const response = await apiClient.get('/api/users/students');
       setManualAttendanceStudents(response.data?.students || response.data || response || []);
+      setManualHasFetched(true);
 
     } catch (error) {
       toast.error(error.message || 'Failed to fetch students');
@@ -589,8 +595,16 @@ export default function BranchAdminAttendancePage() {
 
   const getSectionName = (sectionId) => {
     if (!sectionId) return '—';
-    const sec = allSections.find(s => s.id === sectionId || s._id === sectionId);
-    return sec ? sec.name : sectionId;
+    const id = typeof sectionId === 'object' ? (sectionId.id || sectionId._id) : sectionId;
+    const sec = allSections.find(s => s.id === id || s._id === id);
+    return sec ? sec.name : (typeof sectionId === 'object' ? sectionId.name : sectionId);
+  };
+
+  const getClassName = (classId) => {
+    if (!classId) return '—';
+    const id = typeof classId === 'object' ? (classId.id || classId._id) : classId;
+    const cls = allClasses.find(c => c.id === id || c._id === id);
+    return cls ? cls.name : (typeof classId === 'object' ? classId.name : classId);
   };
 
 
@@ -642,7 +656,7 @@ export default function BranchAdminAttendancePage() {
       if (historyFilters.classId) params.classId = historyFilters.classId;
       if (historyFilters.attendanceType) params.attendanceType = historyFilters.attendanceType;
       
-      const response = await apiClient.get(API_ENDPOINTS.BRANCH_ADMIN.ATTENDANCE.LIST, { params });
+      const response = await apiClient.get(API_ENDPOINTS.BRANCH_ADMIN.ATTENDANCE.LIST, params);
       
       if (response.success && response.data) {
         setAttendanceHistory(response.data.attendance || []);
@@ -704,11 +718,9 @@ export default function BranchAdminAttendancePage() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Date</Label>
-              <Input
-                type="date"
+              <DatePicker
                 value={manualAttendanceDate}
                 onChange={(e) => setManualAttendanceDate(e.target.value)}
-                max={new Date().toISOString().split('T')[0]}
               />
             </div>
             <div className="space-y-2">
@@ -734,7 +746,7 @@ export default function BranchAdminAttendancePage() {
             </Button>
           </div>
 
-          {manualAttendanceStudents.length > 0 && (
+          {manualAttendanceStudents.length > 0 ? (
             <div className="space-y-4 mt-4">
               <div className="flex justify-between items-center">
                 <Label className="font-semibold text-md">Select Students ({manualAttendanceStudents.length})</Label>
@@ -782,7 +794,7 @@ export default function BranchAdminAttendancePage() {
                         <TableCell className="font-medium">{student.first_name} {student.last_name}</TableCell>
                         <TableCell>{student.registration_no}</TableCell>
                         <TableCell>
-                          {student.details?.academic_info?.class_id || 'N/A'} - {student.details?.academic_info?.section_id || student.section || 'N/A'}
+                          {getClassName(student.details?.academic_info?.class_id)} - {getSectionName(student.details?.academic_info?.section_id || student.section)}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -799,6 +811,14 @@ export default function BranchAdminAttendancePage() {
                   {manualMarkingAttendance ? <ButtonLoader /> : `Mark Attendance (${manualSelectedStudents.length})`}
                 </Button>
               </div>
+            </div>
+          ) : manualHasFetched && !manualFetchingStudents && (
+            <div className="text-center py-10 border-2 border-dashed rounded-lg mt-4 bg-gray-50/50 dark:bg-gray-900/50">
+              <UserSearch className="mx-auto h-12 w-12 text-gray-400 mb-3" />
+              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">No Students Found</h3>
+              <p className="text-gray-500 dark:text-gray-400 max-w-xs mx-auto">
+                We couldn't find any students in your branch. Please check the student management section.
+              </p>
             </div>
           )}
         </div>
@@ -840,11 +860,9 @@ export default function BranchAdminAttendancePage() {
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="space-y-2">
               <Label>Date</Label>
-              <Input
-                type="date"
+              <DatePicker
                 value={attendanceDate}
                 onChange={(e) => setAttendanceDate(e.target.value)}
-                max={new Date().toISOString().split('T')[0]}
               />
             </div>
             
@@ -1033,7 +1051,7 @@ export default function BranchAdminAttendancePage() {
                     </TableCell>
                     <TableCell>{student.registrationNumber || '—'}</TableCell>
                     <TableCell>{student.rollNumber || '—'}</TableCell>
-                    <TableCell>{student.section || '—'}</TableCell>
+                    <TableCell>{getSectionName(student.section || student.details?.academic_info?.section_id)}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
                         <DollarSign className="w-4 h-4" />
@@ -1262,16 +1280,14 @@ export default function BranchAdminAttendancePage() {
                 <div className="flex gap-4 mt-4">
                   <div className="space-y-2">
                     <Label>From Date</Label>
-                    <Input
-                      type="date"
+                    <DatePicker
                       value={historyFilters.fromDate}
                       onChange={(e) => setHistoryFilters(prev => ({ ...prev, fromDate: e.target.value }))}
                     />
                   </div>
                   <div className="space-y-2">
                     <Label>To Date</Label>
-                    <Input
-                      type="date"
+                    <DatePicker
                       value={historyFilters.toDate}
                       onChange={(e) => setHistoryFilters(prev => ({ ...prev, toDate: e.target.value }))}
                     />

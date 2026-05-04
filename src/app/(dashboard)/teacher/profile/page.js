@@ -8,6 +8,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import CheckInOutCard from "@/components/teacher/CheckInOutCard";
 import AttendanceHistoryCard from "@/components/teacher/AttendanceHistoryCard";
+import apiClient from "@/lib/api-client";
+import ChangePasswordModal from "@/components/modals/ChangePasswordModal";
 import {
   User,
   Mail,
@@ -34,6 +36,7 @@ export default function TeacherProfilePage() {
   const [profileData, setProfileData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
 
   useEffect(() => {
     loadProfileData();
@@ -42,80 +45,49 @@ export default function TeacherProfilePage() {
   const loadProfileData = async () => {
     try {
       setLoading(true);
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      const response = await apiClient.get("/api/users/profile");
+      
+      if (response.success && response.user) {
+        const u = response.user;
+        const details = u.details?.teacher || u.details?.staff || {};
 
-      const mockData = {
-        profile: {
-          firstName: "Shoaib",
-          lastName: "Raza Attari",
-          email: "m.ahmed.khan@ease.edu",
-          phone: "+92 300 1234567",
-          address: "House #123, Street 4, DHA Phase 5, Karachi",
-          dateOfBirth: "1990-01-15",
-          joiningDate: "2020-01-01",
-          employeeId: "TCH001",
-          qualification: "M.Sc. Mathematics, B.Ed.",
-          experience: "5 years",
-          subjects: ["Mathematics", "Physics", "Computer Science"],
-          department: "Science & Technology",
-          salary: "80,000 PKR",
-          bankAccount: "PK**************2345",
-        },
-        teacherAttendance: {
-          status: "checked_in",
-          checkInTime: new Date(Date.now() - 28800000).toISOString(),
-          checkOutTime: null,
-          workingHours: null,
-        },
-        attendanceHistory: [
-          {
-            _id: "1",
-            date: new Date(Date.now() - 86400000).toISOString(),
-            status: "present",
-            checkInTime: new Date(
-              Date.now() - 86400000 - 28800000
-            ).toISOString(),
-            checkOutTime: new Date(
-              Date.now() - 86400000 - 3600000
-            ).toISOString(),
-            workingHours: "9h 0m",
+        setProfileData({
+          profile: {
+            firstName: u.first_name || "N/A",
+            lastName: u.last_name || "N/A",
+            email: u.email || "N/A",
+            phone: u.phone || "N/A",
+            address: details.address || "N/A",
+            dateOfBirth: details.dob || "1990-01-01",
+            joiningDate: details.joining_date || u.created_at || "2020-01-01",
+            employeeId: details.employee_id || u.registration_no || "N/A",
+            qualification: details.qualification || "N/A",
+            experience: (details.experience && typeof details.experience === "object")
+              ? `${details.experience.totalYears || 0} Years` 
+              : (details.experience || "N/A"),
+            subjects: details.subjects || ["General"],
+            department: details.department || "Teaching"
           },
-          {
-            _id: "2",
-            date: new Date(Date.now() - 86400000 * 2).toISOString(),
-            status: "present",
-            checkInTime: new Date(
-              Date.now() - 86400000 * 2 - 28800000
-            ).toISOString(),
-            checkOutTime: new Date(
-              Date.now() - 86400000 * 2 - 3600000
-            ).toISOString(),
-            workingHours: "8h 30m",
+          teacherAttendance: {
+            status: "pending",
+            checkInTime: null,
+            checkOutTime: null,
+            workingHours: null
           },
-          {
-            _id: "3",
-            date: new Date(Date.now() - 86400000 * 3).toISOString(),
-            status: "late",
-            checkInTime: new Date(
-              Date.now() - 86400000 * 3 - 25200000
-            ).toISOString(),
-            checkOutTime: new Date(
-              Date.now() - 86400000 * 3 - 3600000
-            ).toISOString(),
-            workingHours: "8h 0m",
-          },
-        ],
-        stats: {
-          totalClasses: 8,
-          totalStudents: 240,
-          attendanceRate: 94,
-          averageGrade: 87,
-        },
-      };
-
-      setProfileData(mockData);
+          attendanceHistory: [],
+          stats: {
+            totalClasses: 0,
+            totalStudents: 0,
+            attendanceRate: 0,
+            averageGrade: 0
+          }
+        });
+      } else {
+        toast.error(response.error || "Failed to load profile");
+      }
     } catch (error) {
       console.error("Error loading profile:", error);
+      toast.error("An error occurred while loading profile");
     } finally {
       setLoading(false);
     }
@@ -353,11 +325,7 @@ export default function TeacherProfilePage() {
                   label="Employee ID"
                   value={profile.employeeId}
                 />
-                <InfoField
-                  icon={CreditCard}
-                  label="Bank Account"
-                  value={profile.bankAccount}
-                />
+
                 <div className="sm:col-span-2">
                   <InfoField
                     icon={MapPin}
@@ -396,19 +364,24 @@ export default function TeacherProfilePage() {
                   <p className="font-medium text-sm">{profile.experience}</p>
                 </div>
 
-                <div className="p-4 rounded-lg bg-green-50 border border-green-200">
-                  <p className="text-xs text-muted-foreground mb-1">
-                    Monthly Salary
-                  </p>
-                  <p className="font-bold text-green-700">{profile.salary}</p>
-                </div>
+
 
                 <div className="pt-4 border-t">
-                  <Button variant="outline" className="w-full" size="sm">
+                  <Button 
+                    variant="outline" 
+                    className="w-full" 
+                    size="sm"
+                    onClick={() => setShowPasswordModal(true)}
+                  >
                     <Key className="w-4 h-4 mr-2" />
                     Change Password
                   </Button>
                 </div>
+
+                <ChangePasswordModal 
+                  isOpen={showPasswordModal} 
+                  onClose={() => setShowPasswordModal(false)} 
+                />
               </div>
             </Card>
           </motion.div>

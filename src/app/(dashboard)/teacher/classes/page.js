@@ -50,46 +50,71 @@ export default function TeacherClassesPage() {
     try {
       setLoading(true);
       // Use apiClient to fetch data (automatic token handling)
-      const [classesResult, assignmentsResult] = await Promise.all([
+      const results = await Promise.allSettled([
         apiClient.get(API_ENDPOINTS.TEACHER.MY_CLASSES.LIST),
-        apiClient.get(API_ENDPOINTS.TEACHER.ASSIGNMENTS.LIST)
-      ]);      
-      
+        apiClient.get(API_ENDPOINTS.TEACHER.ASSIGNMENTS.LIST),
+      ]);
+
+      const classesResult =
+        results[0].status === "fulfilled"
+          ? results[0].value
+          : { success: false };
+      const assignmentsResult =
+        results[1].status === "fulfilled"
+          ? results[1].value
+          : { success: false };
+
       if (classesResult.success) {
         const classesData = classesResult.data || [];
-        const assignmentsData = assignmentsResult.success ? (assignmentsResult.data || []) : [];
-        
+        const assignmentsData = assignmentsResult.success
+          ? assignmentsResult.data || []
+          : [];
+
         // Merge assignments with classes
-        const classesWithAssignments = classesData.map(classItem => {
+        const classesWithAssignments = classesData.map((classItem) => {
           // Filter assignments for this class and section
-          const classAssignments = assignmentsData.filter(assignment => {
-            const matchClass = String(assignment.classId?._id || assignment.classId) === String(classItem.classId);
-            const matchSection = !assignment.sectionId || assignment.sectionId === classItem.section;
-            return matchClass && matchSection;
-          }).map(assignment => ({
-            id: assignment._id,
-            title: assignment.title,
-            description: assignment.description,
-            dueDate: new Date(assignment.dueDate).toLocaleDateString(),
-            status: assignment.status === 'published' ? 'Active' : assignment.status === 'draft' ? 'Draft' : 'Closed',
-            type: assignment.subjectId?.name || classItem.subjectName || 'Assignment',
-            submissions: assignment.submissionCount || 0,
-            total: classItem.studentCount || 0,
-            maxPoints: assignment.totalMarks || 0,
-            _id: assignment._id,
-            videoUrl: assignment.videoUrl,
-            attachments: assignment.attachments || [],
-          }));
-          
+          const classAssignments = assignmentsData
+            .filter((assignment) => {
+              const matchClass =
+                String(assignment.classId?._id || assignment.classId) ===
+                String(classItem.classId);
+              const matchSection =
+                !assignment.sectionId ||
+                assignment.sectionId === classItem.section;
+              return matchClass && matchSection;
+            })
+            .map((assignment) => ({
+              id: assignment._id,
+              title: assignment.title,
+              description: assignment.description,
+              dueDate: new Date(assignment.dueDate).toLocaleDateString(),
+              status:
+                assignment.status === "published"
+                  ? "Active"
+                  : assignment.status === "draft"
+                    ? "Draft"
+                    : "Closed",
+              type:
+                assignment.subjectId?.name ||
+                classItem.subjectName ||
+                "Assignment",
+              submissions: assignment.submissionCount || 0,
+              total: classItem.studentCount || 0,
+              maxPoints: assignment.totalMarks || 0,
+              _id: assignment._id,
+              videoUrl: assignment.videoUrl,
+              attachments: assignment.attachments || [],
+            }));
+
           return {
             ...classItem,
-            assignments: classAssignments
+            assignments: classAssignments,
           };
         });
-        
+
         setClasses(classesWithAssignments);
       } else {
-        console.error('Failed to load classes:', classesResult.error);
+        console.error("Failed to load classes:", classesResult.error);
         setClasses([]);
       }
     } catch (error) {
@@ -104,7 +129,7 @@ export default function TeacherClassesPage() {
     (cls) =>
       cls.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       cls.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      cls.subject.toLowerCase().includes(searchTerm.toLowerCase())
+      cls.subject.toLowerCase().includes(searchTerm.toLowerCase()),
   );
 
   const handleOpenModal = (classItem) => {
@@ -112,6 +137,56 @@ export default function TeacherClassesPage() {
     setSelectedStudent(null);
     setSelectedAssignment(null);
     setActiveTab("overview");
+  };
+
+  useEffect(() => {
+    if (selectedClass && !selectedClass.students) {
+      fetchClassStudents(selectedClass);
+    }
+  }, [selectedClass]);
+
+  const fetchClassStudents = async (classItem) => {
+    try {
+      // API call to fetch students for this class and section
+      const response = await apiClient.get(
+        `${API_ENDPOINTS.SUPER_ADMIN.STUDENTS.LIST}?class_id=${classItem.classId}&section_id=${classItem.sectionId}&subject_id=${classItem.subjectId || ""}`,
+      );
+
+      if (Array.isArray(response)) {
+        // Map data to expected format if needed
+        const mappedStudents = response.map((s) => ({
+          _id: s.id,
+          name: `${s.first_name} ${s.last_name || ""}`,
+          rollNumber: s.details?.academic_info?.roll_no,
+          registrationNumber: s.registration_no,
+          email: s.email,
+          phone: s.phone,
+          guardian: s.details?.academic_info?.guardian || s.details?.guardian,
+          studentProfile: s.details?.academic_info || s.details,
+        }));
+
+        setClasses((prev) =>
+          prev.map((c) =>
+            c.classId === classItem.classId &&
+            c.sectionId === classItem.sectionId
+              ? {
+                  ...c,
+                  students: mappedStudents,
+                  studentCount: mappedStudents.length,
+                }
+              : c,
+          ),
+        );
+
+        setSelectedClass((prev) => ({
+          ...prev,
+          students: mappedStudents,
+          studentCount: mappedStudents.length,
+        }));
+      }
+    } catch (error) {
+      console.error("Error fetching students:", error);
+    }
   };
 
   const handleTabChange = (newTab) => {
@@ -237,9 +312,20 @@ export default function TeacherClassesPage() {
                       <h3 className="font-semibold text-base leading-tight truncate group-hover:text-primary transition-colors">
                         {classItem.name}
                       </h3>
-                      <p className="text-xs text-muted-foreground mt-0.5">
-                        {classItem.code} • {classItem.grade}
-                      </p>
+                      <div className="flex items-center gap-2 mt-1">
+                        <Badge
+                          variant="outline"
+                          className="text-[10px] bg-muted/50 border-0 font-medium"
+                        >
+                          {classItem.groupName}
+                        </Badge>
+                        <span className="text-[10px] text-muted-foreground">
+                          •
+                        </span>
+                        <span className="text-[10px] text-muted-foreground font-medium truncate">
+                          {classItem.subject}
+                        </span>
+                      </div>
                     </div>
                   </div>
 
@@ -312,7 +398,8 @@ export default function TeacherClassesPage() {
               <div>
                 <h3 className="text-lg font-semibold">{selectedClass.name}</h3>
                 <p className="text-xs text-muted-foreground font-normal">
-                  {selectedClass.code} • {selectedClass.section}
+                  {selectedClass.groupName} • {selectedClass.subject} • Section{" "}
+                  {selectedClass.sectionName}
                 </p>
               </div>
             </div>
@@ -396,7 +483,9 @@ export default function TeacherClassesPage() {
                               {selectedStudent.name}
                             </h4>
                             <p className="text-sm text-muted-foreground mt-1">
-                              Roll No: {selectedStudent.rollNumber || selectedStudent.registrationNumber}
+                              Roll No:{" "}
+                              {selectedStudent.rollNumber ||
+                                selectedStudent.registrationNumber}
                             </p>
                             <Badge className="mt-3 bg-blue-50 text-blue-700 border-0">
                               Active Student
@@ -426,7 +515,7 @@ export default function TeacherClassesPage() {
                               </p>
                             </div>
                             <p className="text-sm font-medium text-green-600">
-                              {selectedStudent.phone || 'Not provided'}
+                              {selectedStudent.phone || "Not provided"}
                             </p>
                           </div>
                           <div className="p-4 border rounded-lg bg-background hover:shadow-sm transition-shadow">
@@ -490,37 +579,58 @@ export default function TeacherClassesPage() {
                               <div className="border rounded-lg p-4 bg-gradient-to-br from-primary/10 to-primary/5 border-primary/30">
                                 <h6 className="font-medium text-sm text-primary mb-3 flex items-center gap-2">
                                   <Users className="w-4 h-4" />
-                                  {selectedStudent.guardian.relation} Information
+                                  {selectedStudent.guardian.relation}{" "}
+                                  Information
                                 </h6>
                                 <div className="grid grid-cols-1 gap-2 text-sm">
                                   {selectedStudent.guardian.name && (
                                     <div className="flex justify-between">
-                                      <span className="text-muted-foreground">Name:</span>
-                                      <span className="font-medium">{selectedStudent.guardian.name}</span>
+                                      <span className="text-muted-foreground">
+                                        Name:
+                                      </span>
+                                      <span className="font-medium">
+                                        {selectedStudent.guardian.name}
+                                      </span>
                                     </div>
                                   )}
                                   {selectedStudent.guardian.relation && (
                                     <div className="flex justify-between">
-                                      <span className="text-muted-foreground">Relation:</span>
-                                      <span className="font-medium">{selectedStudent.guardian.relation}</span>
+                                      <span className="text-muted-foreground">
+                                        Relation:
+                                      </span>
+                                      <span className="font-medium">
+                                        {selectedStudent.guardian.relation}
+                                      </span>
                                     </div>
                                   )}
                                   {selectedStudent.guardian.phone && (
                                     <div className="flex justify-between">
-                                      <span className="text-muted-foreground">Phone:</span>
-                                      <span className="font-medium">{selectedStudent.guardian.phone}</span>
+                                      <span className="text-muted-foreground">
+                                        Phone:
+                                      </span>
+                                      <span className="font-medium">
+                                        {selectedStudent.guardian.phone}
+                                      </span>
                                     </div>
                                   )}
                                   {selectedStudent.guardian.email && (
                                     <div className="flex justify-between">
-                                      <span className="text-muted-foreground">Email:</span>
-                                      <span className="font-medium">{selectedStudent.guardian.email}</span>
+                                      <span className="text-muted-foreground">
+                                        Email:
+                                      </span>
+                                      <span className="font-medium">
+                                        {selectedStudent.guardian.email}
+                                      </span>
                                     </div>
                                   )}
                                   {selectedStudent.guardian.cnic && (
                                     <div className="flex justify-between">
-                                      <span className="text-muted-foreground">CNIC:</span>
-                                      <span className="font-medium">{selectedStudent.guardian.cnic}</span>
+                                      <span className="text-muted-foreground">
+                                        CNIC:
+                                      </span>
+                                      <span className="font-medium">
+                                        {selectedStudent.guardian.cnic}
+                                      </span>
                                     </div>
                                   )}
                                 </div>
@@ -536,37 +646,82 @@ export default function TeacherClassesPage() {
                                 </h6>
                                 <div className="grid grid-cols-1 gap-2 text-sm">
                                   <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Name:</span>
-                                    <span className="font-medium">{selectedStudent.studentProfile.father.name}</span>
+                                    <span className="text-muted-foreground">
+                                      Name:
+                                    </span>
+                                    <span className="font-medium">
+                                      {
+                                        selectedStudent.studentProfile.father
+                                          .name
+                                      }
+                                    </span>
                                   </div>
-                                  {selectedStudent.studentProfile.father.occupation && (
+                                  {selectedStudent.studentProfile.father
+                                    .occupation && (
                                     <div className="flex justify-between">
-                                      <span className="text-muted-foreground">Occupation:</span>
-                                      <span className="font-medium">{selectedStudent.studentProfile.father.occupation}</span>
+                                      <span className="text-muted-foreground">
+                                        Occupation:
+                                      </span>
+                                      <span className="font-medium">
+                                        {
+                                          selectedStudent.studentProfile.father
+                                            .occupation
+                                        }
+                                      </span>
                                     </div>
                                   )}
-                                  {selectedStudent.studentProfile.father.phone && (
+                                  {selectedStudent.studentProfile.father
+                                    .phone && (
                                     <div className="flex justify-between">
-                                      <span className="text-muted-foreground">Phone:</span>
-                                      <span className="font-medium">{selectedStudent.studentProfile.father.phone}</span>
+                                      <span className="text-muted-foreground">
+                                        Phone:
+                                      </span>
+                                      <span className="font-medium">
+                                        {
+                                          selectedStudent.studentProfile.father
+                                            .phone
+                                        }
+                                      </span>
                                     </div>
                                   )}
-                                  {selectedStudent.studentProfile.father.email && (
+                                  {selectedStudent.studentProfile.father
+                                    .email && (
                                     <div className="flex justify-between">
-                                      <span className="text-muted-foreground">Email:</span>
-                                      <span className="font-medium">{selectedStudent.studentProfile.father.email}</span>
+                                      <span className="text-muted-foreground">
+                                        Email:
+                                      </span>
+                                      <span className="font-medium">
+                                        {
+                                          selectedStudent.studentProfile.father
+                                            .email
+                                        }
+                                      </span>
                                     </div>
                                   )}
-                                  {selectedStudent.studentProfile.father.cnic && (
+                                  {selectedStudent.studentProfile.father
+                                    .cnic && (
                                     <div className="flex justify-between">
-                                      <span className="text-muted-foreground">CNIC:</span>
-                                      <span className="font-medium">{selectedStudent.studentProfile.father.cnic}</span>
+                                      <span className="text-muted-foreground">
+                                        CNIC:
+                                      </span>
+                                      <span className="font-medium">
+                                        {
+                                          selectedStudent.studentProfile.father
+                                            .cnic
+                                        }
+                                      </span>
                                     </div>
                                   )}
-                                  {selectedStudent.studentProfile.father.income && (
+                                  {selectedStudent.studentProfile.father
+                                    .income && (
                                     <div className="flex justify-between">
-                                      <span className="text-muted-foreground">Income:</span>
-                                      <span className="font-medium">Rs. {selectedStudent.studentProfile.father.income.toLocaleString()}</span>
+                                      <span className="text-muted-foreground">
+                                        Income:
+                                      </span>
+                                      <span className="font-medium">
+                                        Rs.{" "}
+                                        {selectedStudent.studentProfile.father.income.toLocaleString()}
+                                      </span>
                                     </div>
                                   )}
                                 </div>
@@ -582,31 +737,70 @@ export default function TeacherClassesPage() {
                                 </h6>
                                 <div className="grid grid-cols-1 gap-2 text-sm">
                                   <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Name:</span>
-                                    <span className="font-medium">{selectedStudent.studentProfile.mother.name}</span>
+                                    <span className="text-muted-foreground">
+                                      Name:
+                                    </span>
+                                    <span className="font-medium">
+                                      {
+                                        selectedStudent.studentProfile.mother
+                                          .name
+                                      }
+                                    </span>
                                   </div>
-                                  {selectedStudent.studentProfile.mother.occupation && (
+                                  {selectedStudent.studentProfile.mother
+                                    .occupation && (
                                     <div className="flex justify-between">
-                                      <span className="text-muted-foreground">Occupation:</span>
-                                      <span className="font-medium">{selectedStudent.studentProfile.mother.occupation}</span>
+                                      <span className="text-muted-foreground">
+                                        Occupation:
+                                      </span>
+                                      <span className="font-medium">
+                                        {
+                                          selectedStudent.studentProfile.mother
+                                            .occupation
+                                        }
+                                      </span>
                                     </div>
                                   )}
-                                  {selectedStudent.studentProfile.mother.phone && (
+                                  {selectedStudent.studentProfile.mother
+                                    .phone && (
                                     <div className="flex justify-between">
-                                      <span className="text-muted-foreground">Phone:</span>
-                                      <span className="font-medium">{selectedStudent.studentProfile.mother.phone}</span>
+                                      <span className="text-muted-foreground">
+                                        Phone:
+                                      </span>
+                                      <span className="font-medium">
+                                        {
+                                          selectedStudent.studentProfile.mother
+                                            .phone
+                                        }
+                                      </span>
                                     </div>
                                   )}
-                                  {selectedStudent.studentProfile.mother.email && (
+                                  {selectedStudent.studentProfile.mother
+                                    .email && (
                                     <div className="flex justify-between">
-                                      <span className="text-muted-foreground">Email:</span>
-                                      <span className="font-medium">{selectedStudent.studentProfile.mother.email}</span>
+                                      <span className="text-muted-foreground">
+                                        Email:
+                                      </span>
+                                      <span className="font-medium">
+                                        {
+                                          selectedStudent.studentProfile.mother
+                                            .email
+                                        }
+                                      </span>
                                     </div>
                                   )}
-                                  {selectedStudent.studentProfile.mother.cnic && (
+                                  {selectedStudent.studentProfile.mother
+                                    .cnic && (
                                     <div className="flex justify-between">
-                                      <span className="text-muted-foreground">CNIC:</span>
-                                      <span className="font-medium">{selectedStudent.studentProfile.mother.cnic}</span>
+                                      <span className="text-muted-foreground">
+                                        CNIC:
+                                      </span>
+                                      <span className="font-medium">
+                                        {
+                                          selectedStudent.studentProfile.mother
+                                            .cnic
+                                        }
+                                      </span>
                                     </div>
                                   )}
                                 </div>
@@ -619,39 +813,85 @@ export default function TeacherClassesPage() {
                                 <h6 className="font-medium text-sm text-purple-900 mb-3 flex items-center gap-2">
                                   <Users className="w-4 h-4" />
                                   Guardian Information
-                                  {selectedStudent.studentProfile.guardianType && (
-                                    <Badge variant="secondary" className="text-xs">
-                                      {selectedStudent.studentProfile.guardianType}
+                                  {selectedStudent.studentProfile
+                                    .guardianType && (
+                                    <Badge
+                                      variant="secondary"
+                                      className="text-xs"
+                                    >
+                                      {
+                                        selectedStudent.studentProfile
+                                          .guardianType
+                                      }
                                     </Badge>
                                   )}
                                 </h6>
                                 <div className="grid grid-cols-1 gap-2 text-sm">
                                   <div className="flex justify-between">
-                                    <span className="text-muted-foreground">Name:</span>
-                                    <span className="font-medium">{selectedStudent.studentProfile.guardian.name}</span>
+                                    <span className="text-muted-foreground">
+                                      Name:
+                                    </span>
+                                    <span className="font-medium">
+                                      {
+                                        selectedStudent.studentProfile.guardian
+                                          .name
+                                      }
+                                    </span>
                                   </div>
-                                  {selectedStudent.studentProfile.guardian.relation && (
+                                  {selectedStudent.studentProfile.guardian
+                                    .relation && (
                                     <div className="flex justify-between">
-                                      <span className="text-muted-foreground">Relation:</span>
-                                      <span className="font-medium">{selectedStudent.studentProfile.guardian.relation}</span>
+                                      <span className="text-muted-foreground">
+                                        Relation:
+                                      </span>
+                                      <span className="font-medium">
+                                        {
+                                          selectedStudent.studentProfile
+                                            .guardian.relation
+                                        }
+                                      </span>
                                     </div>
                                   )}
-                                  {selectedStudent.studentProfile.guardian.phone && (
+                                  {selectedStudent.studentProfile.guardian
+                                    .phone && (
                                     <div className="flex justify-between">
-                                      <span className="text-muted-foreground">Phone:</span>
-                                      <span className="font-medium">{selectedStudent.studentProfile.guardian.phone}</span>
+                                      <span className="text-muted-foreground">
+                                        Phone:
+                                      </span>
+                                      <span className="font-medium">
+                                        {
+                                          selectedStudent.studentProfile
+                                            .guardian.phone
+                                        }
+                                      </span>
                                     </div>
                                   )}
-                                  {selectedStudent.studentProfile.guardian.email && (
+                                  {selectedStudent.studentProfile.guardian
+                                    .email && (
                                     <div className="flex justify-between">
-                                      <span className="text-muted-foreground">Email:</span>
-                                      <span className="font-medium">{selectedStudent.studentProfile.guardian.email}</span>
+                                      <span className="text-muted-foreground">
+                                        Email:
+                                      </span>
+                                      <span className="font-medium">
+                                        {
+                                          selectedStudent.studentProfile
+                                            .guardian.email
+                                        }
+                                      </span>
                                     </div>
                                   )}
-                                  {selectedStudent.studentProfile.guardian.cnic && (
+                                  {selectedStudent.studentProfile.guardian
+                                    .cnic && (
                                     <div className="flex justify-between">
-                                      <span className="text-muted-foreground">CNIC:</span>
-                                      <span className="font-medium">{selectedStudent.studentProfile.guardian.cnic}</span>
+                                      <span className="text-muted-foreground">
+                                        CNIC:
+                                      </span>
+                                      <span className="font-medium">
+                                        {
+                                          selectedStudent.studentProfile
+                                            .guardian.cnic
+                                        }
+                                      </span>
                                     </div>
                                   )}
                                 </div>
@@ -660,15 +900,16 @@ export default function TeacherClassesPage() {
 
                             {/* No Parent/Guardian Info */}
                             {!selectedStudent.studentProfile?.father?.name &&
-                             !selectedStudent.studentProfile?.mother?.name &&
-                             !selectedStudent.studentProfile?.guardian?.name && (
-                              <div className="border rounded-lg p-4 bg-muted/20 text-center">
-                                <Users className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
-                                <p className="text-sm text-muted-foreground">
-                                  No parent or guardian information available
-                                </p>
-                              </div>
-                            )}
+                              !selectedStudent.studentProfile?.mother?.name &&
+                              !selectedStudent.studentProfile?.guardian
+                                ?.name && (
+                                <div className="border rounded-lg p-4 bg-muted/20 text-center">
+                                  <Users className="w-8 h-8 mx-auto mb-2 text-muted-foreground" />
+                                  <p className="text-sm text-muted-foreground">
+                                    No parent or guardian information available
+                                  </p>
+                                </div>
+                              )}
                           </div>
                         </div>
 
@@ -747,7 +988,7 @@ export default function TeacherClassesPage() {
                             </h4>
                             <Badge
                               className={`mt-3 ${getStatusColor(
-                                selectedAssignment.status
+                                selectedAssignment.status,
                               )} border text-[10px] font-medium px-2 py-1`}
                             >
                               {selectedAssignment.status}
@@ -830,7 +1071,7 @@ export default function TeacherClassesPage() {
                                 {Math.round(
                                   (selectedAssignment.submissions /
                                     selectedAssignment.total) *
-                                    100
+                                    100,
                                 )}
                                 %
                               </span>
@@ -908,7 +1149,7 @@ export default function TeacherClassesPage() {
                             </div>
                             <p className="text-2xl font-semibold text-amber-700">
                               {selectedClass.assignments?.filter(
-                                (a) => a.status === "Active"
+                                (a) => a.status === "Active",
                               ).length || 0}
                             </p>
                             <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider mt-1">
@@ -977,14 +1218,21 @@ export default function TeacherClassesPage() {
                                         <span className="text-sm font-medium">
                                           {sch.day}
                                         </span>
-                                        <Badge variant="outline" className="text-xs">
+                                        <Badge
+                                          variant="outline"
+                                          className="text-xs"
+                                        >
                                           Period {sch.periodNumber}
                                         </Badge>
                                       </div>
                                       <div className="text-xs text-muted-foreground mt-1">
-                                        <span className="font-medium">{sch.subjectName}</span>
+                                        <span className="font-medium">
+                                          {sch.subjectName}
+                                        </span>
                                         {sch.roomNumber && (
-                                          <span className="ml-2">• Room {sch.roomNumber}</span>
+                                          <span className="ml-2">
+                                            • Room {sch.roomNumber}
+                                          </span>
                                         )}
                                       </div>
                                     </div>
@@ -1006,7 +1254,13 @@ export default function TeacherClassesPage() {
                                     Rooms
                                   </span>
                                   <span className="font-medium">
-                                    {[...new Set(selectedClass.schedule.map(s => s.roomNumber).filter(r => r))].join(', ') || 'Not assigned'}
+                                    {[
+                                      ...new Set(
+                                        selectedClass.schedule
+                                          .map((s) => s.roomNumber)
+                                          .filter((r) => r),
+                                      ),
+                                    ].join(", ") || "Not assigned"}
                                   </span>
                                 </div>
                                 <div className="flex justify-between py-1">
@@ -1017,7 +1271,6 @@ export default function TeacherClassesPage() {
                                     {selectedClass.section}
                                   </span>
                                 </div>
-
                               </div>
                             </div>
                           </div>
@@ -1075,7 +1328,7 @@ export default function TeacherClassesPage() {
                                     </div>
                                     <Badge
                                       className={`${getStatusColor(
-                                        assignment.status
+                                        assignment.status,
                                       )} border text-[10px] font-medium px-2 py-1`}
                                     >
                                       {assignment.status}
@@ -1135,7 +1388,8 @@ export default function TeacherClassesPage() {
                                     </div>
                                   </td>
                                   <td className="px-4 py-3 text-center text-muted-foreground font-medium">
-                                    {student.rollNumber || student.registrationNumber}
+                                    {student.rollNumber ||
+                                      student.registrationNumber}
                                   </td>
                                   <td className="px-4 py-3 text-center">
                                     <span className="font-semibold text-green-600">

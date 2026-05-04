@@ -67,27 +67,66 @@ export default function DatePicker({
   const nextMonth = () => setCurrentMonth(addMonths(currentMonth, 1));
   const prevMonth = () => setCurrentMonth(subMonths(currentMonth, 1));
 
-  const renderHeader = () => (
-    <div className="flex items-center justify-between px-4 py-2 border-b">
-      <button 
-        type="button" 
-        onClick={prevMonth} 
-        className="p-1 hover:bg-slate-100 rounded-full transition-colors text-slate-500"
-      >
-        <ChevronLeft className="w-5 h-5" />
-      </button>
-      <h2 className="text-sm font-bold text-slate-700">
-        {format(currentMonth, 'MMMM yyyy')}
-      </h2>
-      <button 
-        type="button" 
-        onClick={nextMonth} 
-        className="p-1 hover:bg-slate-100 rounded-full transition-colors text-slate-500"
-      >
-        <ChevronRight className="w-5 h-5" />
-      </button>
-    </div>
-  );
+  const setMonth = (month) => {
+    const newDate = new Date(currentMonth.getTime());
+    newDate.setMonth(month);
+    setCurrentMonth(newDate);
+  };
+
+  const setYear = (year) => {
+    const newDate = new Date(currentMonth.getTime());
+    newDate.setFullYear(year);
+    setCurrentMonth(newDate);
+  };
+
+  const renderHeader = () => {
+    const years = Array.from({ length: 111 }, (_, i) => 1940 + i); // 1940 to 2050
+    const months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+
+    return (
+      <div className="flex items-center justify-between px-4 py-3 border-b bg-slate-50/50">
+        <button 
+          type="button" 
+          onClick={prevMonth} 
+          className="p-1.5 hover:bg-white hover:shadow-sm rounded-lg transition-all text-slate-500 border border-transparent hover:border-slate-200"
+        >
+          <ChevronLeft className="w-4 h-4" />
+        </button>
+        
+        <div className="flex gap-1">
+          <select
+            value={currentMonth.getMonth()}
+            onChange={(e) => setMonth(parseInt(e.target.value))}
+            className="text-sm font-bold text-slate-700 bg-transparent hover:bg-white px-2 py-1 rounded-md cursor-pointer focus:outline-none transition-colors border-none appearance-none"
+          >
+            {months.map((month, index) => (
+              <option key={month} value={index}>{month}</option>
+            ))}
+          </select>
+          <select
+            value={currentMonth.getFullYear()}
+            onChange={(e) => setYear(parseInt(e.target.value))}
+            className="text-sm font-bold text-slate-700 bg-transparent hover:bg-white px-2 py-1 rounded-md cursor-pointer focus:outline-none transition-colors border-none appearance-none"
+          >
+            {years.map((year) => (
+              <option key={year} value={year}>{year}</option>
+            ))}
+          </select>
+        </div>
+
+        <button 
+          type="button" 
+          onClick={nextMonth} 
+          className="p-1.5 hover:bg-white hover:shadow-sm rounded-lg transition-all text-slate-500 border border-transparent hover:border-slate-200"
+        >
+          <ChevronRight className="w-4 h-4" />
+        </button>
+      </div>
+    );
+  };
 
   const renderDays = () => {
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];

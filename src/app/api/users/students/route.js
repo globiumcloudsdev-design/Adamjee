@@ -1,8 +1,20 @@
 import { NextResponse } from "next/server";
 import { Op } from "sequelize";
-import { sequelize, User, Branch, Class, Section, AcademicYear, Subject } from "@/backend/models/postgres";
+import {
+  sequelize,
+  User,
+  Branch,
+  Class,
+  Section,
+  AcademicYear,
+  Subject,
+} from "@/backend/models/postgres";
 import { generateStudentQR } from "@/lib/qr-generator";
-import { uploadQR, uploadProfilePhoto, uploadStudentDocument } from "@/backend/utils/cloudinary";
+import {
+  uploadQR,
+  uploadProfilePhoto,
+  uploadStudentDocument,
+} from "@/backend/utils/cloudinary";
 import { sendEmail } from "@/backend/utils/emailService";
 import { getStudentEmailTemplate } from "@/backend/templates/studentEmail";
 import { getCurrentUser } from "@/lib/auth";
@@ -40,15 +52,15 @@ export async function POST(req) {
         where: {
           role: "STUDENT",
           branch_id: targetBranchId,
-          "details": {
+          details: {
             [Op.contains]: {
               academic_info: {
                 class_id,
                 section_id,
                 academic_year_id,
-              }
-            }
-          }
+              },
+            },
+          },
         },
         order: [
           [
@@ -95,7 +107,9 @@ export async function POST(req) {
         attributes: ["id", "name"],
       });
       const subjectMap = {};
-      subjectRecords.forEach((s) => { subjectMap[s.id] = s.name; });
+      subjectRecords.forEach((s) => {
+        subjectMap[s.id] = s.name;
+      });
       enrichedSubjects = subjects.map((s) => ({
         ...s,
         name: subjectMap[s.id] || "Unknown Subject",
@@ -136,7 +150,10 @@ export async function POST(req) {
     // 5.1 Profile Photo
     if (pendingProfileFile) {
       try {
-        const uploadRes = await uploadProfilePhoto(pendingProfileFile, student.id);
+        const uploadRes = await uploadProfilePhoto(
+          pendingProfileFile,
+          student.id,
+        );
         avatarUrl = uploadRes.url;
         await student.update({ avatar_url: avatarUrl });
       } catch (uploadErr) {
@@ -148,14 +165,18 @@ export async function POST(req) {
     if (pendingDocuments && Array.isArray(pendingDocuments)) {
       for (const doc of pendingDocuments) {
         try {
-          const uploadRes = await uploadStudentDocument(doc.file, student.id, doc.type || "other");
+          const uploadRes = await uploadStudentDocument(
+            doc.file,
+            student.id,
+            doc.type || "other",
+          );
           uploadedDocuments.push({
             id: crypto.randomUUID(),
             name: doc.name || "Untitled",
             type: doc.type || "other",
             url: uploadRes.url,
             publicId: uploadRes.publicId,
-            uploaded_at: new Date().toISOString()
+            uploaded_at: new Date().toISOString(),
           });
         } catch (docErr) {
           console.error(`Document upload failed for ${doc.name}:`, docErr);
@@ -172,7 +193,7 @@ export async function POST(req) {
       details: {
         ...student.details,
         qrPublicId: qrResult.publicId,
-        documents: uploadedDocuments
+        documents: uploadedDocuments,
       },
     });
 
@@ -198,17 +219,23 @@ export async function POST(req) {
             className: targetClass?.name || "N/A",
             sectionName: targetSection?.name || "N/A",
             academicYearName: targetYear?.name || "N/A",
-          }
+          },
         };
-        const emailHtml = getStudentEmailTemplate("STUDENT_CREATED", studentDataForEmail);
-        
+        const emailHtml = getStudentEmailTemplate(
+          "STUDENT_CREATED",
+          studentDataForEmail,
+        );
+
         await sendEmail(
           email,
           "Welcome to Adamjee Coaching - Student Portal",
-          emailHtml
+          emailHtml,
         );
       } catch (emailError) {
-        console.warn("Student created but failed to send welcome email:", emailError.message);
+        console.warn(
+          "Student created but failed to send welcome email:",
+          emailError.message,
+        );
       }
     }
 
@@ -248,16 +275,19 @@ export async function GET(req) {
     // Filters from Query Params
     const academicYearId = searchParams.get("academic_year_id");
     const classId = searchParams.get("class_id");
-    const branchId = searchParams.get("branch_id") || searchParams.get("branchId");
+    const sectionId = searchParams.get("section_id");
+    const branchId =
+      searchParams.get("branch_id") || searchParams.get("branchId");
     const q = searchParams.get("q");
+    const subjectId = searchParams.get("subject_id");
 
     // --- Role-Based Filter ---
     let whereClause = { role: "STUDENT" };
 
     if (user.role === "BRANCH_ADMIN") {
-      whereClause.branch_id = user.branch_id; 
+      whereClause.branch_id = user.branch_id;
     } else if (user.role === "SUPER_ADMIN" && branchId) {
-      whereClause.branch_id = branchId; 
+      whereClause.branch_id = branchId;
     }
 
     if (q) {
@@ -268,31 +298,54 @@ export async function GET(req) {
         { phone: { [Op.iLike]: `%${q}%` } },
         { registration_no: { [Op.iLike]: `%${q}%` } },
         sequelize.where(
-          sequelize.fn('concat', sequelize.col('first_name'), ' ', sequelize.col('last_name')),
-          { [Op.iLike]: `%${q}%` }
-        )
+          sequelize.fn(
+            "concat",
+            sequelize.col("first_name"),
+            " ",
+            sequelize.col("last_name"),
+          ),
+          { [Op.iLike]: `%${q}%` },
+        ),
       ];
     }
-
 
     // --- Academic Info Filtering (JSONB search) ---
     const academicInfoFilter = {};
     let hasAcademicFilter = false;
-    if (academicYearId) {
-      academicInfoFilter.academic_year_id = academicYearId;
-      hasAcademicFilter = true;
-    }
-    if (classId) {
-      academicInfoFilter.class_id = classId;
-      hasAcademicFilter = true;
-    }
+
+    // Helper to add numeric or string filters to academic_info
+    const addAcademicFilter = (key, value) => {
+      if (value) {
+        // We try both number and string because we're not sure how it was stored
+        // But usually it's better to just use the value as is if it's already stored correctly.
+        // However, Op.contains is strict. A better way for JSONB is to use Op.and with literal if needed,
+        // but let's try converting to Number first as these are IDs.
+        const numValue = Number(value);
+        academicInfoFilter[key] = isNaN(numValue) ? value : numValue;
+        hasAcademicFilter = true;
+      }
+    };
+
+    addAcademicFilter("academic_year_id", academicYearId);
+    addAcademicFilter("class_id", classId);
+    addAcademicFilter("section_id", sectionId);
 
     if (hasAcademicFilter) {
       whereClause.details = {
         [Op.contains]: {
-          academic_info: academicInfoFilter
-        }
+          academic_info: academicInfoFilter,
+        },
       };
+    }
+
+    if (subjectId) {
+      if (!whereClause[Op.and]) whereClause[Op.and] = [];
+      whereClause[Op.and].push(
+        sequelize.literal(`EXISTS (
+          SELECT 1 FROM jsonb_array_elements(details->'academic_info'->'subjects') as sub
+          WHERE sub->>'id' = '${subjectId}'
+        )`)
+      );
     }
 
     const students = await User.findAll({

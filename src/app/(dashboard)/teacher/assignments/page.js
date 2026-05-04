@@ -8,15 +8,13 @@ import { Button } from "@/components/ui/button";
 import Modal from "@/components/ui/modal";
 // import AssignmentFormModal from "@/components/forms/AssignmentFormModal";
 import {
+  Eye,
+  Edit,
   FileText,
   Calendar,
   Clock,
   Users,
   Plus,
-  Eye,
-  Edit,
-  Trash2,
-  X,
   Upload,
   CheckCircle,
   XCircle,
@@ -476,3 +474,7 @@ export default function TeacherAssignmentsPage() {
     </div>
   );
 }
+
+
+
+

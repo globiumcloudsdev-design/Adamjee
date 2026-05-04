@@ -1,7 +1,12 @@
 import { NextResponse } from "next/server";
-import { User } from "@/backend/models/postgres";
+import crypto from "crypto";
+import { sequelize, User, Branch } from "@/backend/models/postgres";
 import { getCurrentUser } from "@/lib/auth";
-import { deleteFromCloudinary } from "@/backend/utils/cloudinary";
+import { 
+  deleteFromCloudinary, 
+  uploadProfilePhoto, 
+  uploadTeacherDocument 
+} from "@/backend/utils/cloudinary";
 
 export async function DELETE(req, { params }) {
   try {
@@ -21,16 +26,21 @@ export async function DELETE(req, { params }) {
       return NextResponse.json({ success: false, error: "Access Denied" }, { status: 403 });
     }
 
-    if (teacher.documents && teacher.documents.length > 0) {
-      for (const doc of teacher.documents) {
+    // Cleanup files
+    if (teacher.details?.documents && Array.isArray(teacher.details.documents)) {
+      for (const doc of teacher.details.documents) {
         if (doc.publicId) {
-          await deleteFromCloudinary(doc.publicId, 'raw');
+          await deleteFromCloudinary(doc.publicId);
         }
       }
     }
 
     if (teacher.details?.avatar_public_id) {
-      await deleteFromCloudinary(teacher.details.avatar_public_id, 'image');
+      await deleteFromCloudinary(teacher.details.avatar_public_id);
+    }
+    
+    if (teacher.details?.qr_public_id) {
+      await deleteFromCloudinary(teacher.details.qr_public_id);
     }
 
     await teacher.destroy();
@@ -46,11 +56,17 @@ export async function DELETE(req, { params }) {
 }
 
 export async function PUT(req, { params }) {
+  const transaction = await sequelize.transaction();
+  const uploadedPublicIds = [];
+  
   try {
     const currentUser = await getCurrentUser(req);
     if (!currentUser) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
 
-    const data = await req.json();
+    const formData = await req.formData();
+    const dataStr = formData.get('data');
+    const data = dataStr ? JSON.parse(dataStr) : {};
+
     const resolvedParams = await params;
     const id = resolvedParams.id;
 
@@ -76,7 +92,66 @@ export async function PUT(req, { params }) {
       updateData.branch_id = data.branchId;
     }
 
+    // 1. Handle Profile Photo Upload
+    let avatarUrl = teacher.avatar_url;
+    let avatarPublicId = teacher.details?.avatar_public_id;
+    const profilePhoto = formData.get('profilePhoto');
+    
+    if (profilePhoto && profilePhoto instanceof File) {
+      // Delete old photo if exists
+      if (avatarPublicId) {
+        try { await deleteFromCloudinary(avatarPublicId); } catch (e) {}
+      }
+      
+      const buffer = Buffer.from(await profilePhoto.arrayBuffer());
+      const base64 = `data:${profilePhoto.type};base64,${buffer.toString('base64')}`;
+      const uploadRes = await uploadProfilePhoto(base64, teacher.id);
+      avatarUrl = uploadRes.url;
+      avatarPublicId = uploadRes.publicId;
+      uploadedPublicIds.push(avatarPublicId);
+    }
+
+    // 2. Handle Documents Upload
+    const docFiles = formData.getAll('documents');
+    const docMetaStr = formData.get('documentMetadata');
+    const docMeta = docMetaStr ? JSON.parse(docMetaStr) : [];
+    
+    const existingDocuments = teacher.details?.documents || [];
+    const updatedDocuments = [...existingDocuments];
+
+    for (let i = 0; i < docFiles.length; i++) {
+      const file = docFiles[i];
+      const meta = docMeta[i];
+      
+      if (meta && !meta.isExisting) {
+        const buffer = Buffer.from(await file.arrayBuffer());
+        const base64 = `data:${file.type};base64,${buffer.toString('base64')}`;
+        const uploadRes = await uploadTeacherDocument(base64, teacher.id, meta.type);
+        
+        updatedDocuments.push({
+          id: crypto.randomUUID(),
+          type: meta.type,
+          name: meta.name || file.name,
+          url: uploadRes.url,
+          publicId: uploadRes.publicId,
+          uploaded_at: new Date().toISOString()
+        });
+        uploadedPublicIds.push(uploadRes.publicId);
+      }
+    }
+
+    // Handle document deletions if any (provided in meta)
+    const finalDocuments = updatedDocuments.filter(doc => {
+      const isDeleted = docMeta.some(m => m.isExisting && m.publicId === doc.publicId && m.isDeleted);
+      if (isDeleted && doc.publicId) {
+        deleteFromCloudinary(doc.publicId).catch(console.error);
+        return false;
+      }
+      return true;
+    });
+
     const currentDetails = teacher.details || {};
+    updateData.avatar_url = avatarUrl;
     updateData.details = {
       ...currentDetails,
       gender: data.gender || currentDetails.gender,
@@ -86,6 +161,8 @@ export async function PUT(req, { params }) {
       nationality: data.nationality || currentDetails.nationality,
       blood_group: data.bloodGroup || currentDetails.blood_group,
       address: data.address || currentDetails.address,
+      avatar_public_id: avatarPublicId,
+      documents: finalDocuments,
       teacher: {
         ...(currentDetails.teacher || {}),
         ...(data.teacherProfile || {}),
@@ -94,12 +171,8 @@ export async function PUT(req, { params }) {
       }
     };
 
-    if (data.profilePhoto) {
-      updateData.avatar_url = data.profilePhoto.url;
-      updateData.details.avatar_public_id = data.profilePhoto.publicId;
-    }
-
-    await teacher.update(updateData);
+    await teacher.update(updateData, { transaction });
+    await transaction.commit();
 
     return NextResponse.json({
       success: true,
@@ -107,6 +180,7 @@ export async function PUT(req, { params }) {
       data: teacher
     });
   } catch (error) {
+    if (transaction) await transaction.rollback();
     console.error("Update Error:", error);
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }

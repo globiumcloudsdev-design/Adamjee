@@ -92,10 +92,27 @@ async function listBranchesHandler(request) {
     ],
   });
 
+  const branchesWithStats = await Promise.all(rows.map(async (branch) => {
+    const [students, teachers, staff] = await Promise.all([
+      User.count({ where: { branch_id: branch.id, role: 'STUDENT' } }),
+      User.count({ where: { branch_id: branch.id, role: 'TEACHER' } }),
+      User.count({ where: { branch_id: branch.id, role: 'STAFF' } }),
+    ]);
+    
+    return {
+      ...branch.toJSON(),
+      stats: {
+        students,
+        teachers,
+        staff
+      }
+    };
+  }));
+
   return NextResponse.json({
     success: true,
     data: {
-      branches: rows,
+      branches: branchesWithStats,
       pagination: {
         total: count,
         page,

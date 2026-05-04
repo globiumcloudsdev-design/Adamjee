@@ -15,6 +15,7 @@ import * as XLSX from 'xlsx';
 import QRCode from 'qrcode';
 import { pdf } from '@react-pdf/renderer';
 import StudentCardPDF from '@/components/StudentCardPDF';
+import { generateAndDownloadIdCard } from '@/lib/idCardGenerator';
 import { useAuth } from '@/hooks/useAuth';
 import apiClient from '@/lib/api-client';
 import { API_ENDPOINTS } from '@/constants/api-endpoints';
@@ -161,6 +162,21 @@ const SuperAdminStudentsPage = () => {
 
   const getStudentRegistrationNo = (student) => {
     return student.registration_no || 'N/A';
+  };
+
+  const getStudentSectionName = (student) => {
+    const details = student.details?.academic_info || {};
+    // If name is already there (some branches might store it)
+    if (details.section_name) return details.section_name;
+    // Fallback to ID or '-'
+    return details.section_id || '-';
+  };
+
+  const getStudentGroupName = (student) => {
+    const groupId = student.details?.academic_info?.group_id;
+    if (!groupId) return '-';
+    const groupObj = allGroups.find(g => g.id === groupId || g._id === groupId);
+    return groupObj?.name || '-';
   };
 
   const getParentInfo = (student) => {
@@ -347,15 +363,49 @@ const SuperAdminStudentsPage = () => {
     }
   };
 
-  const handleDownloadCard = (student) => {
-    setSelectedStudent(student);
-    setCardStatus({
-      issueDate: new Date().toISOString().split('T')[0],
-      expireDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      status: 'active',
-      printCount: 0,
-    });
-    setIsCardModalOpen(true);
+  const handleDownloadCard = async (student) => {
+    if (!student) {
+      toast.error('No student data found');
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      toast.loading('Generating Card...', { id: 'card-gen' });
+      
+      // Prepare data for generator
+      const studentData = {
+        first_name: student.first_name,
+        last_name: student.last_name,
+        registration_no: student.registration_no,
+        avatar_url: student.avatar_url,
+        class_name: getStudentClassName(student),
+        section_name: getStudentSectionName(student),
+        parent_name: getParentInfo(student).name,
+        branch_name: getStudentBranchName(student),
+        shift: student.details?.academic_info?.shift || 'Morning',
+        id: student.id,
+        details: student.details
+      };
+      
+      const instituteData = branches.find(b => b.id === student.branch_id) || {
+        name: 'ADAMJEE COACHING CENTRE',
+        logo_url: '/adamjee-logo.png'
+      };
+
+      await generateAndDownloadIdCard({
+        role: 'student',
+        person: studentData,
+        institute: instituteData,
+      });
+
+      toast.success('ID Card generated!', { id: 'card-gen' });
+    } catch (error) {
+      console.error('Card generation failed:', error);
+      toast.error(`Error: ${error.message}`, { id: 'card-gen' });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const generateQRCode = async (data) => {
@@ -383,67 +433,6 @@ const SuperAdminStudentsPage = () => {
     }
   };
 
-  const generateCard = async () => {
-    if (!selectedStudent) return;
-
-    try {
-      setSubmitting(true);
-      const qrCodeUrl = await generateQRCode(selectedStudent);
-      if (!qrCodeUrl) {
-        toast.error('Failed to generate QR code');
-        return;
-      }
-
-      // Map PostgreSQL student to card format
-      const cardStudent = {
-        firstName: selectedStudent.first_name,
-        lastName: selectedStudent.last_name,
-        email: selectedStudent.email,
-        phone: selectedStudent.phone,
-        gender: selectedStudent.details?.academic_info?.gender || '',
-        dateOfBirth: selectedStudent.details?.academic_info?.date_of_birth || '',
-        bloodGroup: selectedStudent.details?.academic_info?.blood_group || '',
-        studentProfile: {
-          registrationNumber: selectedStudent.registration_no,
-          classId: { name: getStudentClassName(selectedStudent) },
-          father: selectedStudent.details?.academic_info?.father,
-          guardian: selectedStudent.details?.academic_info?.guardian,
-        },
-        branchId: { name: getStudentBranchName(selectedStudent) },
-        profilePhoto: selectedStudent.avatar_url ? { url: selectedStudent.avatar_url } : null,
-      };
-
-      const blob = await pdf(
-        <StudentCardPDF
-          student={cardStudent}
-          qrCodeUrl={qrCodeUrl}
-          classes={classes}
-          issueDate={cardStatus.issueDate}
-          expireDate={cardStatus.expireDate}
-          status={cardStatus.status}
-        />
-      ).toBlob();
-
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `student-card-${selectedStudent.registration_no || selectedStudent.id}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-
-      setCardStatus(prev => ({ ...prev, printCount: prev.printCount + 1 }));
-      setIsCardModalOpen(false);
-      setSelectedStudent(null);
-      setQrCodeUrl('');
-    } catch (error) {
-      console.error('Error generating card:', error);
-      toast.error('Failed to generate student card');
-    } finally {
-      setSubmitting(false);
-    }
-  };
 
   if (loading && students.length === 0) {
     return <FullPageLoader message="Loading students..." />;
@@ -612,102 +601,6 @@ const SuperAdminStudentsPage = () => {
       />
 
       {/* Delete Confirmation Modal */}
-      {deleteModal.open && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Delete Student</h3>
-            <p className="text-gray-600 mb-6">
-              Are you sure you want to delete {getStudentName(deleteModal.student)}?
-              This action cannot be undone.
-            </p>
-            <div className="flex justify-end gap-3">
-              <Button
-                variant="outline"
-                onClick={() => setDeleteModal({ open: false, student: null })}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={handleDelete}
-                disabled={submitting}
-              >
-                {submitting ? <ButtonLoader /> : 'Delete Student'}
-              </Button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Card Modal */}
-      <Modal
-        open={isCardModalOpen}
-        onClose={() => setIsCardModalOpen(false)}
-        title="Student Card Preview"
-        size="lg"
-        footer={
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setIsCardModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={generateCard}>
-              <Download className="w-4 h-4 mr-2" />
-              Download PDF
-            </Button>
-          </div>
-        }
-      >
-        {selectedStudent && (
-          <div className="space-y-6">
-            {/* Card Status */}
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h3 className="font-semibold mb-3 text-gray-800">Card Status</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium text-gray-600">Issue Date</label>
-                  <p className="font-semibold">{cardStatus.issueDate}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-600">Expire Date</label>
-                  <p className="font-semibold">{cardStatus.expireDate}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-600">Status</label>
-                  <p className="font-semibold capitalize">{cardStatus.status}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-600">Print Count</label>
-                  <p className="font-semibold">{cardStatus.printCount}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Student Info Preview */}
-            <div className="border rounded-lg p-4">
-              <h3 className="font-semibold mb-3 text-gray-800">Student Details</h3>
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <span className="text-gray-500">Name:</span>
-                  <span className="ml-2 font-medium">{getStudentName(selectedStudent)}</span>
-                </div>
-                <div>
-                  <span className="text-gray-500">Reg No:</span>
-                  <span className="ml-2 font-medium">{getStudentRegistrationNo(selectedStudent)}</span>
-                </div>
-                <div>
-                  <span className="text-gray-500">Class:</span>
-                  <span className="ml-2 font-medium">{getStudentClassName(selectedStudent)}</span>
-                </div>
-                <div>
-                  <span className="text-gray-500">Branch:</span>
-                  <span className="ml-2 font-medium">{getStudentBranchName(selectedStudent)}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </Modal>
-
       {/* Delete Confirmation Modal */}
       {deleteModal.open && (
         <ConfirmDeleteModal

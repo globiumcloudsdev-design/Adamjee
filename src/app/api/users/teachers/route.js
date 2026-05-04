@@ -1,18 +1,25 @@
 import { NextResponse } from "next/server";
 import { withAuth } from "@/backend/middleware/auth.middleware.js";
-import { User, Branch, Timetable } from "@/backend/models/postgres";
+import { sequelize, User, Branch, Timetable } from "@/backend/models/postgres";
 import { Op } from "sequelize";
 import { generateTeacherQR } from "@/lib/qr-generator";
 import { getWelcomeEmailTemplate } from "@/backend/utils/email-templates";
 import { sendEmail } from "@/backend/utils/emailService";
-import { uploadQR } from "@/backend/utils/cloudinary";
+import { uploadQR, uploadTeacherDocument, uploadProfilePhoto, deleteFromCloudinary } from "@/backend/utils/cloudinary";
 
 async function createTeacher(req) {
+  const transaction = await sequelize.transaction();
+  const uploadedPublicIds = [];
+
   try {
     const currentUser = req.user;
-    const data = await req.json();
+    const formData = await req.formData();
     
-    // Support both camelCase (frontend) and snake_case (backend/models)
+    // Extract JSON data
+    const dataStr = formData.get('data');
+    if (!dataStr) return NextResponse.json({ error: "Missing data" }, { status: 400 });
+    const data = JSON.parse(dataStr);
+    
     const {
       first_name, firstName,
       last_name, lastName,
@@ -20,6 +27,7 @@ async function createTeacher(req) {
       phone,
       password,
       branch_id, branchId,
+      academicYearId,
       details,
       registration_no, registrationNo,
     } = data;
@@ -30,9 +38,9 @@ async function createTeacher(req) {
     const finalPassword = password || "Welcome@123";
     
     // Validation
-    if (!finalFirstName || !finalLastName || !phone || !finalPassword) {
+    if (!finalFirstName || !finalLastName || !phone || !finalPassword || !finalBranchId) {
       return NextResponse.json(
-        { error: "Missing required fields: first_name, last_name, phone, and password are required." },
+        { error: "Missing required fields: first_name, last_name, phone, password, and branch_id are required." },
         { status: 400 }
       );
     }
@@ -45,7 +53,7 @@ async function createTeacher(req) {
     // --- 2. ID Generation ---
     const finalRegNo = registration_no || registrationNo || `TCH-${Date.now().toString().slice(-6)}`;
 
-    // --- 3. Create User in DB ---
+    // --- 3. Create User in DB (initial) ---
     const teacher = await User.create({
       first_name: finalFirstName,
       last_name: finalLastName,
@@ -57,36 +65,92 @@ async function createTeacher(req) {
       password_hash: finalPassword, 
       details: {
         teacher: {
-          qualification: details?.qualification || details?.teacher?.qualification || "",
-          subject: details?.subject || details?.teacher?.subject || "",
-          designation: data.designation || details?.designation || details?.teacher?.designation || "Teacher",
+          academic_year_id: academicYearId || null,
+          qualification: details?.qualification || data.teacherProfile?.qualifications?.[0]?.degree || "",
+          subject: details?.subject || data.teacherProfile?.subjects?.[0] || "",
+          designation: data.designation || details?.designation || data.teacherProfile?.designation || "Teacher",
           status: data.status || "active",
           joining_date: new Date().toISOString(),
+          ...data.teacherProfile
         },
+        gender: data.gender,
+        date_of_birth: data.dateOfBirth,
+        cnic: data.cnic,
+        religion: data.religion,
+        nationality: data.nationality,
+        blood_group: data.bloodGroup,
+        address: data.address,
       },
       created_by: currentUser.id,
-    });
+    }, { transaction });
 
-    // --- 4. QR Code & Cloudinary Logic ---
+    // --- 4. Handle Profile Photo Upload ---
+    let avatarUrl = null;
+    let avatarPublicId = null;
+    const profilePhoto = formData.get('profilePhoto');
+    if (profilePhoto && profilePhoto instanceof File) {
+      const buffer = Buffer.from(await profilePhoto.arrayBuffer());
+      const base64 = `data:${profilePhoto.type};base64,${buffer.toString('base64')}`;
+      const uploadRes = await uploadProfilePhoto(base64, teacher.id);
+      avatarUrl = uploadRes.url;
+      avatarPublicId = uploadRes.publicId;
+      uploadedPublicIds.push(avatarPublicId);
+    }
+
+    // --- 5. Handle Documents Upload ---
+    const uploadedDocuments = [];
+    const docFiles = formData.getAll('documents');
+    const docMetaStr = formData.get('documentMetadata');
+    const docMeta = docMetaStr ? JSON.parse(docMetaStr) : [];
+
+    for (let i = 0; i < docFiles.length; i++) {
+      const file = docFiles[i];
+      const meta = docMeta[i] || { type: 'other', name: file.name };
+      
+      const buffer = Buffer.from(await file.arrayBuffer());
+      const base64 = `data:${file.type};base64,${buffer.toString('base64')}`;
+      // Use teacher-specific upload folder
+      const uploadRes = await uploadTeacherDocument(base64, teacher.id, meta.type);
+      
+      uploadedDocuments.push({
+        id: crypto.randomUUID(),
+        type: meta.type,
+        name: meta.name || file.name,
+        url: uploadRes.url,
+        publicId: uploadRes.publicId,
+        uploaded_at: new Date().toISOString()
+      });
+      uploadedPublicIds.push(uploadRes.publicId);
+    }
+
+    // --- 6. QR Code Generation ---
     let qrUrl = null;
+    let qrPublicId = null;
     try {
       const qrCodeDataUrl = await generateTeacherQR(teacher);
       const qrResult = await uploadQR(qrCodeDataUrl, teacher.id, "teacher");
-      
-      await teacher.update({
-        qr_code_url: qrResult.url,
-        details: {
-          ...(teacher.details || {}),
-          qr_public_id: qrResult.publicId,
-        },
-      });
       qrUrl = qrResult.url;
+      qrPublicId = qrResult.publicId;
+      uploadedPublicIds.push(qrPublicId);
     } catch (qrError) {
       console.error("QR/Cloudinary Error:", qrError);
-      // Don't fail the whole request if QR fails
     }
 
-    // --- 5. Branch Name & Email ---
+    // --- 7. Final Update with all URLs ---
+    await teacher.update({
+      avatar_url: avatarUrl,
+      qr_code_url: qrUrl,
+      details: {
+        ...teacher.details,
+        avatar_public_id: avatarPublicId,
+        qr_public_id: qrPublicId,
+        documents: uploadedDocuments,
+      },
+    }, { transaction });
+
+    await transaction.commit();
+
+    // --- 8. Branch Name & Email ---
     if (email) {
       try {
         const branch = await Branch.findByPk(finalBranchId);
@@ -118,7 +182,17 @@ async function createTeacher(req) {
       { status: 201 },
     );
   } catch (error) {
+    if (transaction) await transaction.rollback();
     console.error("Teacher Creation Error:", error);
+
+    // CLEANUP: Delete uploaded files from Cloudinary if DB failed
+    for (const publicId of uploadedPublicIds) {
+      try {
+        await deleteFromCloudinary(publicId);
+      } catch (delErr) {
+        console.error("Cleanup Error:", delErr);
+      }
+    }
     
     // Handle Sequelize validation errors specifically
     if (error.name === 'SequelizeValidationError' || error.name === 'SequelizeUniqueConstraintError') {
@@ -131,6 +205,7 @@ async function createTeacher(req) {
     return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
   }
 }
+
 
 async function getTeachers(req) {
   try {

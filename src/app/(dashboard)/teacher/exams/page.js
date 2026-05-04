@@ -411,37 +411,11 @@ export default function TeacherExamsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-3xl font-bold">Exams Management</h1>
+          <h1 className="text-3xl font-bold">Exams</h1>
           <p className="text-muted-foreground mt-1">
-            Schedule and manage exams
+            View scheduled exams and manage marks
           </p>
         </div>
-        <Button
-          onClick={() => {
-            setModalMode("create");
-            setEditingId(null);
-            setNewExam({
-              title: "",
-              examType: "midterm",
-              classId: "",
-              subjects: [{
-                subjectId: "",
-                date: new Date().toISOString().split("T")[0],
-                startTime: "09:00",
-                endTime: "10:00",
-                duration: 60,
-                totalMarks: 100,
-                passingMarks: 40,
-                room: "",
-              }],
-              status: "scheduled",
-            });
-            setShowModal(true);
-          }}
-        >
-          <Plus className="w-4 h-4 mr-2" />
-          Create New Exam
-        </Button>
       </div>
 
       {/* Filters */}
@@ -471,9 +445,6 @@ export default function TeacherExamsPage() {
         <ExamTable 
           exams={filteredExams}
           onView={(exam) => { setSelectedExam(exam); setShowViewModal(true); }}
-          onEdit={openEditModal}
-          onDelete={handleDeleteExam}
-          onResults={(exam) => router.push(`/teacher/exams/${exam._id}/marks`)}
           userRole="teacher"
           loading={loading}
         />

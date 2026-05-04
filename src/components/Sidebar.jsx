@@ -19,11 +19,8 @@ import {
   X,
   FolderOpen,
   Calendar,
-  CalendarDays,
   Wallet,
   BarChart3,
-  Briefcase,
-  Receipt,
   Building2,
   UserCheck,
   UserCog,
@@ -31,9 +28,12 @@ import {
   QrCode,
   ChevronRight,
   Library,
-  Grid3X3,
+  ShieldCheck,
+  Sparkles,
+  ArrowRight,
+  Receipt,
 } from "lucide-react";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { Button } from "@/components/ui/button";
 
 /* ===================== MENU CONFIG ===================== */
@@ -41,187 +41,57 @@ import { Button } from "@/components/ui/button";
 const ROLE_MENUS = {
   super_admin: [
     {
-      category: "Overview",
+      category: "Management",
       items: [
         { name: "Dashboard", path: "/super-admin", icon: LayoutDashboard },
+        { name: "Branches", path: "/super-admin/branch-management/branches", icon: Building2 },
       ],
     },
     {
-      category: "Branch Management",
+      category: "Personnel",
       items: [
-        {
-          name: "All Branches",
-          path: "/super-admin/branch-management/branches",
-          icon: FolderOpen,
-        },
-        // {
-        //   name: "Library",
-        //   path: "/super-admin/library",
-        //   icon: Library,
-        // }
-      ],
-    },
-    {
-      category: "User Management",
-      items: [
-        {
-          name: "Administrators",
-          path: "/super-admin/user-management/administrators",
-          icon: UserCog,
-        },
-        // {
-        //   name: "Parents",
-        //   path: "/super-admin/user-management/parents",
-        //   icon: UserCheck,
-        // },
-        {
-          name: "Staff",
-          path: "/super-admin/staff",
-          icon: Users,
-        },
+        { name: "Admins", path: "/super-admin/user-management/administrators", icon: ShieldCheck },
+        { name: "Staff", path: "/super-admin/staff", icon: UserCog },
+        { name: "Teachers", path: "/super-admin/teacher-management/teachers", icon: Users },
       ],
     },
     {
       category: "Academic",
       items: [
-        {
-          name: "Academic Management",
-          path: "/super-admin/academic",
-          icon: GraduationCap,
-        },
+        { name: "Academics", path: "/super-admin/academic", icon: GraduationCap },
         { name: "Timetable", path: "/super-admin/timetable", icon: Clock },
-        { name: "Exam Management", path: "/super-admin/exams", icon: FileText },
-      ],
-    },
-    // {
-    //   category: "Library Management",
-    //   isCollapsible: true,
-    //   items: [
-    //     {
-    //       name: "Library Books",
-    //       path: "/super-admin/library",
-    //       icon: BookOpen,
-    //     },
-    //   ],
-    // },
-    {
-      category: "Student Management",
-      isCollapsible: true,
-      items: [
-        {
-          name: "All Students",
-          path: "/super-admin/student-management/students",
-          icon: Users,
-        },
+        { name: "Exams", path: "/super-admin/exams", icon: FileText },
       ],
     },
     {
-      category: "Teacher Management",
+      category: "Operations",
       isCollapsible: true,
       items: [
-        {
-          name: "All Teachers",
-          path: "/super-admin/teacher-management/teachers",
-          icon: Users,
-        },
-      ],
-    },
-    {
-      category: "Fee Management",
-      isCollapsible: true,
-      items: [
-        // {
-        //   name: "Fee Templates",
-        //   path: "/super-admin/fee-management/templates",
-        //   icon: Receipt,
-        // },
-        {
-          name: "Fee Voucher",
-          path: "/super-admin/fee-vouchers",
-          icon: Receipt,
-        },
+        { name: "Students", path: "/super-admin/student-management/students", icon: Users },
+        { name: "Fee Vouchers", path: "/super-admin/fee-vouchers", icon: Receipt },
         { name: "Expenses", path: "/super-admin/expenses", icon: Wallet },
-
       ],
     },
     {
       category: "Attendance",
       isCollapsible: true,
       items: [
-        {
-          name: "Student Attendance",
-          path: "/super-admin/attendance",
-          icon: QrCode,
-        },
-        {
-          name: "Staff Attendance",
-          path: "/super-admin/staff-attendance",
-          icon: UserCheck,
-        },
-        {
-          name: "Leaves",
-          path: "/super-admin/leaves",
-          icon: Calendar,
-        },
+        { name: "Student Attendance", path: "/super-admin/attendance", icon: QrCode },
+        { name: "Staff Attendance", path: "/super-admin/staff-attendance", icon: UserCheck },
+        { name: "Leaves", path: "/super-admin/leaves", icon: Calendar },
       ],
     },
-    // {
-    //   category: "Event Management",
-    //   isCollapsible: true,
-    //   items: [
-    //     {
-    //       name: "Calendar View",
-    //       path: "/super-admin/event-management/calendar",
-    //       icon: Calendar,
-    //     },
-    //     {
-    //       name: "All Events",
-    //       path: "/super-admin/event-management/events",
-    //       icon: Calendar,
-    //     },
-    //   ],
-    // },
     {
-      category: "Notifications",
+      category: "System",
       items: [
-        {
-          name: "Notifications",
-          path: "/super-admin/notifications",
-          icon: Calendar,
-        },
+        { name: "Notifications", path: "/super-admin/notifications", icon: Sparkles },
       ],
     },
-    // {
-    //   category: "System",
-    //   items: [
-    //     {
-    //       name: "Settings",
-    //       path: "/super-admin/settings",
-    //       icon: Settings,
-    //     },
-    //   ],
-    // },
-    // {
-    //   category: "Salary Management",
-    //   isCollapsible: true,
-    //   items: [
-    //     {
-    //       name: "Payroll",
-    //       path: "/super-admin/salary-management/payroll",
-    //       icon: Wallet,
-    //     },
-    //     {
-    //       name: "Employee Attendance",
-    //       path: "/super-admin/salary-management/employee-attendance",
-    //       icon: UserCheck,
-    //     },
-    //   ],
-    // },
   ],
 
   branch_admin: [
     {
-      category: "Dashboard",
+      category: "Overview",
       items: [
         { name: "Dashboard", path: "/branch-admin", icon: LayoutDashboard },
       ],
@@ -230,152 +100,75 @@ const ROLE_MENUS = {
       category: "Academic",
       isCollapsible: true,
       items: [
-        {
-          name: "Academic Management",
-          path: "/branch-admin/academic",
-          icon: GraduationCap,
-        },
+        { name: "Academics", path: "/branch-admin/academic", icon: GraduationCap },
         { name: "Timetable", path: "/branch-admin/timetable", icon: Clock },
         { name: "Exams", path: "/branch-admin/exams", icon: FileText },
-        // { name: "Syllabus", path: "/branch-admin/syllabus", icon: FileText },
-        // { name: "Departments", path: "/branch-admin/departments", icon: Building2 },
-        // { name: "Academic Structure", path: "/branch-admin/academic-structure", icon: LayoutDashboard },
       ],
     },
     {
-      category: "User Management",
+      category: "Staff & Students",
       isCollapsible: true,
       items: [
         { name: "Staff", path: "/branch-admin/staff", icon: Users },
-        // { name: "Parents", path: "/branch-admin/parents", icon: UserCheck },
-      ],
-    },
-    {
-      category: "Student Management",
-      isCollapsible: true,
-      items: [
         { name: "Students", path: "/branch-admin/students", icon: Users },
-      ],
-    },
-    {
-      category: "Teacher Management",
-      isCollapsible: true,
-      items: [
         { name: "Teachers", path: "/branch-admin/teachers", icon: Users },
       ],
     },
     {
-      category: "Attendance",
+      category: "Operations",
       isCollapsible: true,
       items: [
-        {
-          name: "Student Attendance",
-          path: "/branch-admin/attendance",
-          icon: Clock,
-        },
-        {
-          name: "Staff Attendance",
-          path: "/branch-admin/staff-attendance",
-          icon: UserCheck,
-        },
-        {
-          name: "Leaves",
-          path: "/branch-admin/leaves",
-          icon: Calendar,
-        },
-      ],
-    },
-    {
-      category: "Notifications",
-      items: [
-        { name: "Notifications", path: "/branch-admin/notifications", icon: Calendar },
-      ],
-    },
-    // {
-    //   category: "System",
-    //   items: [
-    //     { name: "Settings", path: "/branch-admin/settings", icon: Settings },
-    //   ],
-    // },
-    {
-      category: "Finance Management",
-      isCollapsible: true,
-      items: [
-        { name: "Fee Voucher", path: "/branch-admin/fee-vouchers", icon: Receipt },
-        // { name: "Fee Templates", path: "/branch-admin/fee-templates", icon: Receipt },
+        { name: "Attendance", path: "/branch-admin/attendance", icon: Clock },
+        { name: "Staff Attendance", path: "/branch-admin/staff-attendance", icon: UserCheck },
+        { name: "Leaves", path: "/branch-admin/leaves", icon: Calendar },
+        { name: "Fee Vouchers", path: "/branch-admin/fee-vouchers", icon: Receipt },
         { name: "Expenses", path: "/branch-admin/expenses", icon: Wallet },
       ],
     },
-    // {
-    //   category: "Salary Management",
-    //   isCollapsible: true,
-    //   items: [
-    //     {
-    //       name: "Payroll",
-    //       path: "/branch-admin/salary-management/payroll",
-    //       icon: Wallet,
-    //     },
-    //     {
-    //       name: "Employee Attendance",
-    //       path: "/branch-admin/salary-management/employee-attendance",
-    //       icon: UserCheck,
-    //     },
-    //   ],
-    // },
+    {
+      category: "System",
+      items: [
+        { name: "Notifications", path: "/branch-admin/notifications", icon: Sparkles },
+      ],
+    },
   ],
 
   teacher: [
     {
-      category: "Dashboard",
+      category: "Overview",
       items: [{ name: "Dashboard", path: "/teacher", icon: LayoutDashboard }],
     },
     {
-      category: "Classes",
+      category: "Academic",
       isCollapsible: true,
       items: [
         { name: "My Classes", path: "/teacher/classes", icon: School },
         { name: "Assignments", path: "/teacher/assignments", icon: FileText },
-        { name: "Attendance", path: "/teacher/attendance", icon: Clock },
-        { name: "Self Attendance", path: "/teacher/self-attendance", icon: UserCheck },
         { name: "Exams", path: "/teacher/exams", icon: Calendar },
-        { name: "Results", path: "/teacher/results", icon: BarChart3 },
+        { name: "Self Attendance", path: "/teacher/self-attendance", icon: UserCheck },
       ],
     },
     {
       category: "Communication",
-      isCollapsible: true,
       items: [
-        {
-          name: "Parent Contact",
-          path: "/teacher/parent-contact",
-          icon: Users,
-        },
+        { name: "Parent Contact", path: "/teacher/parent-contact", icon: Users },
       ],
     },
     {
       category: "Account",
-      isCollapsible: true,
       items: [
         { name: "Profile", path: "/teacher/profile", icon: UserCog },
-        { name: "Settings", path: "/teacher/settings", icon: Settings },
-      ],
-    },
-    {
-      category: "Salary",
-      isCollapsible: true,
-      items: [
-        { name: "Payroll", path: "/teacher/payroll", icon: Wallet, }
       ],
     },
   ],
 
   parent: [
     {
-      category: "Dashboard",
+      category: "Overview",
       items: [{ name: "Dashboard", path: "/parent", icon: LayoutDashboard }],
     },
     {
-      category: "Student Info",
+      category: "Children info",
       isCollapsible: true,
       items: [
         { name: "My Children", path: "/parent/children", icon: Users },
@@ -389,7 +182,7 @@ const ROLE_MENUS = {
 
   student: [
     {
-      category: "Dashboard",
+      category: "Overview",
       items: [{ name: "Dashboard", path: "/student", icon: LayoutDashboard }],
     },
     {
@@ -413,6 +206,7 @@ const ROLE_MENUS = {
     },
   ],
 };
+
 
 /* ===================== SIDEBAR ===================== */
 export default function Sidebar({ mobileOpen, setMobileOpen }) {
@@ -439,7 +233,7 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
   }, [isOpen, expanded]);
 
   const role = (user?.role || "student").toLowerCase();
-  const menus = ROLE_MENUS[role] || ROLE_MENUS.student;
+  const menus = useMemo(() => ROLE_MENUS[role] || ROLE_MENUS.student, [role]);
 
   /* ---------- Auto expand active section ---------- */
   useEffect(() => {
@@ -471,7 +265,7 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
       {/* Mobile Overlay */}
       {mobileOpen && (
         <div
-          className="fixed inset-0 bg-black/50 backdrop-blur-sm z-40 md:hidden"
+          className="fixed inset-0 bg-slate-900/40 backdrop-blur-md z-40 md:hidden animate-in fade-in duration-300"
           onClick={() => setMobileOpen(false)}
         />
       )}
@@ -479,100 +273,100 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
       {/* Sidebar */}
       <aside
         className={cn(
-          "fixed md:sticky left-0 z-50 flex flex-col transition-transform duration-300 ease-in-out",
-          "bg-white border-r border-gray-200",
-          "top-0 h-screen md:top-0 md:h-screen",
-          "md:w-auto",
-          isOpen ? "w-72" : "w-20",
+          "fixed md:sticky left-0 z-50 flex flex-col transition-all duration-500 cubic-bezier(0.4, 0, 0.2, 1)",
+          "bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl border-r border-slate-200/50 dark:border-slate-800/50",
+          "top-0 h-[100dvh] md:top-0 md:h-screen shadow-2xl shadow-indigo-500/5",
+          isOpen ? "w-72" : "w-[88px]",
           mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         )}
       >
-        {/* Logo & Toggle */}
-        <div className="h-16 flex items-center justify-between px-5 border-b border-gray-200">
+        {/* Logo Section */}
+        <div className="h-20 flex items-center justify-between px-6 border-b border-slate-100/50 dark:border-slate-800/50">
           {isOpen ? (
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex items-center justify-center shadow-lg shadow-indigo-500/25">
-                <GraduationCap className="w-6 h-6 text-white" />
+            <div className="flex items-center gap-3 animate-in fade-in slide-in-from-left-4 duration-500">
+              <div className="relative group">
+                <div className="absolute -inset-1 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
+                <div className="relative w-11 h-11 rounded-xl bg-white dark:bg-slate-900 overflow-hidden flex items-center justify-center shadow-xl shadow-indigo-500/20">
+                  <img src="/logo.png" alt="Logo" className="w-9 h-9 object-contain" />
+                </div>
               </div>
-              <div>
-                <h2 className="font-bold text-base text-gray-900">Adamjee Coaching</h2>
-                <p className="text-xs text-gray-500">Coaching Management</p>
+              <div className="flex flex-col">
+                <h2 className="font-extrabold text-base tracking-tight text-slate-900 dark:text-white leading-tight">
+                  Adamjee <span className="text-indigo-600">Coaching</span>
+                </h2>
+                <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500">Management System</span>
               </div>
             </div>
           ) : (
-            <div className="w-10 h-10 mx-auto rounded-xl bg-gradient-to-br from-indigo-600 via-purple-600 to-pink-600 flex items-center justify-center shadow-lg shadow-indigo-500/25">
-              <GraduationCap className="w-6 h-6 text-white" />
+            <div className="relative group mx-auto animate-in zoom-in duration-300">
+               <div className="absolute -inset-1 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl blur opacity-25 group-hover:opacity-50 transition duration-1000"></div>
+               <div className="relative w-12 h-12 rounded-xl bg-white dark:bg-slate-900 overflow-hidden flex items-center justify-center shadow-xl">
+                  <img src="/logo.png" alt="Logo" className="w-10 h-10 object-contain" />
+               </div>
             </div>
           )}
-          <div className="flex items-center gap-2">
-            {/* Mobile Close Button */}
+          
+          {isOpen && (
             <Button
               size="icon"
               variant="ghost"
-              className="md:hidden h-9 w-9 text-gray-500 hover:text-gray-900 hover:bg-gray-100"
-              onClick={() => setMobileOpen(false)}
+              className="hidden md:flex h-8 w-8 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-lg transition-all"
+              onClick={() => setIsOpen(false)}
             >
-              <X size={20} />
+              <Menu size={18} />
             </Button>
-            {/* Desktop Toggle Button */}
-            <Button
-              size="icon"
-              variant="ghost"
-              className="hidden md:flex h-9 w-9 text-gray-500 hover:text-gray-900 hover:bg-gray-100"
-              onClick={() => setIsOpen(!isOpen)}
-            >
-              <Menu size={20} />
-            </Button>
-          </div>
+          )}
         </div>
 
-        {/* User Profile */}
-        <div className="px-4 py-4 border-b border-gray-200">
-          <div className="flex items-center gap-3">
-            <div className="relative">
-              <div className="w-11 h-11 rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 text-white flex items-center justify-center font-bold text-base shadow-md">
-                {user.fullName?.[0]}
+        {/* User Card */}
+        {isOpen && (
+          <div className="px-5 py-6">
+            <div className="relative group p-4 rounded-2xl bg-slate-50/50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800/50 hover:border-indigo-200 dark:hover:border-indigo-900/30 transition-all duration-300">
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-500 to-indigo-600 text-white flex items-center justify-center font-bold text-lg shadow-lg shadow-indigo-500/20 ring-2 ring-white dark:ring-slate-950">
+                    {user.fullName?.[0]}
+                  </div>
+                  <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-950 ring-2 ring-emerald-500/20 animate-pulse"></div>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-slate-900 dark:text-white truncate tracking-tight">{user.fullName}</p>
+                  <p className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">{role.replace("_", " ")}</p>
+                </div>
               </div>
-              <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full bg-green-500 border-2 border-white"></div>
             </div>
-            {isOpen && (
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-gray-900 truncate">{user.fullName}</p>
-                <p className="text-xs text-gray-500 capitalize font-medium">{role.replace("_", " ")}</p>
-              </div>
-            )}
           </div>
-        </div>
+        )}
 
         {/* Navigation */}
-        <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-1 custom-scrollbar">
+        <nav className="flex-1 overflow-y-auto px-4 py-2 space-y-6 custom-scrollbar scroll-smooth">
           {menus.map((group) => {
             const open = expanded[group.category];
-            const hasActive = group.items.some((i) => pathname.startsWith(i.path));
+            const hasActive = group.items.some((i) => pathname === i.path || (i.name !== 'Dashboard' && pathname.startsWith(i.path + "/")));
 
             return (
-              <div key={group.category} className="mb-3">
+              <div key={group.category} className="space-y-1">
                 {isOpen && (
                   <button
                     onClick={() => group.isCollapsible && toggleSection(group.category)}
                     className={cn(
-                      "w-full flex items-center justify-between px-3 py-2 mb-1 text-xs font-bold uppercase tracking-wide rounded-lg transition-colors",
-                      group.isCollapsible ? "cursor-pointer" : "cursor-default",
-                      hasActive ? "text-indigo-600" : "text-gray-400"
+                      "w-full flex items-center justify-between px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] transition-all",
+                      group.isCollapsible ? "cursor-pointer hover:text-indigo-600" : "cursor-default",
+                      hasActive ? "text-indigo-600" : "text-slate-400 dark:text-slate-500"
                     )}
                   >
                     <span>{group.category}</span>
                     {group.isCollapsible && (
                       <ChevronRight
-                        size={14}
-                        className={cn("transition-transform duration-200", open && "rotate-90")}
+                        size={12}
+                        className={cn("transition-transform duration-300", open && "rotate-90")}
                       />
                     )}
                   </button>
                 )}
 
                 {(!group.isCollapsible || open || !isOpen) && (
-                  <div className="space-y-1">
+                  <div className="space-y-1 animate-in fade-in slide-in-from-top-1 duration-300">
                     {group.items.map((item) => {
                       const Icon = item.icon;
                       const isActive = pathname === item.path || (item.name !== 'Dashboard' && pathname.startsWith(item.path + "/"));
@@ -584,21 +378,25 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
                           scroll={false}
                           onClick={() => setMobileOpen(false)}
                           className={cn(
-                            "group relative flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all duration-200",
+                            "group relative flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-300",
                             isActive
-                              ? "bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-lg shadow-indigo-500/25"
-                              : "text-gray-700 hover:bg-gray-100",
-                            !isOpen && "justify-center"
+                              ? "bg-indigo-600 text-white shadow-xl shadow-indigo-600/25 ring-1 ring-white/10"
+                              : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900/50 hover:text-slate-900 dark:hover:text-white",
+                            !isOpen && "justify-center px-0 h-12 w-12 mx-auto"
                           )}
                         >
-                          <Icon size={19} className={cn("transition-transform", !isActive && "group-hover:scale-110")} />
-                          {isOpen && <span className="truncate">{item.name}</span>}
+                          <Icon size={isActive ? 20 : 19} className={cn("transition-all duration-300", !isActive && "group-hover:scale-110 group-hover:text-indigo-600")} />
+                          {isOpen && <span className="truncate tracking-tight">{item.name}</span>}
+                          
+                          {isActive && isOpen && (
+                             <div className="absolute right-3 w-1.5 h-1.5 rounded-full bg-white animate-pulse"></div>
+                          )}
 
                           {/* Tooltip for collapsed state */}
                           {!isOpen && (
-                            <div className="fixed left-24 px-3 py-2 bg-gray-900 text-white text-sm rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 whitespace-nowrap z-[9999] shadow-2xl pointer-events-none">
+                            <div className="fixed left-[100px] px-4 py-2 bg-slate-900 dark:bg-white text-white dark:text-slate-900 text-xs font-bold rounded-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible translate-x-[-10px] group-hover:translate-x-0 transition-all duration-300 whitespace-nowrap z-[9999] shadow-2xl pointer-events-none tracking-wide ring-1 ring-slate-200/20">
                               {item.name}
-                              <div className="absolute right-full top-1/2 -translate-y-1/2 border-[6px] border-transparent border-r-gray-900"></div>
+                              <div className="absolute right-full top-1/2 -translate-y-1/2 border-[6px] border-transparent border-r-slate-900 dark:border-r-white"></div>
                             </div>
                           )}
                         </Link>
@@ -611,38 +409,63 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
           })}
         </nav>
 
-        {/* Logout */}
-        <div className="border-t border-gray-200 px-3 py-3">
+        {/* Footer Toggle (Desktop Collapsed) */}
+        {!isOpen && (
+           <div className="px-4 py-4 flex justify-center border-t border-slate-100 dark:border-slate-800/50">
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-10 w-10 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-xl transition-all"
+                onClick={() => setIsOpen(true)}
+              >
+                <ArrowRight size={20} />
+              </Button>
+           </div>
+        )}
+
+        {/* Mobile Toggle & Logout */}
+        <div className="mt-auto border-t border-slate-100/50 dark:border-slate-800/50 p-4 space-y-2">
+          {mobileOpen && (
+             <Button
+                variant="ghost"
+                onClick={() => setMobileOpen(false)}
+                className="w-full flex md:hidden items-center justify-start gap-3 px-4 h-12 text-slate-500 hover:text-slate-900 font-bold rounded-xl"
+             >
+                <X size={20} />
+                <span>Close Sidebar</span>
+             </Button>
+          )}
+
           <Button
             variant="ghost"
             onClick={logout}
             className={cn(
-              "w-full rounded-lg text-red-600 hover:bg-red-50 hover:text-red-700 font-medium transition-colors",
-              isOpen ? "justify-start" : "justify-center"
+              "group w-full h-12 rounded-xl text-slate-500 hover:bg-red-50 dark:hover:bg-red-950/20 hover:text-red-600 font-bold transition-all duration-300",
+              isOpen ? "justify-start px-4" : "justify-center px-0"
             )}
             title={!isOpen ? "Logout" : undefined}
           >
-            <LogOut size={19} />
-            {isOpen && <span className="ml-3">Logout</span>}
+            <LogOut size={20} className="group-hover:translate-x-0.5 transition-transform" />
+            {isOpen && <span className="ml-3 tracking-tight">Sign Out</span>}
           </Button>
         </div>
-      </aside>
 
-      <style jsx global>{`
-        .custom-scrollbar::-webkit-scrollbar {
-          width: 5px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-track {
-          background: transparent;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb {
-          background: #e5e7eb;
-          border-radius: 10px;
-        }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover {
-          background: #d1d5db;
-        }
-      `}</style>
+        <style jsx global>{`
+          .custom-scrollbar::-webkit-scrollbar {
+            width: 4px;
+          }
+          .custom-scrollbar::-webkit-scrollbar-track {
+            background: transparent;
+          }
+          .custom-scrollbar::-webkit-scrollbar-thumb {
+            background: rgba(148, 163, 184, 0.2);
+            border-radius: 20px;
+          }
+          .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+            background: rgba(99, 102, 241, 0.4);
+          }
+        `}</style>
+      </aside>
     </>
   );
 }

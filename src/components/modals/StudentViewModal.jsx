@@ -32,6 +32,8 @@ import { format } from 'date-fns';
 import apiClient from '@/lib/api-client';
 import { API_ENDPOINTS } from '@/constants/api-endpoints';
 import { toast } from 'sonner';
+import IDCardViewer from '@/components/common/IDCard';
+
 
 const StudentViewModal = ({
   isOpen,
@@ -44,11 +46,28 @@ const StudentViewModal = ({
   const [activeTab, setActiveTab] = useState('personal');
   const [loading, setLoading] = useState(false);
   const [qrCode, setQrCode] = useState(null);
+  const [sections, setSections] = useState([]);
 
-  // Load QR code if available
+  // Load QR code and Sections
   useEffect(() => {
-    if (student && isOpen && student.studentProfile?.qr?.url) {
-      setQrCode(student.studentProfile.qr.url);
+    if (student && isOpen) {
+      if (student.studentProfile?.qr?.url) {
+        setQrCode(student.studentProfile.qr.url);
+      }
+      
+      const fetchSections = async () => {
+        try {
+          const classId = student.details?.academic_info?.class_id;
+          if (classId) {
+            const response = await apiClient.get(`/api/sections?class_id=${classId}`);
+            setSections(Array.isArray(response) ? response : []);
+          }
+        } catch (error) {
+          console.error('Error fetching sections:', error);
+        }
+      };
+      
+      fetchSections();
     } else {
       setQrCode(null);
     }
@@ -112,6 +131,13 @@ const StudentViewModal = ({
     return classes.find(c => c.id === classId || c._id === classId)?.name || 'N/A';
   };
 
+  const getSectionName = () => {
+    const sectionId = s.studentProfile?.section;
+    if (!sectionId) return 'N/A';
+    const section = sections.find(sec => sec.id === sectionId || sec._id === sectionId);
+    return section?.name || sectionId;
+  };
+
   const getBranchName = () => {
     if (student.branch?.name) return student.branch.name;
     const branchId = s.branchId?._id || s.branchId;
@@ -129,6 +155,7 @@ const StudentViewModal = ({
     { id: 'parent', label: 'Parent', icon: Users },
     { id: 'medical', label: 'Medical', icon: Heart },
     { id: 'documents', label: 'Documents', icon: FileText },
+    { id: 'idcard', label: 'ID Card', icon: CreditCard },
   ];
 
   // Render content based on active tab
@@ -144,9 +171,46 @@ const StudentViewModal = ({
         return renderMedicalInfo();
       case 'documents':
         return renderDocuments();
+      case 'idcard':
+        return renderIDCard();
       default:
         return renderPersonalInfo();
     }
+  };
+
+  const renderIDCard = () => {
+    // Map 's' (normalized data) to the format expected by IDCardViewer
+    const studentData = {
+      full_name: `${s.firstName} ${s.lastName}`,
+      parent_name: s.studentProfile?.father?.name || s.studentProfile?.guardian?.name || 'N/A',
+      roll_number: s.studentProfile?.rollNumber || 'N/A',
+      registration_no: s.registrationNo || 'N/A',
+      class: getClassName(),
+      section: getSectionName(),
+      section_name: getSectionName(),
+      branch_name: getBranchName(),
+      shift: s.studentProfile?.shift || 'Morning',
+      blood_group: s.bloodGroup || 'O+',
+      valid_upto: 'AUG 2026',
+      photo_url: s.profilePhoto?.url,
+      qr_code_url: s.qrCodeUrl,
+      avatar_url: s.gender?.toLowerCase() === 'female' ? '/assets/avatar-female.svg' : '/assets/avatar-male.svg',
+      gender: s.gender
+    };
+
+    const institute = {
+      name: getBranchName(),
+      logo_url: "/logo.png", // Corrected path
+      address: student.branch?.address || "City Branch, Pakistan",
+      phone: student.branch?.phone || "+92 123 4567890",
+      email: student.branch?.email || "info@adamjee.edu.pk"
+    };
+
+    return (
+      <div className="flex justify-center py-4 bg-gray-50 rounded-xl border-2 border-dashed border-gray-200">
+        <IDCardViewer studentData={studentData} institute={institute} />
+      </div>
+    );
   };
 
   const renderPersonalInfo = () => (
@@ -322,7 +386,7 @@ const StudentViewModal = ({
             </div>
             <div className="flex justify-between">
               <span className="text-sm text-gray-500">Section</span>
-              <span className="font-medium">{s.studentProfile?.section || 'N/A'}</span>
+              <span className="font-medium">{getSectionName()}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-sm text-gray-500">Roll Number</span>

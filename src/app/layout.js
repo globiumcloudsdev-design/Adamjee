@@ -31,7 +31,7 @@ export default function RootLayout({ children }) {
       suppressHydrationWarning
       className={`${outfit.variable} ${poppins.variable}`}
     >
-      <body className="antialiased bg-gray-50 transition-theme">
+      <body className="antialiased bg-gray-50 transition-theme" suppressHydrationWarning>
         <Script
           src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"
           strategy="beforeInteractive"

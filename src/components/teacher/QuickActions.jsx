@@ -28,15 +28,6 @@ export default function QuickActions() {
       href: "/teacher/classes",
     },
     {
-      title: "Mark Attendance",
-      description: "Take student attendance",
-      icon: Clock,
-      color: "from-green-500 to-green-600",
-      bgColor: "bg-green-500/10",
-      textColor: "text-green-600",
-      href: "/teacher/attendance",
-    },
-    {
       title: "Manage Exams",
       description: "Create and grade exams",
       icon: Calendar,
@@ -44,15 +35,6 @@ export default function QuickActions() {
       bgColor: "bg-purple-500/10",
       textColor: "text-purple-600",
       href: "/teacher/exams",
-    },
-    {
-      title: "View Results",
-      description: "Check student results",
-      icon: GraduationCap,
-      color: "from-orange-500 to-orange-600",
-      bgColor: "bg-orange-500/10",
-      textColor: "text-orange-600",
-      href: "/teacher/results",
     },
     {
       title: "Assignments",

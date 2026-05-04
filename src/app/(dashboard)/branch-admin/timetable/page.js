@@ -24,6 +24,7 @@ import { toast } from "sonner";
 import ButtonLoader from "@/components/ui/button-loader";
 import SimpleTimetableViewModal from "@/components/timetable/SimpleTimetableViewModal";
 import TimePicker from "@/components/ui/time-picker";
+import ConfirmDeleteModal from "@/components/modals/ConfirmDeleteModal";
 
 
 
@@ -61,6 +62,8 @@ export default function BranchTimetablePage() {
   const [timetables, setTimetables] = useState([]);
   const [branchTimetables, setBranchTimetables] = useState([]);
   const [selectedClass, setSelectedClass] = useState("");
+  const [allSubjects, setAllSubjects] = useState([]);
+  const [classSubjects, setClassSubjects] = useState([]);
 
   const formatTime12h = (timeStr) => {
     if (!timeStr) return "--";
@@ -83,6 +86,7 @@ export default function BranchTimetablePage() {
   };
   const [selectedSection, setSelectedSection] = useState("");
   const [selectedTeacher, setSelectedTeacher] = useState("");
+  const [selectedSubject, setSelectedSubject] = useState("");
   const [selectedAcademicYear, setSelectedAcademicYear] = useState("");
   const [loading, setLoading] = useState(false);
   const [viewingTimetable, setViewingTimetable] = useState(null);
@@ -110,6 +114,8 @@ export default function BranchTimetablePage() {
     },
   });
   const [submitting, setSubmitting] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [timetableToDelete, setTimetableToDelete] = useState(null);
 
   useEffect(() => {
     console.log(
@@ -123,10 +129,28 @@ export default function BranchTimetablePage() {
     fetchClasses();
     fetchTeachers();
     fetchAcademicYears();
+    fetchAllSubjects();
     fetchTeacherSchedulesForBranch(branchId, selectedAcademicYear);
     fetchTimetables(true); // Fetch all for duplicate checks
     fetchTimetables(false); // Fetch with filters for display
   }, [user, branchId]);
+
+  useEffect(() => {
+    if (formData.classId) {
+      fetchSubjects(formData.classId);
+    } else {
+      setClassSubjects([]);
+    }
+  }, [formData.classId]);
+
+  useEffect(() => {
+    if (selectedClass) {
+      fetchSubjects(selectedClass);
+    } else {
+      // If no class selected in filter, we might want all subjects or empty
+      // Let's keep it empty or all branch subjects
+    }
+  }, [selectedClass]);
 
   useEffect(() => {
     if (selectedClass) {
@@ -155,6 +179,31 @@ export default function BranchTimetablePage() {
       );
     } catch (e) {
       console.error("Failed to fetch classes:", e);
+    }
+  };
+
+  const fetchSubjects = async (classId) => {
+    if (!classId) return;
+    try {
+      const res = await apiClient.get(API_ENDPOINTS.BRANCH_ADMIN.SUBJECTS.LIST, {
+        class_id: classId
+      });
+      console.log("Fetched class subjects:", res);
+      const data = Array.isArray(res) ? res : res.data || [];
+      setClassSubjects(data);
+    } catch (e) {
+      console.error("Failed to fetch class subjects:", e);
+    }
+  };
+
+  const fetchAllSubjects = async () => {
+    try {
+      const res = await apiClient.get(API_ENDPOINTS.BRANCH_ADMIN.SUBJECTS.LIST);
+      console.log("Fetched all subjects:", res);
+      const data = Array.isArray(res) ? res : res.data || [];
+      setAllSubjects(data);
+    } catch (e) {
+      console.error("Failed to fetch all subjects:", e);
     }
   };
 
@@ -767,6 +816,7 @@ export default function BranchTimetablePage() {
             section_id: selectedSection || undefined,
             academic_year_id: selectedAcademicYear || undefined,
             teacher_id: selectedTeacher || undefined,
+            subject_id: selectedSubject || undefined,
           };
 
       const res = await apiClient.get(
@@ -801,15 +851,29 @@ export default function BranchTimetablePage() {
   };
 
   const handleEdit = (timetable) => {
+    console.log("Editing timetable:", timetable);
     setEditingTimetable(timetable);
-    const classId = timetable.classId?.id || timetable.classId;
-    const sectionId = timetable.section?.id || timetable.section;
+    
+    // Normalize IDs from various possible structures (nested object or plain ID)
+    const classId = timetable.class?.id || timetable.classId?.id || timetable.class_id || timetable.classId;
+    const sectionId = timetable.section?.id || timetable.sectionId?.id || timetable.section_id || timetable.section;
+    const academicYearId = timetable.academicYear?.id || timetable.academicYearId?.id || timetable.academic_year_id?.id || timetable.academicYear || timetable.academic_year_id;
+
+    // Find groupId from the classes list
+    const selectedClassObj = classes.find(c => String(c.id) === String(classId));
+    const groupId = selectedClassObj?.group_id || "";
+
+    if (classId) {
+      fetchSections(classId);
+      fetchSubjects(classId);
+    }
 
     setFormData({
       ...formData,
-      classId,
+      groupId: groupId,
+      classId: classId,
       section: sectionId,
-      academicYear: timetable.academicYear?.id || timetable.academicYear,
+      academicYear: academicYearId,
       periods: (timetable.periods || []).map((p) => ({
         ...p,
         day: p.day || p.day_of_week,
@@ -900,11 +964,16 @@ export default function BranchTimetablePage() {
     }
   };
 
-  const handleDelete = async (id) => {
-    if (!confirm("Are you sure you want to delete this timetable?")) return;
+  const handleDelete = (id) => {
+    setTimetableToDelete(id);
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!timetableToDelete) return;
     try {
       const res = await apiClient.delete(
-        `${API_ENDPOINTS.BRANCH_ADMIN.TIMETABLES.DELETE(id)}?id=${encodeURIComponent(id)}`,
+        `${API_ENDPOINTS.BRANCH_ADMIN.TIMETABLES.DELETE(timetableToDelete)}?id=${encodeURIComponent(timetableToDelete)}`,
       );
       if (res?.success) {
         toast.success(res.message || "Deleted");
@@ -915,6 +984,9 @@ export default function BranchTimetablePage() {
     } catch (err) {
       console.error(err);
       toast.error("Failed to delete timetable");
+    } finally {
+      setShowDeleteModal(false);
+      setTimetableToDelete(null);
     }
   };
 
@@ -981,7 +1053,9 @@ export default function BranchTimetablePage() {
                 setSelectedClass("");
                 setSelectedSection("");
                 setSelectedTeacher("");
+                setSelectedSubject("");
                 setSelectedAcademicYear("");
+                setFormData(prev => ({ ...prev, subjectId: "" }));
                 fetchTimetables();
               }}
               className="text-xs font-bold text-slate-500 hover:text-indigo-600 transition-colors"
@@ -1060,6 +1134,22 @@ export default function BranchTimetablePage() {
                     label: `${t.first_name} ${t.last_name}`,
                   })),
                 ]}
+                className="bg-white dark:bg-slate-950 font-medium"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label className="text-xs font-black uppercase tracking-widest text-slate-500 flex items-center gap-2">
+                <BookOpen className="h-3 w-3" />
+                Subject
+              </Label>
+              <Dropdown
+                value={selectedSubject}
+                onChange={(e) => setSelectedSubject(e.target.value)}
+                options={[
+                  { value: "", label: "All Subjects" },
+                  ...classSubjects.map((s) => ({ value: s.id, label: s.name })),
+                ]}
+                disabled={!selectedClass}
                 className="bg-white dark:bg-slate-950 font-medium"
               />
             </div>
@@ -1458,6 +1548,24 @@ export default function BranchTimetablePage() {
                       </div>
 
                       <div className="space-y-2">
+                        <Label>Subject</Label>
+                        <Dropdown
+                          value={period.subjectId}
+                          onChange={(e) =>
+                            updatePeriod(index, "subjectId", e.target.value)
+                          }
+                          options={[
+                            { value: "", label: "None" },
+                            ...classSubjects.map((s) => ({
+                              value: s.id,
+                              label: s.name,
+                            })),
+                          ]}
+                          placeholder="Select subject"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
                         <Label>Teacher</Label>
                         <Dropdown
                           value={period.teacherId}
@@ -1517,7 +1625,20 @@ export default function BranchTimetablePage() {
         onClose={() => setViewingTimetable(null)}
         timetable={viewingTimetable}
         teachers={teachers}
+        subjects={allSubjects}
       />
+
+      {showDeleteModal && (
+        <ConfirmDeleteModal
+          title="Delete Timetable"
+          message="Are you sure you want to permanently delete this timetable? This action cannot be undone."
+          onConfirm={confirmDelete}
+          onCancel={() => {
+            setShowDeleteModal(false);
+            setTimetableToDelete(null);
+          }}
+        />
+      )}
 
     </div>
   );

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -15,8 +15,9 @@ import LiveJsQRScanner from '@/components/LiveJsQRScanner';
 import Modal from '@/components/ui/modal';
 import apiClient from '@/lib/api-client';
 import API_ENDPOINTS from '@/constants/api-endpoints';
+import DatePicker from '@/components/ui/date-picker';
 import { toast } from 'sonner';
-import { Camera, Search, Save, CheckCircle, XCircle, Clock, UserSearch, Eye, DollarSign, Calendar, X } from 'lucide-react';
+import { Camera, Search, Save, CheckCircle, XCircle, Clock, UserSearch, Eye, DollarSign, Calendar, X, QrCode, Scan } from 'lucide-react';
 import FullPageLoader from '@/components/ui/full-page-loader';
 import ButtonLoader from '@/components/ui/button-loader';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -70,12 +71,14 @@ export default function SuperAdminAttendancePage() {
   const [manualSelectedStudents, setManualSelectedStudents] = useState([]);
   const [manualFetchingStudents, setManualFetchingStudents] = useState(false);
   const [manualMarkingAttendance, setManualMarkingAttendance] = useState(false);
+  const [manualHasFetched, setManualHasFetched] = useState(false);
 
 
   // Data states
   const [branches, setBranches] = useState([]);
   const [classes, setClasses] = useState([]);
   const [subjects, setSubjects] = useState([]);
+  const [allClasses, setAllClasses] = useState([]);
   const [allSections, setAllSections] = useState([]);
   const [students, setStudents] = useState([]);
   const [filteredStudents, setFilteredStudents] = useState([]);
@@ -96,6 +99,12 @@ export default function SuperAdminAttendancePage() {
   const [attendanceRecords, setAttendanceRecords] = useState({});
   const [scannedStudents, setScannedStudents] = useState([]);
   const [markedStudents, setMarkedStudents] = useState([]);
+  
+  // Hand Scanner States
+  const [isScannerModalOpen, setIsScannerModalOpen] = useState(false);
+  const [scanInput, setScanInput] = useState('');
+  const [recentScans, setRecentScans] = useState([]);
+  const scannerInputRef = useRef(null);
 
   // Student search states
   const [studentSearchQuery, setStudentSearchQuery] = useState('');
@@ -107,6 +116,7 @@ export default function SuperAdminAttendancePage() {
     fetchBranches();
     fetchTodayAttendance();
     fetchAllSections();
+    fetchClasses();
   }, []);
 
 
@@ -141,10 +151,16 @@ export default function SuperAdminAttendancePage() {
     }
   }, [attendanceType, selectedBranch]);
 
-  // Clear selectedEvent when attendanceType is not event
+  // Sync manual attendance branch with selected branch when modal opens
   useEffect(() => {
-    if (attendanceType !== 'event') setSelectedEvent('');
-  }, [attendanceType]);
+    if (manualAttendanceModalOpen) {
+      setManualHasFetched(false);
+      setManualAttendanceStudents([]);
+      if (selectedBranch) {
+        setManualAttendanceBranch(selectedBranch);
+      }
+    }
+  }, [manualAttendanceModalOpen]);
 
   // Re-fetch existing attendance when attendanceType/subject/event/date change
   useEffect(() => {
@@ -196,31 +212,21 @@ export default function SuperAdminAttendancePage() {
   const fetchTodayAttendance = async () => {
     try {
       const todayDate = new Date().toISOString().split('T')[0];
-      console.log('Fetching attendance for date:', todayDate);
       const response = await apiClient.get(API_ENDPOINTS.SUPER_ADMIN.ATTENDANCE.LIST, {
         date: todayDate,
         limit: 1000
       });
 
-      console.log('Raw API response:', response);
-      console.log('Response success:', response.success);
-      console.log('Response data:', response.data);
-
       if (response.success && response.data) {
-        console.log('Today attendance API response:', response.data);
         const attendanceRecords = response.data.attendance || [];
-        console.log('Attendance records found:', attendanceRecords.length);
         const markedStudentsList = [];
 
         // Extract unique students from today's attendance
         attendanceRecords.forEach(record => {
-          console.log('Processing attendance record:', record);
           if (record.records && Array.isArray(record.records)) {
             record.records.forEach(studentRecord => {
-              console.log('Processing student record:', studentRecord);
               if (studentRecord.studentId && typeof studentRecord.studentId === 'object' && studentRecord.studentId._id) {
                 const student = studentRecord.studentId;
-                console.log('Found student:', student.fullName);
                 // Check if student already in list
                 if (!markedStudentsList.find(s => s._id === student._id)) {
                   markedStudentsList.push({
@@ -237,7 +243,6 @@ export default function SuperAdminAttendancePage() {
           }
         });
 
-        console.log('Final marked students list:', markedStudentsList);
         setMarkedStudents(markedStudentsList);
       }
     } catch (error) {
@@ -309,6 +314,8 @@ export default function SuperAdminAttendancePage() {
       const response = await apiClient.get('/api/classes');
       const classesData = Array.isArray(response) ? response : (response.data?.classes || response.data || []);
       
+      setAllClasses(classesData);
+      
       if (selectedBranch) {
         setClasses(classesData.filter(c => c.branch_id === selectedBranch || c.branchId === selectedBranch));
       } else {
@@ -335,7 +342,7 @@ export default function SuperAdminAttendancePage() {
 
   const fetchEvents = async () => {
     try {
-      const res = await apiClient.get(API_ENDPOINTS.SUPER_ADMIN.EVENTS.LIST, { params: { branchId: selectedBranch } });
+      const res = await apiClient.get(API_ENDPOINTS.SUPER_ADMIN.EVENTS.LIST, { branchId: selectedBranch });
       setEvents(res.data.events || res.data || []);
     } catch (err) {
       console.error('Failed to fetch events', err);
@@ -378,11 +385,8 @@ export default function SuperAdminAttendancePage() {
   const fetchExistingAttendance = async (studentList) => {
     try {
       const response = await apiClient.get('/api/attendance', {
-
-        params: {
-          branch_id: selectedBranch,
-          date: attendanceDate
-        }
+        branch_id: selectedBranch,
+        date: attendanceDate
       });
 
       const attendanceData = Array.isArray(response) ? response : (response.data || []);
@@ -418,6 +422,62 @@ export default function SuperAdminAttendancePage() {
       ...prev,
       [studentId]: status
     }));
+  };
+
+  const handleHandScan = async (e) => {
+    if (e) e.preventDefault();
+    if (!scanInput.trim()) return;
+
+    const currentScan = scanInput.trim();
+    setScanInput(''); // Clear immediately for next scan
+
+    try {
+      const res = await apiClient.post(API_ENDPOINTS.SUPER_ADMIN.ATTENDANCE.SCAN, {
+        qr: currentScan,
+        date: attendanceDate,
+      });
+
+      if (res.success) {
+        const student = res.data?.student || res.student;
+        
+        // Add to recent scans with animation flag
+        setRecentScans(prev => {
+          const filtered = prev.filter(s => (s.id || s._id) !== (student.id || student._id));
+          return [{ 
+            ...student, 
+            scanTime: new Date().toLocaleTimeString(),
+            isNew: true 
+          }, ...filtered].slice(0, 10);
+        });
+
+        // Also update the main marked students list if it exists
+        if (!markedStudents.find(s => (s.id || s._id) === (student.id || student._id))) {
+          setMarkedStudents(prev => [{
+            ...student,
+            registrationNumber: student.registrationNumber || student.registration_no,
+            rollNumber: student.rollNumber || student.roll_no,
+            feeStatus: student.hasPaidFees ? 'paid' : 'unpaid'
+          }, ...prev]);
+        }
+
+        toast.success(res.message || `Attendance marked for ${student.fullName}`);
+        
+        // Remove 'isNew' flag after animation
+        setTimeout(() => {
+          setRecentScans(prev => prev.map(s => (s.id || s._id) === (student.id || student._id) ? { ...s, isNew: false } : s));
+        }, 1000);
+
+      } else {
+        toast.error(res.error || 'Scan failed');
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Failed to record scan');
+    } finally {
+      // Ensure input is focused for next scan
+      if (scannerInputRef.current) {
+        scannerInputRef.current.focus();
+      }
+    }
   };
 
   const handleQRScan = async (qrData) => {
@@ -579,9 +639,10 @@ export default function SuperAdminAttendancePage() {
     try {
       setManualFetchingStudents(true);
       const response = await apiClient.get('/api/users/students', {
-        params: { branch_id: manualAttendanceBranch }
+        branch_id: manualAttendanceBranch
       });
       setManualAttendanceStudents(response.data?.students || response.data || response || []);
+      setManualHasFetched(true);
 
     } catch (error) {
       toast.error(error.message || 'Failed to fetch students');
@@ -620,8 +681,16 @@ export default function SuperAdminAttendancePage() {
 
   const getSectionName = (sectionId) => {
     if (!sectionId) return '—';
-    const sec = allSections.find(s => s.id === sectionId || s._id === sectionId);
-    return sec ? sec.name : sectionId;
+    const id = typeof sectionId === 'object' ? (sectionId.id || sectionId._id) : sectionId;
+    const sec = allSections.find(s => s.id === id || s._id === id);
+    return sec ? sec.name : (typeof sectionId === 'object' ? sectionId.name : sectionId);
+  };
+
+  const getClassName = (classId) => {
+    if (!classId) return '—';
+    const id = typeof classId === 'object' ? (classId.id || classId._id) : classId;
+    const cls = allClasses.find(c => c.id === id || c._id === id);
+    return cls ? cls.name : (typeof classId === 'object' ? classId.name : classId);
   };
 
 
@@ -650,7 +719,7 @@ export default function SuperAdminAttendancePage() {
       if (historyFilters.classId) params.classId = historyFilters.classId;
       if (historyFilters.attendanceType) params.attendanceType = historyFilters.attendanceType;
 
-      const response = await apiClient.get(API_ENDPOINTS.SUPER_ADMIN.ATTENDANCE.LIST, { params });
+      const response = await apiClient.get(API_ENDPOINTS.SUPER_ADMIN.ATTENDANCE.LIST, params);
 
       if (response.success && response.data) {
         setAttendanceHistory(response.data.attendance || []);
@@ -737,11 +806,9 @@ export default function SuperAdminAttendancePage() {
 
             <div className="space-y-2">
               <Label>Date</Label>
-              <Input
-                type="date"
+              <DatePicker
                 value={manualAttendanceDate}
                 onChange={(e) => setManualAttendanceDate(e.target.value)}
-                max={new Date().toISOString().split('T')[0]}
               />
             </div>
             <div className="space-y-2">
@@ -767,7 +834,7 @@ export default function SuperAdminAttendancePage() {
             </Button>
           </div>
 
-          {manualAttendanceStudents.length > 0 && (
+          {manualAttendanceStudents.length > 0 ? (
             <div className="space-y-4 mt-4">
               <div className="flex justify-between items-center">
                 <Label className="font-semibold text-md">Select Students ({manualAttendanceStudents.length})</Label>
@@ -815,7 +882,7 @@ export default function SuperAdminAttendancePage() {
                         <TableCell className="font-medium">{student.first_name} {student.last_name}</TableCell>
                         <TableCell>{student.registration_no}</TableCell>
                         <TableCell>
-                          {student.details?.academic_info?.class_id || 'N/A'} - {student.details?.academic_info?.section_id || student.section || 'N/A'}
+                          {getClassName(student.details?.academic_info?.class_id)} - {getSectionName(student.details?.academic_info?.section_id || student.section)}
                         </TableCell>
                       </TableRow>
                     ))}
@@ -833,7 +900,137 @@ export default function SuperAdminAttendancePage() {
                 </Button>
               </div>
             </div>
+          ) : manualHasFetched && !manualFetchingStudents && (
+            <div className="text-center py-10 border-2 border-dashed rounded-lg mt-4 bg-gray-50/50 dark:bg-gray-900/50">
+              <UserSearch className="mx-auto h-12 w-12 text-gray-400 mb-3" />
+              <h3 className="text-lg font-medium text-gray-900 dark:text-gray-100">No Students Found</h3>
+              <p className="text-gray-500 dark:text-gray-400 max-w-xs mx-auto">
+                We couldn't find any students for the selected branch. Please try a different branch or check the student list.
+              </p>
+            </div>
           )}
+        </div>
+      </Modal>
+
+      {/* Hand Scanner Attendance Modal */}
+      <Modal
+        open={isScannerModalOpen}
+        onClose={() => setIsScannerModalOpen(false)}
+        title="Student Attendance - Hand Scanner"
+        size="xl"
+      >
+        <div className="space-y-6">
+          <div className="bg-indigo-50 dark:bg-indigo-900/20 p-6 rounded-xl border border-indigo-100 dark:border-indigo-800 shadow-sm">
+            <div className="flex flex-col items-center justify-center space-y-4">
+              <div className="bg-white dark:bg-gray-800 p-4 rounded-full shadow-inner border-2 border-indigo-200 dark:border-indigo-700 animate-pulse">
+                <QrCode className="h-12 w-12 text-indigo-600 dark:text-indigo-400" />
+              </div>
+              <div className="text-center">
+                <h3 className="text-lg font-bold text-indigo-900 dark:text-indigo-100">Ready to Scan</h3>
+                <p className="text-sm text-indigo-600 dark:text-indigo-400">Please scan student ID card using the hand scanner</p>
+              </div>
+              
+              <form onSubmit={handleHandScan} className="w-full max-w-md relative">
+                <Input
+                  ref={scannerInputRef}
+                  value={scanInput}
+                  onChange={(e) => setScanInput(e.target.value)}
+                  placeholder="Scanning..."
+                  autoFocus
+                  className="h-14 text-2xl text-center font-mono tracking-widest border-2 border-indigo-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-xl shadow-lg bg-white dark:bg-gray-800"
+                  autoComplete="off"
+                  onBlur={() => {
+                    // Keep focus unless modal is closed
+                    if (isScannerModalOpen) {
+                      setTimeout(() => scannerInputRef.current?.focus(), 100);
+                    }
+                  }}
+                />
+                <div className="absolute right-3 top-1/2 -translate-y-1/2">
+                  <Badge variant="outline" className="bg-indigo-100 text-indigo-700 border-indigo-200">Focused</Badge>
+                </div>
+              </form>
+            </div>
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h4 className="text-lg font-semibold flex items-center gap-2">
+                <Clock className="h-5 w-5 text-gray-500" />
+                Recent Scans
+              </h4>
+              <Badge variant="secondary">{recentScans.length} Students</Badge>
+            </div>
+
+            {recentScans.length > 0 ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {recentScans.map((student, index) => (
+                  <div 
+                    key={student.id || student._id} 
+                    className={`flex items-center gap-4 p-4 rounded-xl border transition-all duration-500 ${
+                      student.isNew 
+                        ? 'bg-green-50 border-green-200 dark:bg-green-900/30 dark:border-green-800 scale-[1.02] shadow-md ring-2 ring-green-500 ring-opacity-20' 
+                        : 'bg-white border-gray-100 dark:bg-gray-800 dark:border-gray-700'
+                    }`}
+                  >
+                    <div className="relative">
+                      {student.avatar_url ? (
+                        <img 
+                          src={student.avatar_url} 
+                          alt={student.fullName} 
+                          className="h-12 w-12 rounded-full object-cover border-2 border-white dark:border-gray-700 shadow-sm"
+                        />
+                      ) : (
+                        <div className="h-12 w-12 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-indigo-700 dark:text-indigo-300 font-bold">
+                          {student.fullName?.charAt(0) || 'S'}
+                        </div>
+                      )}
+                      <div className="absolute -bottom-1 -right-1 bg-green-500 rounded-full p-0.5 border-2 border-white dark:border-gray-800">
+                        <CheckCircle className="h-3 w-3 text-white" />
+                      </div>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-bold text-gray-900 dark:text-gray-100 truncate">
+                        {student.fullName}
+                      </p>
+                      <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1">
+                        <p className="text-xs text-gray-500 dark:text-gray-400">Reg: <span className="font-medium text-gray-700 dark:text-gray-300">{student.registrationNumber || student.registration_no}</span></p>
+                        <p className="text-xs text-gray-500 dark:text-gray-400">Roll: <span className="font-medium text-gray-700 dark:text-gray-300">{student.rollNumber || student.roll_no || 'N/A'}</span></p>
+                      </div>
+                      <p className="text-[10px] text-gray-400 mt-1 flex items-center gap-1">
+                        <Clock className="h-3 w-3" />
+                        Scanned at {student.scanTime}
+                      </p>
+                    </div>
+                    <div className="flex flex-col items-end gap-2">
+                      <Badge className={student.already_marked ? "bg-amber-100 text-amber-700 border-amber-200" : "bg-green-100 text-green-700 border-green-200"}>
+                        {student.already_marked ? "Verified" : "Marked"}
+                      </Badge>
+                      <span className="text-[10px] font-medium text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">{student.branchName}</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-12 bg-gray-50 dark:bg-gray-900/50 rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-800">
+                <div className="bg-white dark:bg-gray-800 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
+                  <UserSearch className="h-8 w-8 text-gray-300" />
+                </div>
+                <p className="text-gray-500 dark:text-gray-400">No students scanned yet in this session</p>
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="mt-8 flex justify-between items-center border-t pt-6">
+          <div className="text-sm text-gray-500">
+            <span className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
+              Scanner Active & Connected
+            </span>
+          </div>
+          <Button variant="outline" onClick={() => setIsScannerModalOpen(false)}>
+            Close Scanner
+          </Button>
         </div>
       </Modal>
 
@@ -846,11 +1043,19 @@ export default function SuperAdminAttendancePage() {
         </div>
         <div className="flex flex-col sm:flex-row gap-2 mt-2 sm:mt-0 w-full sm:w-auto">
           <Button
+            onClick={() => setIsScannerModalOpen(true)}
+            className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white"
+          >
+            <Scan className="h-4 w-4 mr-2" />
+            Hand Scanner
+          </Button>
+          <Button
             onClick={() => setShowScanner(true)}
-            className="w-full sm:w-auto"
+            variant="outline"
+            className="w-full sm:w-auto border-indigo-600 text-indigo-600 hover:bg-indigo-50"
           >
             <Camera className="h-4 w-4 mr-2" />
-            Scan QR
+            Camera Scan
           </Button>
           <Button
             onClick={() => setManualAttendanceModalOpen(true)}
@@ -893,11 +1098,9 @@ export default function SuperAdminAttendancePage() {
 
             <div className="space-y-2">
               <Label>Date</Label>
-              <Input
-                type="date"
+              <DatePicker
                 value={attendanceDate}
                 onChange={(e) => setAttendanceDate(e.target.value)}
-                max={new Date().toISOString().split('T')[0]}
               />
             </div>
 
@@ -941,20 +1144,6 @@ export default function SuperAdminAttendancePage() {
                 placeholder="Select type"
               />
             </div>
-
-            {/* {attendanceType === 'event' && (
-              <div className="space-y-2">
-                <Label>Event *</Label>
-                <Dropdown
-                  name="event"
-                  value={selectedEvent}
-                  onChange={(e) => setSelectedEvent(e.target.value)}
-                  options={events.map(ev => ({ value: ev._id || ev.id, label: `${ev.title} — ${new Date(ev.startDate).toLocaleDateString()}` }))}
-                  placeholder={events.length ? 'Select event' : 'No events found'}
-                  disabled={events.length === 0}
-                />
-              </div>
-            )} */}
           </div>
         </CardContent>
       </Card>
@@ -1090,7 +1279,7 @@ export default function SuperAdminAttendancePage() {
                     </TableCell>
                     <TableCell>{student.registrationNumber || '—'}</TableCell>
                     <TableCell>{student.rollNumber || '—'}</TableCell>
-                    <TableCell>{student.section || '—'}</TableCell>
+                    <TableCell>{getSectionName(student.section || student.details?.academic_info?.section_id)}</TableCell>
                     <TableCell>
                       <div className="flex items-center gap-1">
                         <DollarSign className="w-4 h-4" />
@@ -1320,16 +1509,14 @@ export default function SuperAdminAttendancePage() {
                 <div className="flex gap-4 mt-4">
                   <div className="space-y-2">
                     <Label>From Date</Label>
-                    <Input
-                      type="date"
+                    <DatePicker
                       value={historyFilters.fromDate}
                       onChange={(e) => setHistoryFilters(prev => ({ ...prev, fromDate: e.target.value }))}
                     />
                   </div>
                   <div className="space-y-2">
                     <Label>To Date</Label>
-                    <Input
-                      type="date"
+                    <DatePicker
                       value={historyFilters.toDate}
                       onChange={(e) => setHistoryFilters(prev => ({ ...prev, toDate: e.target.value }))}
                     />

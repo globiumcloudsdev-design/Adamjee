@@ -65,8 +65,8 @@ export default function LoginPage() {
         {/* Header */}
         <div className="text-center mb-8">
             <div className="flex items-center justify-center mb-4">
-            <div className="w-14 h-14 bg-blue-600 rounded-lg flex items-center justify-center">
-              <span className="text-2xl text-white">🎓</span>
+            <div className="w-20 h-20 bg-white rounded-2xl flex items-center justify-center shadow-xl border border-gray-100 overflow-hidden">
+              <img src="/logo.png" alt="Adamjee Logo" className="w-16 h-16 object-contain" />
             </div>
           </div>
           <h1 className="text-3xl font-bold text-gray-900">Adamjee Coaching</h1>

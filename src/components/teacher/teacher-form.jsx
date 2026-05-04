@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, X, User, Upload, Mail, Phone, Calendar, MapPin, FileText, BookOpen, GraduationCap, Award, DollarSign, Briefcase } from 'lucide-react';
+import { Plus, X, Eye, Trash2, User, Upload, Mail, Phone, Calendar, MapPin, FileText, BookOpen, GraduationCap, Award, DollarSign, Briefcase } from 'lucide-react';
 import { toast } from 'sonner';
 import apiClient from '@/lib/api-client';
 import { API_ENDPOINTS } from '@/constants/api-endpoints';
@@ -14,6 +14,7 @@ import DepartmentSelect from '@/components/ui/department-select';
 import ClassSelect from '@/components/ui/class-select';
 import DocumentTypeSelect from '@/components/ui/document-type-select';
 import ButtonLoader from '@/components/ui/button-loader';
+import DatePicker from '@/components/ui/date-picker';
 
 export default function TeacherForm({
   userRole = 'super_admin',
@@ -23,6 +24,7 @@ export default function TeacherForm({
   departments = [],
   classes = [],
   subjects = [],
+  academicYears = [],
   onSuccess,
   onClose
 }) {
@@ -40,10 +42,16 @@ export default function TeacherForm({
     major: ''
   });
 
-  // New class assignment state (only class selection, no subject)
   const [newClassAssignment, setNewClassAssignment] = useState({
     classId: ''
   });
+
+  // File states
+  const [profilePhotoFile, setProfilePhotoFile] = useState(null);
+  const [profilePhotoPreview, setProfilePhotoPreview] = useState(editingTeacher?.avatar_url || null);
+  const [documentFiles, setDocumentFiles] = useState([]);
+  const [documentsToDelete, setDocumentsToDelete] = useState([]); // Track publicIds to delete
+
 
   // Initial form data
   const [formData, setFormData] = useState({
@@ -65,7 +73,8 @@ export default function TeacherForm({
       country: 'Pakistan',
       postalCode: '',
     },
-    branchId: userRole === 'branch_admin' ? currentBranchId : '',
+    branchId: (userRole?.toUpperCase() === 'BRANCH_ADMIN') ? currentBranchId : '',
+    academicYearId: '',
     profilePhoto: {
       url: '',
       publicId: '',
@@ -118,6 +127,8 @@ export default function TeacherForm({
   useEffect(() => {
     if (editingTeacher) {
       const details = editingTeacher.details?.teacher || editingTeacher.teacherProfile || {};
+      const existingDocs = editingTeacher.details?.documents || editingTeacher.documents || [];
+      
       setFormData({
         firstName: editingTeacher.first_name || editingTeacher.firstName || '',
         lastName: editingTeacher.last_name || editingTeacher.lastName || '',
@@ -139,7 +150,7 @@ export default function TeacherForm({
           country: 'Pakistan',
           postalCode: '',
         },
-        branchId: editingTeacher.branch_id || editingTeacher.branchId?._id || (userRole === 'branch_admin' ? currentBranchId : ''),
+        branchId: editingTeacher.branch_id || editingTeacher.branchId?._id || (userRole?.toUpperCase() === 'BRANCH_ADMIN' ? currentBranchId : ''),
         profilePhoto: {
           url: editingTeacher.avatar_url || editingTeacher.profilePhoto?.url || '',
           publicId: editingTeacher.details?.avatar_public_id || editingTeacher.profilePhoto?.publicId || ''
@@ -174,11 +185,20 @@ export default function TeacherForm({
             relationship: '', 
             phone: '' 
           },
-          documents: editingTeacher.documents || details.documents || [],
+          documents: existingDocs,
         },
         status: editingTeacher.is_active === false ? 'inactive' : 'active',
         remarks: editingTeacher.remarks || '',
       });
+
+      setProfilePhotoPreview(editingTeacher.avatar_url || editingTeacher.profilePhoto?.url || null);
+      
+      if (Array.isArray(existingDocs)) {
+        setDocumentFiles(existingDocs.map(doc => ({
+          ...doc,
+          isExisting: true
+        })));
+      }
     }
   }, [editingTeacher, userRole, currentBranchId]);
 
@@ -257,26 +277,61 @@ export default function TeacherForm({
         return;
       }
 
-      // Prepare payload
+      // 1. Create FormData for integrated upload
+      const finalFormData = new FormData();
+      
+      // 2. Add Profile Photo
+      if (profilePhotoFile) {
+        finalFormData.append('profilePhoto', profilePhotoFile);
+      }
+      
+      // 3. Add Documents & Metadata
+      const docMetadata = [];
+      documentFiles.forEach((doc) => {
+        if (doc.file) {
+          finalFormData.append('documents', doc.file);
+          docMetadata.push({
+            type: doc.type,
+            name: doc.name,
+            isExisting: false
+          });
+        } else if (doc.isExisting) {
+          docMetadata.push({
+            type: doc.type,
+            name: doc.name,
+            url: doc.url,
+            publicId: doc.publicId,
+            isExisting: true,
+            isDeleted: documentsToDelete.includes(doc.publicId)
+          });
+        }
+      });
+      finalFormData.append('documentMetadata', JSON.stringify(docMetadata));
+
+      // 4. Prepare JSON data
       const payload = {
         ...formData,
         teacherProfile: {
           ...formData.teacherProfile,
           departmentId: formData.teacherProfile.departmentId || undefined,
+          documents: undefined, // Let backend handle this from documentMetadata
         },
       };
+      finalFormData.append('data', JSON.stringify(payload));
 
       let response;
+      const endpoint = editingTeacher
+        ? API_ENDPOINTS[userRole.toUpperCase()]?.TEACHERS?.UPDATE.replace(':id', editingTeacher.id || editingTeacher._id)
+        : API_ENDPOINTS[userRole.toUpperCase()]?.TEACHERS?.CREATE;
+
       if (editingTeacher) {
-        response = await apiClient.put(
-          `${API_ENDPOINTS[userRole.toUpperCase()]?.TEACHERS?.UPDATE.replace(':id', editingTeacher.id || editingTeacher._id)}`,
-          payload
-        );
+        response = await apiClient.put(endpoint, finalFormData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
       } else {
-        response = await apiClient.post(
-          API_ENDPOINTS[userRole.toUpperCase()]?.TEACHERS?.CREATE,
-          payload
-        );
+        response = await apiClient.post(endpoint, finalFormData, {
+          headers: { 'Content-Type': 'multipart/form-data' }
+        });
       }
 
       if (response?.success) {
@@ -294,8 +349,8 @@ export default function TeacherForm({
     }
   };
 
-  // File upload handlers
-  const handleProfilePhotoUpload = async (e) => {
+  // File selection handlers (no immediate upload)
+  const handleProfilePhotoUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -309,48 +364,16 @@ export default function TeacherForm({
       return;
     }
 
-    setUploading(true);
-    const formDataUpload = new FormData();
-    formDataUpload.append('file', file);
-    formDataUpload.append('fileType', 'profile');
-    formDataUpload.append('folder', 'teachers/profiles');
-
-    if (editingTeacher) {
-      formDataUpload.append('userId', editingTeacher._id);
-    }
-
-    try {
-      const data = await apiClient.post(API_ENDPOINTS.COMMON.UPLOAD, formDataUpload, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-
-      if (data.success) {
-        const photoData = {
-          url: data.url,
-          publicId: data.publicId,
-          uploadedAt: new Date(),
-        };
-
-        setFormData({
-          ...formData,
-          profilePhoto: photoData,
-        });
-
-        toast.success('Profile photo uploaded successfully');
-      } else {
-        toast.error(data.message || 'Upload failed');
-      }
-    } catch (error) {
-      toast.error(error.message || 'Failed to upload image');
-      console.error(error);
-    } finally {
-      setUploading(false);
-    }
+    setProfilePhotoFile(file);
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setProfilePhotoPreview(reader.result);
+    };
+    reader.readAsDataURL(file);
+    toast.info('Profile photo selected');
   };
 
-  const handleDocumentUpload = async (e) => {
+  const handleDocumentUpload = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -364,54 +387,16 @@ export default function TeacherForm({
       return;
     }
 
-    setUploading(true);
-    const formDataUpload = new FormData();
-    formDataUpload.append('file', file);
-    formDataUpload.append('fileType', 'teacher_document');
-    formDataUpload.append('documentType', selectedDocType);
-    formDataUpload.append('folder', 'teachers/documents');
-
-    if (editingTeacher) {
-      formDataUpload.append('userId', editingTeacher._id);
-    }
-
-    try {
-      const data = await apiClient.post(API_ENDPOINTS.COMMON.UPLOAD, formDataUpload, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
-
-      if (data.success) {
-        const newDocument = {
-          type: selectedDocType,
-          name: file.name,
-          url: data.url,
-          publicId: data.publicId,
-          uploadedAt: new Date(),
-        };
-
-        const updatedDocuments = [...(formData.teacherProfile.documents || []), newDocument];
-
-        setFormData({
-          ...formData,
-          teacherProfile: {
-            ...formData.teacherProfile,
-            documents: updatedDocuments,
-          },
-        });
-
-        setSelectedDocType('');
-        toast.success('Document uploaded successfully');
-      } else {
-        toast.error(data.message || 'Upload failed');
-      }
-    } catch (error) {
-      toast.error(error.message || 'Failed to upload document');
-      console.error(error);
-    } finally {
-      setUploading(false);
-    }
+    setDocumentFiles(prev => [...prev, { 
+      file, 
+      type: selectedDocType, 
+      name: file.name,
+      isExisting: false
+    }]);
+    
+    setSelectedDocType('');
+    toast.info(`${selectedDocType} document selected`);
+    e.target.value = ''; // Reset input
   };
 
   // Qualification methods
@@ -496,20 +481,22 @@ export default function TeacherForm({
 
   // Document methods
   const removeDocument = (index) => {
-    setFormData({
-      ...formData,
-      teacherProfile: {
-        ...formData.teacherProfile,
-        documents: formData.teacherProfile.documents.filter((_, i) => i !== index),
-      },
-    });
+    const docToRemove = documentFiles[index];
+    
+    if (docToRemove.isExisting) {
+      // Mark for deletion on server
+      setDocumentsToDelete(prev => [...prev, docToRemove.publicId]);
+    }
+    
+    setDocumentFiles(prev => prev.filter((_, i) => i !== index));
+    toast.success('Document removed from list');
   };
 
   // Tabs
   const tabs = [
     { id: 'personal', label: 'Personal Info', icon: User },
     { id: 'professional', label: 'Professional', icon: Briefcase },
-    { id: 'salary', label: 'Salary & Bank', icon: DollarSign },
+    { id: 'academic', label: 'Academic', icon: GraduationCap },
     { id: 'documents', label: 'Documents', icon: FileText },
   ];
 
@@ -546,16 +533,20 @@ export default function TeacherForm({
             <div className="border-b pb-4">
               <label className="block text-sm font-medium text-gray-700 mb-2">Profile Photo</label>
               <div className="flex items-center gap-4">
-                {formData.profilePhoto?.url ? (
+                {profilePhotoPreview ? (
                   <div className="relative">
                     <img
-                      src={formData.profilePhoto.url}
+                      src={profilePhotoPreview}
                       alt="Profile"
                       className="h-24 w-24 rounded-full object-cover border-2 border-gray-200"
                     />
                     <button
                       type="button"
-                      onClick={() => setFormData({ ...formData, profilePhoto: { url: '', publicId: '' } })}
+                      onClick={() => {
+                        setProfilePhotoFile(null);
+                        setProfilePhotoPreview(null);
+                        setFormData({ ...formData, profilePhoto: { url: '', publicId: '' } });
+                      }}
                       className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600"
                     >
                       <X className="h-3 w-3" />
@@ -580,7 +571,7 @@ export default function TeacherForm({
                     className="cursor-pointer inline-flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 border border-blue-200"
                   >
                     <Upload className="h-4 w-4" />
-                    {uploading ? 'Uploading...' : (formData.profilePhoto?.url ? 'Change Photo' : 'Upload Photo')}
+                    {profilePhotoPreview ? 'Change Photo' : 'Select Photo'}
                   </label>
                   <p className="text-xs text-gray-500 mt-1">Max 5MB (JPG, PNG, GIF)</p>
                 </div>
@@ -659,19 +650,13 @@ export default function TeacherForm({
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Date of Birth <span className="text-red-500">*</span>
-                </label>
-                <Input
-                  type="date"
-                  name="dateOfBirth"
-                  value={formData.dateOfBirth}
-                  onChange={handleInputChange}
-                  required
-                  icon={Calendar}
-                />
-              </div>
+              <DatePicker
+                label="Date of Birth"
+                name="dateOfBirth"
+                value={formData.dateOfBirth}
+                onChange={handleInputChange}
+                required
+              />
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>
@@ -723,37 +708,6 @@ export default function TeacherForm({
                   value={formData.nationality}
                   onChange={handleInputChange}
                   placeholder="Pakistani"
-                />
-              </div>
-
-              {userRole === 'super_admin' && (
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Branch <span className="text-red-500">*</span>
-                  </label>
-                  <BranchSelect
-                    name="branchId"
-                    value={formData.branchId}
-                    onChange={handleInputChange}
-                    branches={branches}
-                    placeholder="Select Branch"
-                    required
-                  />
-                </div>
-              )}
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                <Dropdown
-                  name="status"
-                  value={formData.status}
-                  onChange={handleInputChange}
-                  options={[
-                    { label: 'Active', value: 'active' },
-                    { label: 'On Leave', value: 'on_leave' },
-                    { label: 'Terminated', value: 'terminated' },
-                    { label: 'Resigned', value: 'resigned' },
-                  ]}
                 />
               </div>
             </div>
@@ -814,16 +768,12 @@ export default function TeacherForm({
         {activeTab === 'professional' && (
           <div className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Joining Date</label>
-                <Input
-                  type="date"
-                  name="teacherProfile.joiningDate"
-                  value={formData.teacherProfile.joiningDate}
-                  onChange={handleInputChange}
-                  icon={Calendar}
-                />
-              </div>
+              <DatePicker
+                label="Joining Date"
+                name="teacherProfile.joiningDate"
+                value={formData.teacherProfile.joiningDate}
+                onChange={handleInputChange}
+              />
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Designation</label>
@@ -841,17 +791,6 @@ export default function TeacherForm({
                   ]}
                 />
               </div>
-
-              {/* <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Department</label>
-                <DepartmentSelect
-                  name="teacherProfile.departmentId"
-                  value={formData.teacherProfile.departmentId}
-                  onChange={handleInputChange}
-                  departments={departments}
-                  placeholder="Select Department"
-                />
-              </div> */}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Experience (Years)</label>
@@ -971,107 +910,57 @@ export default function TeacherForm({
           </div>
         )}
 
-
-
-        {/* Salary & Bank Tab */}
-        {activeTab === 'salary' && (
+        {/* Academic Tab */}
+        {activeTab === 'academic' && (
           <div className="space-y-6">
-            {/* Salary Information */}
-            <div>
-              <h3 className="text-sm font-semibold text-gray-900 mb-3">Salary Information</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Basic Salary</label>
-                  <Input
-                    type="number"
-                    name="teacherProfile.salaryDetails.basicSalary"
-                    value={formData.teacherProfile.salaryDetails.basicSalary}
-                    onChange={handleInputChange}
-                    placeholder="50000"
-                    min="0"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">House Rent Allowance</label>
-                  <Input
-                    type="number"
-                    name="teacherProfile.salaryDetails.allowances.houseRent"
-                    value={formData.teacherProfile.salaryDetails.allowances.houseRent}
-                    onChange={handleInputChange}
-                    placeholder="10000"
-                    min="0"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Medical Allowance</label>
-                  <Input
-                    type="number"
-                    name="teacherProfile.salaryDetails.allowances.medical"
-                    value={formData.teacherProfile.salaryDetails.allowances.medical}
-                    onChange={handleInputChange}
-                    placeholder="5000"
-                    min="0"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Transport Allowance</label>
-                  <Input
-                    type="number"
-                    name="teacherProfile.salaryDetails.allowances.transport"
-                    value={formData.teacherProfile.salaryDetails.allowances.transport}
-                    onChange={handleInputChange}
-                    placeholder="3000"
-                    min="0"
-                  />
-                </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Academic Year <span className="text-red-500">*</span>
+                </label>
+                <Dropdown
+                  name="academicYearId"
+                  value={formData.academicYearId}
+                  onChange={handleInputChange}
+                  options={academicYears.map(year => ({
+                    label: year.year || year.name,
+                    value: year.id || year._id
+                  }))}
+                  placeholder="Select Academic Year"
+                  required
+                />
               </div>
+
+              {userRole?.toUpperCase() === 'SUPER_ADMIN' && (
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Branch <span className="text-red-500">*</span>
+                  </label>
+                  <BranchSelect
+                    name="branchId"
+                    value={formData.branchId}
+                    onChange={handleInputChange}
+                    branches={branches}
+                    placeholder="Select Branch"
+                    required
+                  />
+                </div>
+              )}
             </div>
 
-            {/* Bank Account Details */}
             <div className="border-t pt-4">
-              <h3 className="text-sm font-semibold text-gray-900 mb-3">Bank Account Details</h3>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Bank Name</label>
-                  <Input
-                    type="text"
-                    name="teacherProfile.bankAccount.bankName"
-                    value={formData.teacherProfile.bankAccount.bankName}
-                    onChange={handleInputChange}
-                    placeholder="HBL, MCB, UBL"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Account Number</label>
-                  <Input
-                    type="text"
-                    name="teacherProfile.bankAccount.accountNumber"
-                    value={formData.teacherProfile.bankAccount.accountNumber}
-                    onChange={handleInputChange}
-                    placeholder="0123456789"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">IBAN</label>
-                  <Input
-                    type="text"
-                    name="teacherProfile.bankAccount.iban"
-                    value={formData.teacherProfile.bankAccount.iban}
-                    onChange={handleInputChange}
-                    placeholder="PK00ABCD1234567890123456"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Branch Code</label>
-                  <Input
-                    type="text"
-                    name="teacherProfile.bankAccount.branchCode"
-                    value={formData.teacherProfile.bankAccount.branchCode}
-                    onChange={handleInputChange}
-                    placeholder="1234"
-                  />
-                </div>
-              </div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+              <Dropdown
+                name="status"
+                value={formData.status}
+                onChange={handleInputChange}
+                options={[
+                  { label: 'Active', value: 'active' },
+                  { label: 'On Leave', value: 'on_leave' },
+                  { label: 'Terminated', value: 'terminated' },
+                  { label: 'Resigned', value: 'resigned' },
+                ]}
+              />
             </div>
           </div>
         )}
@@ -1079,11 +968,11 @@ export default function TeacherForm({
         {/* Documents Tab */}
         {activeTab === 'documents' && (
           <div className="space-y-4">
-            {/* Document Upload Section */}
+            {/* Document Selection Section */}
             <div className="border-2 border-dashed border-gray-300 rounded-lg p-6">
               <div className="text-center">
                 <FileText className="h-12 w-12 mx-auto text-gray-400 mb-2" />
-                <p className="text-sm font-medium text-gray-900 mb-1">Upload Documents</p>
+                <p className="text-sm font-medium text-gray-900 mb-1">Select Documents</p>
                 <p className="text-xs text-gray-500 mb-4">CNIC, Degrees, Certificates, etc.</p>
                 
                 <div className="space-y-3 max-w-md mx-auto">
@@ -1091,14 +980,6 @@ export default function TeacherForm({
                     name="documentType"
                     value={selectedDocType}
                     onChange={(e) => setSelectedDocType(e.target.value)}
-                    options={[
-                      { label: 'CNIC', value: 'cnic' },
-                      { label: 'Degree Certificate', value: 'degree' },
-                      { label: 'CV / Resume', value: 'cv' },
-                      { label: 'Experience Letter', value: 'experience_letter' },
-                      { label: 'Teaching Certificate', value: 'certificate' },
-                      { label: 'Other', value: 'other' },
-                    ]}
                   />
 
                   <input
@@ -1107,18 +988,18 @@ export default function TeacherForm({
                     onChange={handleDocumentUpload}
                     className="hidden"
                     id="documentUpload"
-                    disabled={uploading || !selectedDocType}
+                    disabled={!selectedDocType}
                   />
                   <label
                     htmlFor="documentUpload"
                     className={`inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg border cursor-pointer ${
-                      !selectedDocType || uploading
+                      !selectedDocType
                         ? 'bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed'
                         : 'bg-blue-600 text-white border-blue-600 hover:bg-blue-700'
                     }`}
                   >
                     <Upload className="h-4 w-4" />
-                    {uploading ? 'Uploading...' : 'Choose File'}
+                    Select File
                   </label>
                   <p className="text-xs text-gray-500 mt-1">
                     {!selectedDocType ? 'Select document type first' : 'Max 10MB (PDF, DOC, Images)'}
@@ -1127,12 +1008,12 @@ export default function TeacherForm({
               </div>
             </div>
 
-            {/* Uploaded Documents List */}
-            {formData.teacherProfile.documents.length > 0 && (
+            {/* Document List */}
+            {documentFiles.length > 0 && (
               <div>
-                <h3 className="text-sm font-semibold text-gray-900 mb-2">Uploaded Documents</h3>
+                <h3 className="text-sm font-semibold text-gray-900 mb-2">Selected Documents</h3>
                 <div className="space-y-2">
-                  {formData.teacherProfile.documents.map((doc, index) => (
+                  {documentFiles.map((doc, index) => (
                     <div key={index} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg border border-gray-200">
                       <div className="flex items-center gap-3">
                         <FileText className="h-5 w-5 text-gray-400" />
@@ -1141,23 +1022,25 @@ export default function TeacherForm({
                             {doc.type?.replace('_', ' ')}
                           </p>
                           <p className="text-xs text-gray-500">
-                            {doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleDateString() : 'Uploaded'}
+                            {doc.name} {doc.isExisting ? '(Existing)' : '(New)'}
                           </p>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        <a
-                          href={doc.url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-blue-600 hover:text-blue-800 text-sm"
-                        >
-                          View
-                        </a>
+                        {(doc.url || doc.preview) && (
+                          <a
+                            href={doc.url || doc.preview}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="p-1 text-blue-600 hover:bg-blue-100 rounded"
+                          >
+                            <Eye className="h-4 w-4" />
+                          </a>
+                        )}
                         <button
                           type="button"
                           onClick={() => removeDocument(index)}
-                          className="text-red-600 hover:text-red-800"
+                          className="p-1 text-red-600 hover:bg-red-100 rounded"
                         >
                           <X className="h-4 w-4" />
                         </button>
@@ -1172,25 +1055,25 @@ export default function TeacherForm({
       </div>
 
       {/* Form Actions */}
-      <div className="flex justify-end gap-3 pt-4 border-t">
+      <div className="flex justify-end gap-3 pt-6 border-t">
         <button
           type="button"
           onClick={onClose}
-          className="px-4 py-2 border border-gray-300 rounded-lg text-gray-700 hover:bg-gray-50"
+          className="px-6 py-2 border rounded-lg hover:bg-gray-50 text-gray-700 font-medium"
           disabled={loading}
         >
           Cancel
         </button>
         <button
           type="submit"
-          className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50 flex items-center gap-2"
           disabled={loading}
         >
           {loading ? (
-            <span className="flex items-center gap-2">
+            <>
               <ButtonLoader size={4} />
               {editingTeacher ? 'Updating...' : 'Creating...'}
-            </span>
+            </>
           ) : (
             editingTeacher ? 'Update Teacher' : 'Create Teacher'
           )}

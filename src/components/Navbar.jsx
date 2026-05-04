@@ -41,10 +41,10 @@ export default function Navbar() {
         <Link href="/#home" className="flex items-center gap-3">
           <div className="relative h-12 w-12 overflow-hidden rounded-2xl shadow-lg shadow-slate-900/20">
             <Image
-              src={isScrolled ? "/logo-white.jpeg" : "/logo-dark.jpeg"}
+              src="/logo.png"
               alt="Adamjee Coaching logo"
               fill
-              className="object-cover"
+              className="object-contain p-1 bg-white"
               sizes="48px"
               priority
             />

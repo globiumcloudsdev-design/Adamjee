@@ -30,10 +30,27 @@ async function getBranchHandler(request, { params }) {
       },
     ],
   });
+
   if (!branch) {
     return NextResponse.json({ error: "Branch not found" }, { status: 404 });
   }
-  return NextResponse.json({ success: true, branch });
+
+  const [students, teachers, staff] = await Promise.all([
+    User.count({ where: { branch_id: branch.id, role: 'STUDENT' } }),
+    User.count({ where: { branch_id: branch.id, role: 'TEACHER' } }),
+    User.count({ where: { branch_id: branch.id, role: 'STAFF' } }),
+  ]);
+
+  const branchWithStats = {
+    ...branch.toJSON(),
+    stats: {
+      students,
+      teachers,
+      staff
+    }
+  };
+
+  return NextResponse.json({ success: true, branch: branchWithStats });
 }
 
 // UPDATE branch (PUT)

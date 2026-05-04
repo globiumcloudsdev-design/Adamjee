@@ -15,12 +15,15 @@ import * as XLSX from 'xlsx';
 import QRCode from 'qrcode';
 import { pdf } from '@react-pdf/renderer';
 import StudentCardPDF from '@/components/StudentCardPDF';
+import { generateAndDownloadIdCard } from '@/lib/idCardGenerator';
 import { useAuth } from '@/hooks/useAuth';
 import apiClient from '@/lib/api-client';
 import { API_ENDPOINTS } from '@/constants/api-endpoints';
 import StudentFormModal from '@/components/forms/StudentFormModal';
 import StudentViewModal from '@/components/modals/StudentViewModal';
 import { toast } from 'sonner';
+import UserManagementTable from '@/components/common/UserManagementTable';
+import ConfirmDeleteModal from '@/components/modals/ConfirmDeleteModal';
 
 export default function BranchAdminStudentsPage() {
   const { user } = useAuth();
@@ -30,6 +33,7 @@ export default function BranchAdminStudentsPage() {
 
   const [students, setStudents] = useState([]);
   const [classes, setClasses] = useState([]);
+  const [sections, setSections] = useState([]);
   const [branchGroups, setBranchGroups] = useState([]);
   const [academicYears, setAcademicYears] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -96,6 +100,16 @@ export default function BranchAdminStudentsPage() {
     }
   };
 
+  const fetchSections = async () => {
+    try {
+      const response = await apiClient.get('/api/sections');
+      const sectionsData = Array.isArray(response) ? response : (response.data || []);
+      setSections(sectionsData);
+    } catch (error) {
+      console.error('Error fetching sections:', error);
+    }
+  };
+
   const fetchAcademicYears = async () => {
     try {
       const response = await apiClient.get('/api/academic-years');
@@ -109,6 +123,7 @@ export default function BranchAdminStudentsPage() {
   // Initial load
   useEffect(() => {
     fetchClasses();
+    fetchSections();
     fetchGroups();
     fetchAcademicYears();
   }, []);
@@ -132,6 +147,22 @@ export default function BranchAdminStudentsPage() {
 
   const getStudentRegistrationNo = (student) => {
     return student.registration_no || 'N/A';
+  };
+
+  const getStudentSectionName = (student) => {
+    const details = student.details?.academic_info || {};
+    if (details.section_name) return details.section_name;
+    const sectionId = details.section_id;
+    if (!sectionId) return '-';
+    const sectionObj = sections.find(s => s.id === sectionId || s._id === sectionId);
+    return sectionObj?.name || sectionId;
+  };
+
+  const getStudentGroupName = (student) => {
+    const groupId = student.details?.academic_info?.group_id;
+    if (!groupId) return '-';
+    const groupObj = groups.find(g => g.id === groupId || g._id === groupId);
+    return groupObj?.name || '-';
   };
 
   const getParentInfo = (student) => {
@@ -312,15 +343,54 @@ export default function BranchAdminStudentsPage() {
     }
   };
 
-  const handleDownloadCard = (student) => {
-    setSelectedStudent(student);
-    setCardStatus({
-      issueDate: new Date().toISOString().split('T')[0],
-      expireDate: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      status: 'active',
-      printCount: 0,
-    });
-    setIsCardModalOpen(true);
+  const handleDownloadCard = async (student) => {
+    if (!student) {
+      toast.error('No student data found');
+      return;
+    }
+
+    try {
+      setSubmitting(true);
+      toast.loading('Generating Card...', { id: 'card-gen' });
+      
+      const studentData = {
+        first_name: student.first_name,
+        last_name: student.last_name,
+        registration_no: student.registration_no,
+        avatar_url: student.avatar_url,
+        class_name: getStudentClassName(student),
+        section_name: getStudentSectionName(student),
+        parent_name: getParentInfo(student).name,
+        branch_name: student.branch?.name || 'Main Campus',
+        shift: student.details?.academic_info?.shift || 'Morning',
+        gender: student.gender || student.details?.academic_info?.gender || 'male',
+        photo_url: student.avatar_url || null,
+        qr_code_url: student.qr_code_url || student.studentProfile?.qr?.url || null,
+        id: student.id,
+        details: student.details
+      };
+      
+      const instituteData = {
+        name: student.branch?.name || 'ADAMJEE COACHING CENTRE',
+        logo_url: '/logo.png',
+        address: student.branch?.address || 'City Branch, Pakistan',
+        phone: student.branch?.contact?.phone || '+92 123 4567890',
+        email: student.branch?.contact?.email || 'info@adamjee.edu.pk'
+      };
+
+      await generateAndDownloadIdCard({
+        role: 'student',
+        person: studentData,
+        institute: instituteData,
+      });
+
+      toast.success('ID Card generated!', { id: 'card-gen' });
+    } catch (error) {
+      console.error('Card generation failed:', error);
+      toast.error(`Error: ${error.message}`, { id: 'card-gen' });
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   const generateQRCode = async (data) => {
@@ -347,66 +417,6 @@ export default function BranchAdminStudentsPage() {
     }
   };
 
-  const generateCard = async () => {
-    if (!selectedStudent) return;
-
-    try {
-      setSubmitting(true);
-      const qrUrl = await generateQRCode(selectedStudent);
-      if (!qrUrl) {
-        toast.error('Failed to generate QR code');
-        return;
-      }
-
-      // Map PostgreSQL student to card format
-      const cardStudent = {
-        firstName: selectedStudent.first_name,
-        lastName: selectedStudent.last_name,
-        email: selectedStudent.email,
-        phone: selectedStudent.phone,
-        gender: selectedStudent.details?.academic_info?.gender || '',
-        dateOfBirth: selectedStudent.details?.academic_info?.date_of_birth || '',
-        bloodGroup: selectedStudent.details?.academic_info?.blood_group || '',
-        studentProfile: {
-          registrationNumber: selectedStudent.registration_no,
-          classId: { name: getStudentClassName(selectedStudent) },
-          father: selectedStudent.details?.academic_info?.father,
-          guardian: selectedStudent.details?.academic_info?.guardian,
-        },
-        profilePhoto: selectedStudent.avatar_url ? { url: selectedStudent.avatar_url } : null,
-      };
-
-      const blob = await pdf(
-        <StudentCardPDF
-          student={cardStudent}
-          qrCodeUrl={qrUrl}
-          classes={classes}
-          issueDate={cardStatus.issueDate}
-          expireDate={cardStatus.expireDate}
-          status={cardStatus.status}
-        />
-      ).toBlob();
-
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = `student-card-${selectedStudent.registration_no || selectedStudent.id}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-
-      setCardStatus(prev => ({ ...prev, printCount: prev.printCount + 1 }));
-      setIsCardModalOpen(false);
-      setSelectedStudent(null);
-      setQrCodeUrl('');
-    } catch (error) {
-      console.error('Error generating card:', error);
-      toast.error('Failed to generate student card');
-    } finally {
-      setSubmitting(false);
-    }
-  };
 
   if (loading && students.length === 0) {
     return <FullPageLoader message="Loading students..." />;
@@ -466,147 +476,15 @@ export default function BranchAdminStudentsPage() {
           </div>
 
           {/* Table */}
-          <div className="border rounded-lg overflow-hidden">
-            <div className="overflow-x-auto">
-              <Table>
-              <TableHeader className="bg-gray-50">
-                <TableRow>
-                  <TableHead className="font-semibold">Student</TableHead>
-                  <TableHead className="font-semibold">Registration #</TableHead>
-                  <TableHead className="font-semibold">Class</TableHead>
-                  <TableHead className="font-semibold">Parent</TableHead>
-                  <TableHead className="font-semibold">Status</TableHead>
-                  <TableHead className="font-semibold text-right">Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {paginatedStudents.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} className="text-center py-8 text-gray-500">
-                      <User className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                      <p>No students found</p>
-                      <p className="text-sm mt-1">Add your first student to get started</p>
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  paginatedStudents.map((student) => {
-                    const parentInfo = getParentInfo(student);
-                    return (
-                      <TableRow key={student.id} className="hover:bg-gray-50">
-                        <TableCell>
-                          <div className="flex items-center gap-3">
-                            {student.avatar_url ? (
-                              <img 
-                                src={student.avatar_url} 
-                                alt="" 
-                                className="w-10 h-10 rounded-full object-cover border" 
-                              />
-                            ) : (
-                              <div className="w-10 h-10 rounded-full bg-gray-100 border flex items-center justify-center">
-                                <User className="w-5 h-5 text-gray-400" />
-                              </div>
-                            )}
-                            <div>
-                              <div className="font-medium text-gray-900">
-                                {getStudentName(student)}
-                              </div>
-                              <div className="text-xs text-gray-500 flex items-center gap-1">
-                                <Mail className="w-3 h-3" />
-                                {student.email || '-'}
-                              </div>
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="font-mono text-sm font-medium text-gray-900">
-                            {getStudentRegistrationNo(student)}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="text-sm text-gray-900">
-                            {getStudentClassName(student)}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="space-y-1">
-                            <div className="text-sm font-medium">
-                              {parentInfo.name}
-                            </div>
-                            <div className="text-xs text-gray-500 flex items-center gap-1">
-                              <Phone className="w-3 h-3" />
-                              {parentInfo.phone}
-                            </div>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <button
-                              type="button"
-                              role="switch"
-                              aria-checked={student.is_active}
-                              onClick={() => handleToggleStatus(student)}
-                              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer items-center justify-center rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
-                                student.is_active ? 'bg-green-500 hover:bg-green-600' : 'bg-gray-300 hover:bg-gray-400'
-                              }`}
-                              title={`Click to ${student.is_active ? 'deactivate' : 'activate'}`}
-                            >
-                              <span
-                                aria-hidden="true"
-                                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
-                                  student.is_active ? 'translate-x-4' : 'translate-x-0'
-                                }`}
-                              />
-                            </button>
-                            <span className={`text-xs font-medium ${student.is_active ? 'text-green-700' : 'text-gray-500'}`}>
-                              {student.is_active ? 'Active' : 'Inactive'}
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              variant="ghost"
-                              size="icon-sm"
-                              onClick={() => handleView(student)}
-                              title="View Details"
-                            >
-                              <Eye className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon-sm"
-                              onClick={() => handleDownloadCard(student)}
-                              title="Download Card"
-                            >
-                              <Download className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon-sm"
-                              onClick={() => handleEdit(student)}
-                              title="Edit"
-                            >
-                              <Edit className="w-4 h-4" />
-                            </Button>
-                            <Button
-                              variant="ghost"
-                              size="icon-sm"
-                              onClick={() => setDeleteModal({ open: true, student })}
-                              title="Delete"
-                              className="text-red-600 hover:text-red-700"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })
-                )}
-              </TableBody>
-            </Table>
-            </div>
-          </div>
+          <UserManagementTable
+            data={paginatedStudents}
+            loading={loading}
+            onView={handleView}
+            onEdit={handleEdit}
+            onDelete={(id) => setDeleteModal({ open: true, student: students.find(s => s.id === id) })}
+            onToggleStatus={handleToggleStatus}
+            onDownloadQR={handleDownloadCard}
+          />
 
           {/* Pagination */}
           {totalPages > 1 && (
@@ -697,100 +575,14 @@ export default function BranchAdminStudentsPage() {
 
       {/* Delete Confirmation Modal */}
       {deleteModal.open && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Delete Student</h3>
-            <p className="text-gray-600 mb-6">
-              Are you sure you want to delete {getStudentName(deleteModal.student)}?
-              This action cannot be undone.
-            </p>
-            <div className="flex justify-end gap-3">
-              <Button
-                variant="outline"
-                onClick={() => setDeleteModal({ open: false, student: null })}
-              >
-                Cancel
-              </Button>
-              <Button
-                variant="destructive"
-                onClick={handleDelete}
-                disabled={submitting}
-              >
-                {submitting ? <ButtonLoader /> : 'Delete Student'}
-              </Button>
-            </div>
-          </div>
-        </div>
+        <ConfirmDeleteModal
+          title="Delete Student"
+          message={`Are you sure you want to delete ${deleteModal.student?.first_name} ${deleteModal.student?.last_name}? This action cannot be undone and will remove all student records.`}
+          onConfirm={handleDelete}
+          onCancel={() => setDeleteModal({ open: false, student: null })}
+        />
       )}
 
-      {/* Card Modal */}
-      <Modal
-        open={isCardModalOpen}
-        onClose={() => setIsCardModalOpen(false)}
-        title="Student Card Preview"
-        size="lg"
-        footer={
-          <div className="flex justify-end gap-2">
-            <Button variant="outline" onClick={() => setIsCardModalOpen(false)}>
-              Cancel
-            </Button>
-            <Button onClick={generateCard}>
-              <Download className="w-4 h-4 mr-2" />
-              Download PDF
-            </Button>
-          </div>
-        }
-      >
-        {selectedStudent && (
-          <div className="space-y-6">
-            {/* Card Status */}
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <h3 className="font-semibold mb-3 text-gray-800">Card Status</h3>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium text-gray-600">Issue Date</label>
-                  <p className="font-semibold">{cardStatus.issueDate}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-600">Expire Date</label>
-                  <p className="font-semibold">{cardStatus.expireDate}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-600">Status</label>
-                  <p className="font-semibold capitalize">{cardStatus.status}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-gray-600">Print Count</label>
-                  <p className="font-semibold">{cardStatus.printCount}</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Student Info Preview */}
-            <div className="border rounded-lg p-4">
-              <h3 className="font-semibold mb-3 text-gray-800">Student Details</h3>
-              <div className="grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <span className="text-gray-500">Name:</span>
-                  <span className="ml-2 font-medium">{getStudentName(selectedStudent)}</span>
-                </div>
-                <div>
-                  <span className="text-gray-500">Reg No:</span>
-                  <span className="ml-2 font-medium">{getStudentRegistrationNo(selectedStudent)}</span>
-                </div>
-                <div>
-                  <span className="text-gray-500">Class:</span>
-                  <span className="ml-2 font-medium">{getStudentClassName(selectedStudent)}</span>
-                </div>
-                <div>
-                  <span className="text-gray-500">Roll No:</span>
-                  <span className="ml-2 font-medium">{selectedStudent.details?.academic_info?.roll_no || '-'}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-      </Modal>
     </div>
   );
 }

@@ -18,6 +18,9 @@ async function getOne(req, { params }) {
 
 async function updateEntry(req, { params }) {
   const { id } = await params;
+  const currentUser = req.user;
+  const entry = await Timetable.findByPk(id);
+  
   if (!entry) return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (entry.branch_id !== currentUser.branch_id) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -38,12 +41,15 @@ async function updateEntry(req, { params }) {
 
 async function deleteEntry(req, { params }) {
   const { id } = await params;
+  const currentUser = req.user;
+  const entry = await Timetable.findByPk(id);
+  
   if (!entry) return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (entry.branch_id !== currentUser.branch_id) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
-  await entry.destroy();
-  return NextResponse.json({ success: true });
+  await entry.destroy({ force: true });
+  return NextResponse.json({ success: true, message: "Timetable deleted permanently" });
 }
 
 export const GET = withAuth(getOne, ["SUPER_ADMIN", "BRANCH_ADMIN"]);

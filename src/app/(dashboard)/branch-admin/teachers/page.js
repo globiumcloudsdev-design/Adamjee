@@ -41,6 +41,7 @@ export default function TeachersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState('');
+  const [academicYears, setAcademicYears] = useState([]);
 
   useEffect(() => {
     const branchId = user?.branch_id || user?.branchId?._id;
@@ -49,8 +50,20 @@ export default function TeachersPage() {
       fetchDepartments();
       fetchClasses();
       fetchSubjects();
+      fetchAcademicYears();
     }
   }, [user?.branch_id, user?.branchId?._id, searchTerm, selectedStatus, selectedDepartment]);
+
+  const fetchAcademicYears = async () => {
+    try {
+      const response = await apiClient.get('/api/academic-years');
+      if (response?.academic_years) {
+        setAcademicYears(response.academic_years);
+      }
+    } catch (error) {
+      console.error('Failed to fetch academic years:', error);
+    }
+  };
 
   console.log('Login User', user);
   
@@ -328,6 +341,7 @@ export default function TeachersPage() {
           departments={departments}
           classes={classes}
           subjects={subjects}
+          academicYears={academicYears}
           onSuccess={handleSuccess}
           onClose={handleCloseModal}
         />

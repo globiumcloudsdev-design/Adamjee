@@ -30,6 +30,7 @@ export default function TeachersPage() {
   const [departments, setDepartments] = useState([]);
   const [classes, setClasses] = useState([]);
   const [subjects, setSubjects] = useState([]);
+  const [academicYears, setAcademicYears] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [showViewModal, setShowViewModal] = useState(false);
@@ -62,7 +63,19 @@ export default function TeachersPage() {
     fetchDepartments();
     fetchClasses();
     fetchSubjects();
+    fetchAcademicYears();
   }, []);
+
+  const fetchAcademicYears = async () => {
+    try {
+      const response = await apiClient.get('/api/academic-years');
+      if (response?.academic_years) {
+        setAcademicYears(response.academic_years);
+      }
+    } catch (error) {
+      console.error('Failed to fetch academic years:', error);
+    }
+  };
 
   const fetchTeachers = async () => {
     try {
@@ -306,6 +319,7 @@ export default function TeachersPage() {
           departments={departments}
           classes={classes}
           subjects={subjects}
+          academicYears={academicYears}
           onSuccess={handleSuccess}
           onClose={handleCloseModal}
         />

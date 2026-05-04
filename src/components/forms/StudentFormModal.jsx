@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import Modal from '@/components/ui/modal';
 import Input from '@/components/ui/input';
 import Dropdown from '@/components/ui/dropdown';
+import DatePicker from '@/components/ui/date-picker';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import apiClient from '@/lib/api-client';
@@ -358,7 +359,11 @@ const StudentFormModal = ({
                   { value: 'other', label: 'Other' },
                 ]}
               />
-              <Input label="Date of Birth" type="date" value={formData.date_of_birth} onChange={(e) => handleFieldChange('date_of_birth', e.target.value)} />
+              <DatePicker
+                label="Date of Birth"
+                value={formData.date_of_birth}
+                onChange={(e) => handleFieldChange('date_of_birth', e.target.value)}
+              />
               <Input label="Blood Group" value={formData.blood_group} onChange={(e) => handleFieldChange('blood_group', e.target.value)} />
             </div>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -447,7 +452,11 @@ const StudentFormModal = ({
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <Input label="Roll No (Auto-generate)" value={formData.roll_no} onChange={(e) => handleFieldChange('roll_no', e.target.value)} />
               <Input label="Registration No" value={formData.registration_no} onChange={(e) => handleFieldChange('registration_no', e.target.value)} />
-              <Input label="Admission Date" type="date" value={formData.admission_date} onChange={(e) => handleFieldChange('admission_date', e.target.value)} />
+              <DatePicker
+                label="Admission Date"
+                value={formData.admission_date}
+                onChange={(e) => handleFieldChange('admission_date', e.target.value)}
+              />
             </div>
           </div>
         )}

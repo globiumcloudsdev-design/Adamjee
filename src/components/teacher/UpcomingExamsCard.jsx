@@ -2,140 +2,163 @@
 
 import { motion } from "framer-motion";
 import { Card } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Calendar, Clock, MapPin, AlertCircle } from "lucide-react";
+import { CalendarDays, Clock, MapPin, AlertCircle, ChevronRight, FileText } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export default function UpcomingExamsCard({ exams = [] }) {
+  const router = useRouter();
   const getExamStatus = (examDate) => {
     const now = new Date();
     const exam = new Date(examDate);
-    const diffDays = Math.ceil((exam - now) / (1000 * 60 * 60 * 24));
+    now.setHours(0, 0, 0, 0);
+    const examDay = new Date(exam);
+    examDay.setHours(0, 0, 0, 0);
+    
+    const diffDays = Math.ceil((examDay - now) / (1000 * 60 * 60 * 24));
 
-    if (diffDays < 0) return { label: "Completed", color: "bg-gray-500" };
-    if (diffDays === 0) return { label: "Today", color: "bg-red-500" };
-    if (diffDays === 1) return { label: "Tomorrow", color: "bg-orange-500" };
-    if (diffDays <= 7)
-      return { label: `In ${diffDays} days`, color: "bg-yellow-500" };
-    return { label: `In ${diffDays} days`, color: "bg-blue-500" };
-  };
-
-  const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString("en-US", {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
+    if (diffDays < 0) return { label: "Completed", style: "bg-slate-100 text-slate-500 ring-slate-200" };
+    if (diffDays === 0) return { label: "Today", style: "bg-rose-50 text-rose-600 ring-rose-200", dot: "bg-rose-500" };
+    if (diffDays === 1) return { label: "Tomorrow", style: "bg-amber-50 text-amber-600 ring-amber-200", dot: "bg-amber-500" };
+    if (diffDays <= 7) return { label: `In ${diffDays} days`, style: "bg-indigo-50 text-indigo-600 ring-indigo-200" };
+    return { label: `In ${diffDays} days`, style: "bg-blue-50 text-blue-600 ring-blue-200" };
   };
 
   const formatTime = (dateString) => {
     return new Date(dateString).toLocaleTimeString("en-US", {
-      hour: "2-digit",
+      hour: "numeric",
       minute: "2-digit",
+      hour12: true
     });
   };
 
   return (
-    <Card className="p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h2 className="text-xl font-semibold">Upcoming Exams</h2>
-        <Badge variant="outline">{exams.length} Scheduled</Badge>
+    <Card className="h-full border-none shadow-[0_8px_30px_rgb(0,0,0,0.04)] bg-white rounded-2xl overflow-hidden flex flex-col">
+      {/* Header */}
+      <div 
+        className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-slate-50/50 cursor-pointer group/header hover:bg-slate-50 transition-colors"
+        onClick={() => router.push('/teacher/exams')}
+      >
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-indigo-100 text-indigo-600 rounded-lg group-hover/header:scale-110 transition-transform">
+            <CalendarDays className="w-5 h-5" />
+          </div>
+          <div>
+            <h2 className="text-[17px] font-bold text-slate-800 tracking-tight flex items-center gap-2 group-hover/header:text-indigo-600 transition-colors">
+              Upcoming Exams
+              <ChevronRight className="w-4 h-4 text-slate-400 group-hover/header:translate-x-1 transition-transform" />
+            </h2>
+            <p className="text-[13px] font-medium text-slate-500">Your scheduled evaluations</p>
+          </div>
+        </div>
+        <div className="px-3 py-1 bg-white border border-slate-200 rounded-full text-xs font-bold text-slate-600 shadow-sm">
+          {exams.length} Exams
+        </div>
       </div>
 
-      {exams.length > 0 ? (
-        <div className="space-y-3">
-          {exams.map((exam, index) => {
-            const status = getExamStatus(exam.date);
+      {/* Content */}
+      <div className="p-6 flex-1 bg-white">
+        {exams.length > 0 ? (
+          <div className="space-y-4">
+            {exams.map((exam, index) => {
+              const status = getExamStatus(exam.date);
+              const isToday = status.label === "Today";
 
-            return (
-              <motion.div
-                key={exam._id}
-                initial={{ opacity: 0, x: 20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: index * 0.1 }}
-                whileHover={{ scale: 1.02 }}
-                className="p-4 bg-gradient-to-br from-muted/50 to-muted/30 rounded-lg hover:shadow-md transition-all duration-300 border border-border/50 group cursor-pointer"
-              >
-                <div className="flex items-start gap-3">
-                  {/* Date Badge */}
-                  <div className="flex-shrink-0">
-                    <div className="w-16 h-16 bg-gradient-to-br from-primary to-primary/60 rounded-lg flex flex-col items-center justify-center text-white shadow-lg">
-                      <span className="text-xs font-medium">
-                        {new Date(exam.date).toLocaleDateString("en-US", {
-                          month: "short",
-                        })}
+              return (
+                <motion.div
+                  key={exam._id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.05 }}
+                  className="group relative"
+                >
+                  {/* Left Accent Line for Today */}
+                  {isToday && (
+                    <div className="absolute -left-6 top-1/2 -translate-y-1/2 w-1 h-12 bg-rose-500 rounded-r-md"></div>
+                  )}
+                  
+                  <div className={`flex items-start gap-4 p-4 rounded-xl transition-all duration-200 border border-transparent hover:bg-slate-50 hover:border-slate-100 hover:shadow-sm cursor-pointer ${isToday ? 'bg-rose-50/30 border-rose-100/50 hover:border-rose-200 hover:bg-rose-50/50' : ''}`}>
+                    
+                    {/* Date Icon Block */}
+                    <div className="flex flex-col items-center justify-center w-14 h-14 rounded-xl bg-white border border-slate-200 shadow-sm shrink-0">
+                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">
+                        {new Date(exam.date).toLocaleDateString("en-US", { month: "short" })}
                       </span>
-                      <span className="text-2xl font-bold">
+                      <span className="text-xl font-black text-slate-800 leading-tight">
                         {new Date(exam.date).getDate()}
                       </span>
                     </div>
-                  </div>
 
-                  {/* Exam Details */}
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-start justify-between gap-2 mb-2">
-                      <div>
-                        <h3 className="font-semibold text-lg leading-tight">
-                          {exam.title}
-                        </h3>
-                        <p className="text-sm text-muted-foreground mt-1">
-                          {exam.classId?.name || "Class Name"}
-                        </p>
-                      </div>
-                      <Badge
-                        className={`${status.color} text-white flex-shrink-0`}
-                      >
-                        {status.label}
-                      </Badge>
-                    </div>
-
-                    {/* Exam Info */}
-                    <div className="flex flex-wrap gap-3 mt-3">
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                        <Clock className="w-3 h-3" />
-                        <span>{formatTime(exam.date)}</span>
-                      </div>
-
-                      {exam.duration && (
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <AlertCircle className="w-3 h-3" />
-                          <span>{exam.duration} mins</span>
+                    {/* Main Content */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <h3 className="text-[15px] font-bold text-slate-900 truncate group-hover:text-indigo-600 transition-colors">
+                            {exam.title}
+                          </h3>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-xs font-semibold text-slate-500">
+                              {exam.classId?.name || "Class"}
+                            </span>
+                            {exam.subject && (
+                              <>
+                                <span className="w-1 h-1 rounded-full bg-slate-300"></span>
+                                <span className="text-xs font-bold text-indigo-500 truncate">
+                                  {exam.subject}
+                                </span>
+                              </>
+                            )}
+                          </div>
                         </div>
-                      )}
 
-                      {exam.room && (
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <MapPin className="w-3 h-3" />
-                          <span>Room {exam.room}</span>
+                        {/* Status Badge */}
+                        <div className={`shrink-0 flex items-center gap-1.5 px-2 py-1 rounded-md text-[10px] font-bold uppercase tracking-wider ring-1 ring-inset ${status.style}`}>
+                          {status.dot && (
+                            <span className="relative flex h-1.5 w-1.5">
+                              <span className={`animate-ping absolute inline-flex h-full w-full rounded-full ${status.dot} opacity-75`}></span>
+                              <span className={`relative inline-flex rounded-full h-1.5 w-1.5 ${status.dot}`}></span>
+                            </span>
+                          )}
+                          {status.label}
                         </div>
-                      )}
-                    </div>
-
-                    {/* Subject/Type */}
-                    {exam.subject && (
-                      <div className="mt-2">
-                        <Badge variant="outline" className="text-xs">
-                          {exam.subject}
-                        </Badge>
                       </div>
-                    )}
-                  </div>
-                </div>
 
-                {/* Hover Effect Border */}
-                <div className="absolute bottom-0 left-0 h-1 bg-gradient-to-r from-primary to-primary/60 w-0 group-hover:w-full transition-all duration-300 rounded-b-lg" />
-              </motion.div>
-            );
-          })}
-        </div>
-      ) : (
-        <div className="text-center py-12">
-          <Calendar className="w-16 h-16 mx-auto mb-4 text-muted-foreground/50" />
-          <p className="text-muted-foreground font-medium">No upcoming exams</p>
-          <p className="text-sm text-muted-foreground mt-1">
-            Scheduled exams will appear here
-          </p>
-        </div>
-      )}
+                      {/* Details Row */}
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mt-3 pt-3 border-t border-slate-100/80">
+                        <div className="flex items-center gap-1.5 text-[12px] font-medium text-slate-500">
+                          <Clock className="w-3.5 h-3.5 text-slate-400" />
+                          <span>{formatTime(exam.date)}</span>
+                        </div>
+
+                        {exam.duration && (
+                          <div className="flex items-center gap-1.5 text-[12px] font-medium text-slate-500">
+                            <AlertCircle className="w-3.5 h-3.5 text-slate-400" />
+                            <span>{exam.duration} mins</span>
+                          </div>
+                        )}
+
+                        {exam.room && (
+                          <div className="flex items-center gap-1.5 text-[12px] font-medium text-slate-500">
+                            <MapPin className="w-3.5 h-3.5 text-slate-400" />
+                            <span>Room {exam.room}</span>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="flex flex-col items-center justify-center h-full min-h-[200px] text-center">
+            <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mb-4">
+              <FileText className="w-8 h-8 text-slate-300" />
+            </div>
+            <h3 className="text-[15px] font-bold text-slate-700">No Upcoming Exams</h3>
+            <p className="text-[13px] text-slate-500 mt-1">There are no exams scheduled for your classes.</p>
+          </div>
+        )}
+      </div>
     </Card>
   );
 }
