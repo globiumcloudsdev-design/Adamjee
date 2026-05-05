@@ -5,6 +5,8 @@ import Dropdown from '@/components/ui/dropdown';
 import { Button } from '@/components/ui/button';
 import { Plus, X } from 'lucide-react';
 import dynamic from 'next/dynamic';
+import PhoneInput from '@/components/ui/phone-input';
+import DatePicker from '@/components/ui/date-picker';
 
 const BranchMap = dynamic(() => import('@/components/branch/BranchMap'), { 
   ssr: false,
@@ -97,13 +99,11 @@ const BranchFormModal = ({ open, onClose, editingBranch, formData, setFormData, 
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Phone <span className="text-red-500">*</span>
-            </label>
-            <Input
+            <PhoneInput
+              label="Phone"
               value={formData.phone}
-              onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-              placeholder="+92-XXX-XXXXXXX"
+              onChange={(value) => setFormData({ ...formData, phone: value })}
+              required
             />
           </div>
         </div>
@@ -125,7 +125,7 @@ const BranchFormModal = ({ open, onClose, editingBranch, formData, setFormData, 
             <Input
               value={formData.city}
               onChange={(e) => setFormData({ ...formData, city: e.target.value })}
-              placeholder="Lahore"
+              placeholder="Karachi"
             />
           </div>
 
@@ -134,7 +134,7 @@ const BranchFormModal = ({ open, onClose, editingBranch, formData, setFormData, 
             <Input
               value={formData.state}
               onChange={(e) => setFormData({ ...formData, state: e.target.value })}
-              placeholder="Punjab"
+              placeholder="Sindh"
             />
           </div>
         </div>
@@ -161,11 +161,11 @@ const BranchFormModal = ({ open, onClose, editingBranch, formData, setFormData, 
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Established Date</label>
-            <Input
-              type="date"
+            <DatePicker
+              label="Established Date"
               value={formData.establishedDate}
               onChange={(e) => setFormData({ ...formData, establishedDate: e.target.value })}
+              placeholder="Select date"
             />
           </div>
 

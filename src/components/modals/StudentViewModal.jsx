@@ -42,6 +42,8 @@ const StudentViewModal = ({
   branches = [],
   classes = [],
   departments = [],
+  academicYears = [],
+  groups = [],
 }) => {
   const [activeTab, setActiveTab] = useState('personal');
   const [loading, setLoading] = useState(false);
@@ -100,6 +102,7 @@ const StudentViewModal = ({
     studentProfile: student.studentProfile || {
       classId: student.details?.academic_info?.class_id || '',
       section: student.details?.academic_info?.section_id || '',
+      groupId: student.details?.academic_info?.group_id || '',
       rollNumber: student.details?.academic_info?.roll_no || '',
       admissionDate: student.details?.academic_info?.admission_date || '',
       academicYear: student.details?.academic_info?.academic_year_id || '',
@@ -111,6 +114,12 @@ const StudentViewModal = ({
       feeDiscount: student.details?.academic_info?.fee_discount || {},
       transportFee: student.details?.academic_info?.transport_fee || {},
       documents: student.details?.documents || student.documents || [],
+      feeMention: student.details?.academic_info?.fee_mention || 'Monthly',
+      installmentCount: student.details?.academic_info?.installment_count || 1,
+      totalFee: student.details?.academic_info?.total_fee || 0,
+      payableFee: student.details?.academic_info?.payable_fee || 0,
+      discount: student.details?.academic_info?.discount || 0,
+      subjects: student.details?.academic_info?.subjects || [],
     },
     medicalInfo: student.medicalInfo || student.details?.academic_info?.medical_info || {},
     emergencyContact: student.emergencyContact || student.details?.academic_info?.emergency_contact || {},
@@ -148,12 +157,25 @@ const StudentViewModal = ({
     const deptId = s.studentProfile?.departmentId?._id || s.studentProfile?.departmentId;
     return departments.find(d => d.id === deptId || d._id === deptId)?.name || 'N/A';
   };
+  
+  const getAcademicYearName = () => {
+    const yearId = s.studentProfile?.academicYear;
+    if (!yearId) return 'N/A';
+    const year = academicYears.find(y => y.id === yearId || y._id === yearId);
+    return year?.name || yearId;
+  };
+
+  const getGroupName = () => {
+    const groupId = s.studentProfile?.groupId;
+    if (!groupId) return 'N/A';
+    const group = groups.find(g => g.id === groupId || g._id === groupId);
+    return group?.name || groupId;
+  };
 
   const tabs = [
     { id: 'personal', label: 'Personal', icon: User },
-    { id: 'academic', label: 'Academic', icon: GraduationCap },
-    { id: 'parent', label: 'Parent', icon: Users },
-    { id: 'medical', label: 'Medical', icon: Heart },
+    { id: 'academic', label: 'Academic & Fees', icon: GraduationCap },
+    { id: 'parent', label: 'Family', icon: Users },
     { id: 'documents', label: 'Documents', icon: FileText },
     { id: 'idcard', label: 'ID Card', icon: CreditCard },
   ];
@@ -167,8 +189,6 @@ const StudentViewModal = ({
         return renderAcademicInfo();
       case 'parent':
         return renderParentInfo();
-      case 'medical':
-        return renderMedicalInfo();
       case 'documents':
         return renderDocuments();
       case 'idcard':
@@ -262,7 +282,7 @@ const StudentViewModal = ({
           </div>
           <div className="space-y-2">
             <div className="flex justify-between">
-              <span className="text-sm text-gray-500">Email</span>
+              <span className="text-sm text-gray-500">Account Access Email</span>
               <span className="font-medium">{s.email || 'N/A'}</span>
             </div>
             <div className="flex justify-between">
@@ -393,113 +413,91 @@ const StudentViewModal = ({
               <span className="font-medium">{s.studentProfile?.rollNumber || 'N/A'}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-sm text-gray-500">Department</span>
-              <span className="font-medium">{getDepartmentName()}</span>
-            </div>
-            <div className="flex justify-between">
               <span className="text-sm text-gray-500">Academic Year</span>
-              <span className="font-medium">{s.studentProfile?.academicYear || 'N/A'}</span>
+              <span className="font-medium">{getAcademicYearName()}</span>
             </div>
           </div>
         </div>
-
-        {/* Previous Coaching Info */}
         <div className="bg-gray-50 p-4 rounded-lg">
           <div className="flex items-center gap-2 mb-2">
             <Building className="w-4 h-4 text-gray-500" />
-            <h4 className="font-medium text-gray-700">Previous Coaching</h4>
+            <h4 className="font-medium text-gray-700">Group & Department</h4>
           </div>
           <div className="space-y-2">
             <div className="flex justify-between">
-              <span className="text-sm text-gray-500">Coaching Name</span>
-              <span className="font-medium">{student.studentProfile?.previousCoaching?.name || 'N/A'}</span>
+              <span className="text-sm text-gray-500">Group</span>
+              <span className="font-medium">{getGroupName()}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-sm text-gray-500">Last Class</span>
-              <span className="font-medium">{student.studentProfile?.previousCoaching?.lastClass || 'N/A'}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-500">Marks/Percentage</span>
-              <span className="font-medium">{student.studentProfile?.previousCoaching?.marks || 'N/A'}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-500">Leaving Date</span>
-              <span className="font-medium">{formatDate(student.studentProfile?.previousCoaching?.leavingDate)}</span>
+              <span className="text-sm text-gray-500">Admission Date</span>
+              <span className="font-medium">{formatDate(s.studentProfile?.admissionDate)}</span>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Fee Information */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Fees & Subjects (Merged) */}
+      <div className="border-t pt-6 space-y-6">
         <div className="bg-gray-50 p-4 rounded-lg">
-          <div className="flex items-center gap-2 mb-2">
-            <CreditCard className="w-4 h-4 text-gray-500" />
-            <h4 className="font-medium text-gray-700">Fee Information</h4>
+          <div className="flex items-center gap-2 mb-4">
+            <FileText className="w-4 h-4 text-gray-500" />
+            <h4 className="font-medium text-gray-700">Selected Subjects</h4>
           </div>
-          <div className="space-y-2">
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-500">Discount Type</span>
-              <span className="font-medium capitalize">
-                {s.studentProfile?.feeDiscount?.type || 'None'}
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-500">Discount Amount</span>
-              <span className="font-medium">
-                {s.studentProfile?.feeDiscount?.amount 
-                  ? `${s.studentProfile.feeDiscount.amount} ${s.studentProfile.feeDiscount.type === 'percentage' ? '%' : 'PKR'}`
-                  : 'N/A'
-                }
-              </span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-500">Discount Reason</span>
-              <span className="font-medium">{s.studentProfile?.feeDiscount?.reason || 'N/A'}</span>
-            </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {s.studentProfile?.subjects?.map((sub, idx) => (
+              <div key={idx} className="flex justify-between items-center p-3 bg-white border rounded-lg">
+                <div>
+                  <p className="font-medium text-gray-800">{sub.name}</p>
+                  {sub.subject_code && <p className="text-xs text-gray-500">{sub.subject_code}</p>}
+                </div>
+                <span className="font-bold text-primary font-mono">{sub.fee || 0} PKR</span>
+              </div>
+            ))}
           </div>
         </div>
 
-        {/* Transport Information */}
-        <div className="bg-gray-50 p-4 rounded-lg">
-          <div className="flex items-center gap-2 mb-2">
-            <Bus className="w-4 h-4 text-gray-500" />
-            <h4 className="font-medium text-gray-700">Transport Information</h4>
-          </div>
-          <div className="space-y-2">
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-500">Transport Enabled</span>
-              <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                s.studentProfile?.transportFee?.enabled 
-                  ? 'bg-green-100 text-green-700' 
-                  : 'bg-gray-100 text-gray-700'
-              }`}>
-                {s.studentProfile?.transportFee?.enabled ? 'Yes' : 'No'}
-              </span>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <div className="flex items-center gap-2 mb-2">
+              <CreditCard className="w-4 h-4 text-gray-500" />
+              <h4 className="font-medium text-gray-700">Payment Plan</h4>
             </div>
-            {s.studentProfile?.transportFee?.enabled && (
-              <>
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span className="text-sm text-gray-500">Fee Mention</span>
+                <span className="font-medium">{s.studentProfile?.feeMention}</span>
+              </div>
+              {s.studentProfile?.feeMention === 'Installment' && (
                 <div className="flex justify-between">
-                  <span className="text-sm text-gray-500">Transport Fee</span>
-                  <span className="font-medium">{s.studentProfile?.transportFee?.amount || 0} PKR</span>
+                  <span className="text-sm text-gray-500">Installments</span>
+                  <span className="font-medium">{s.studentProfile?.installmentCount}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-500">Route ID</span>
-                  <span className="font-medium">{s.studentProfile?.transportFee?.routeId || 'N/A'}</span>
-                </div>
-              </>
-            )}
+              )}
+            </div>
+          </div>
+
+          <div className="bg-gray-50 p-4 rounded-lg">
+            <div className="flex items-center gap-2 mb-2">
+              <Activity className="w-4 h-4 text-gray-500" />
+              <h4 className="font-medium text-gray-700">Fee Summary</h4>
+            </div>
+            <div className="space-y-2">
+              <div className="flex justify-between">
+                <span className="text-sm text-gray-500">Total Subject Fee</span>
+                <span className="font-medium">{s.studentProfile?.totalFee} PKR</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm text-gray-500">Discount</span>
+                <span className="font-medium text-red-600">-{s.studentProfile?.discount} PKR</span>
+              </div>
+              <div className="pt-2 mt-2 border-t flex justify-between">
+                <span className="font-bold text-gray-700">Final Estimate</span>
+                <span className="font-bold text-lg text-primary">{s.studentProfile?.payableFee} PKR</span>
+              </div>
+            </div>
           </div>
         </div>
       </div>
-
-      {/* Remarks */}
-      {s.remarks && (
-        <div className="bg-gray-50 p-4 rounded-lg">
-          <h4 className="font-medium text-gray-700 mb-2">Remarks</h4>
-          <p className="text-sm text-gray-600">{s.remarks}</p>
-        </div>
-      )}
     </div>
   );
 
@@ -543,18 +541,6 @@ const StudentViewModal = ({
                   <span className="font-medium">{father.name || 'N/A'}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-sm text-gray-500">Occupation</span>
-                  <span className="font-medium">{father.occupation || 'N/A'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-500">Phone</span>
-                  <span className="font-medium">{father.phone || 'N/A'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-500">Email</span>
-                  <span className="font-medium">{father.email || 'N/A'}</span>
-                </div>
-                <div className="flex justify-between">
                   <span className="text-sm text-gray-500">CNIC</span>
                   <span className="font-medium">{father.cnic || 'N/A'}</span>
                 </div>
@@ -565,35 +551,10 @@ const StudentViewModal = ({
               </div>
             </div>
 
-            {/* Mother Information */}
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <div className="flex items-center gap-2 mb-2">
-                <User className="w-4 h-4 text-gray-500" />
-                <h4 className="font-medium text-gray-700">Mother Information</h4>
-              </div>
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-500">Name</span>
-                  <span className="font-medium">{mother.name || 'N/A'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-500">Occupation</span>
-                  <span className="font-medium">{mother.occupation || 'N/A'}</span>
-                </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-500">Phone</span>
-                  <span className="font-medium">{mother.phone || 'N/A'}</span>
+                  <span className="font-medium">{father.phone || 'N/A'}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-500">Email</span>
-                  <span className="font-medium">{mother.email || 'N/A'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-500">CNIC</span>
-                  <span className="font-medium">{mother.cnic || 'N/A'}</span>
-                </div>
-              </div>
-            </div>
           </>
         ) : (
           /* Guardian Information */
@@ -849,10 +810,6 @@ const StudentViewModal = ({
           <div className="flex items-center gap-2">
             <Button variant="outline" size="sm" onClick={onClose}>
               Close
-            </Button>
-            <Button variant="outline" size="sm" onClick={() => window.print()}>
-              <Printer className="w-4 h-4 mr-2" />
-              Print
             </Button>
           </div>
         </div>

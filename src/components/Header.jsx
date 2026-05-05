@@ -6,25 +6,21 @@ import { useRouter, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { 
-  Search, 
   User, 
   ChevronDown, 
   Menu as MenuIcon, 
   X, 
   Settings, 
   LogOut, 
-  Bell, 
-  LayoutGrid,
-  Sparkles,
-  Command
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import Link from "next/link";
 import NotificationBell from "@/components/NotificationBell";
+import ThemeToggle from "@/components/ThemeToggle";
 
 export default function Header({ mobileOpen, setMobileOpen }) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [isSearchFocused, setIsSearchFocused] = useState(false);
+
   const { user, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
@@ -91,40 +87,13 @@ export default function Header({ mobileOpen, setMobileOpen }) {
               <ChevronDown className="w-2.5 h-2.5 -rotate-90" />
               <span className="text-slate-600 dark:text-slate-400">{getBreadcrumbs[0]}</span>
            </div>
-           <h1 className="text-xl font-extrabold tracking-tight text-slate-900 dark:text-white">
+           <h1 className="text-xl font-bold tracking-tight text-slate-900 dark:text-white">
               {getPageTitle}
            </h1>
         </div>
 
-        {/* Center Section: Search Bar (Desktop) */}
-        <div className="hidden lg:flex flex-1 max-w-md mx-8 group">
-          <div className={cn(
-            "relative w-full transition-all duration-300",
-            isSearchFocused ? "scale-[1.02]" : "scale-100"
-          )}>
-            <div className={cn(
-              "absolute inset-0 bg-gradient-to-r from-indigo-500/20 to-purple-500/20 rounded-2xl blur-lg transition-opacity duration-300",
-              isSearchFocused ? "opacity-100" : "opacity-0"
-            )} />
-            <div className="relative flex items-center">
-              <Search className={cn(
-                "absolute left-4 w-4 h-4 transition-colors duration-300",
-                isSearchFocused ? "text-indigo-600" : "text-slate-400"
-              )} />
-              <input
-                type="text"
-                placeholder="Search anything..."
-                onFocus={() => setIsSearchFocused(true)}
-                onBlur={() => setIsSearchFocused(false)}
-                className="w-full bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl py-2.5 pl-11 pr-12 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500/50 transition-all placeholder:text-slate-400"
-              />
-              <div className="absolute right-3 flex items-center gap-1 px-1.5 py-1 rounded-md bg-slate-200/50 dark:bg-slate-800/50 text-[10px] font-bold text-slate-500">
-                <Command className="w-3 h-3" />
-                <span>K</span>
-              </div>
-            </div>
-          </div>
-        </div>
+        {/* Center Section: Spacer */}
+        <div className="flex-1" />
 
         {/* Right Section: Actions & Profile */}
         <div className="flex items-center gap-2 sm:gap-4">
@@ -141,9 +110,7 @@ export default function Header({ mobileOpen, setMobileOpen }) {
 
           {/* Quick Actions (Desktop) */}
           <div className="hidden sm:flex items-center gap-1">
-             <Button variant="ghost" size="icon" className="h-10 w-10 rounded-xl text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 transition-all">
-                <Sparkles className="w-5 h-5" />
-             </Button>
+             <ThemeToggle />
              <NotificationBell />
           </div>
 
@@ -163,13 +130,15 @@ export default function Header({ mobileOpen, setMobileOpen }) {
               </div>
 
               <div className="hidden md:flex flex-col text-left">
-                <p className="text-sm font-bold text-slate-900 dark:text-white leading-tight">
+                <p className="text-sm font-semibold text-slate-900 dark:text-white leading-tight">
                   {user?.fullName || "User Account"}
                 </p>
-                <div className="flex items-center gap-1">
-                  <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest leading-none">
-                    {user?.role?.replace("_", " ")}
-                  </span>
+                <div className="flex items-center gap-1.5">
+                  <div className="px-1.5 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700">
+                    <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider leading-none">
+                      {user?.role?.replace("_", " ")}
+                    </span>
+                  </div>
                   <ChevronDown className={cn(
                     "w-3 h-3 text-slate-400 transition-transform duration-300",
                     isDropdownOpen && "rotate-180"
@@ -183,14 +152,14 @@ export default function Header({ mobileOpen, setMobileOpen }) {
               <div className="absolute right-0 mt-3 w-64 bg-white dark:bg-slate-950 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-2xl z-50 py-2 animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
                 
                 <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-800">
-                   <p className="text-xs font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Signed in as</p>
-                   <p className="text-sm font-bold text-slate-900 dark:text-white truncate">{user?.email}</p>
+                   <p className="text-xs font-semibold text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Signed in as</p>
+                   <p className="text-sm font-semibold text-slate-900 dark:text-white truncate">{user?.email}</p>
                 </div>
 
                 <div className="p-2 space-y-1">
                   <button
                     onClick={handleProfileClick}
-                    className="flex items-center w-full gap-3 px-3 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-xl transition-all"
+                    className="flex items-center w-full gap-3 px-3 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/30 hover:text-indigo-600 dark:hover:text-indigo-400 rounded-xl transition-all"
                   >
                     <div className="w-8 h-8 rounded-lg bg-indigo-100 dark:bg-indigo-900/30 flex items-center justify-center">
                       <User className="w-4 h-4" />
@@ -199,7 +168,7 @@ export default function Header({ mobileOpen, setMobileOpen }) {
                   </button>
 
                   <button
-                    className="flex items-center w-full gap-3 px-3 py-2.5 text-sm font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900/50 hover:text-slate-900 dark:hover:text-white rounded-xl transition-all"
+                    className="flex items-center w-full gap-3 px-3 py-2.5 text-sm font-medium text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900/50 hover:text-slate-900 dark:hover:text-white rounded-xl transition-all"
                   >
                     <div className="w-8 h-8 rounded-lg bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
                       <Settings className="w-4 h-4" />
@@ -211,7 +180,7 @@ export default function Header({ mobileOpen, setMobileOpen }) {
                 <div className="px-2 pt-1 border-t border-slate-100 dark:border-slate-800 mt-1">
                   <button
                     onClick={handleLogoutClick}
-                    className="flex items-center w-full gap-3 px-3 py-2.5 text-sm font-bold text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-xl transition-all"
+                    className="flex items-center w-full gap-3 px-3 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 rounded-xl transition-all"
                   >
                     <div className="w-8 h-8 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center">
                       <LogOut className="w-4 h-4" />

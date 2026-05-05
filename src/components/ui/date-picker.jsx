@@ -30,6 +30,7 @@ export default function DatePicker({
   placeholder = 'Select date',
   min,
   max,
+  disableFuture = true,
   ...props
 }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -56,6 +57,15 @@ export default function DatePicker({
   }, []);
 
   const handleDateClick = (day) => {
+    // Check if future dates are disabled
+    if (disableFuture && day > new Date()) return;
+    
+    // Check if day is beyond max date
+    if (max && day > (typeof max === 'string' ? parseISO(max) : max)) return;
+    
+    // Check if day is before min date
+    if (min && day < (typeof min === 'string' ? parseISO(min) : min)) return;
+
     if (onChange) {
       // Create a synthetic event to match native input behavior
       const dateStr = format(day, 'yyyy-MM-dd');
@@ -158,17 +168,21 @@ export default function DatePicker({
           const isSelected = selectedDate && isSameDay(day, selectedDate);
           const isCurrentMonth = isSameMonth(day, monthStart);
           const isTodayDate = isToday(day);
+          const isFuture = isSameDay(day, new Date()) ? false : day > new Date();
+          const isDisabled = disableFuture && isFuture;
 
           return (
             <button
               key={i}
               type="button"
+              disabled={isDisabled}
               onClick={() => handleDateClick(day)}
               className={`
                 h-8 w-8 flex items-center justify-center rounded-lg text-sm transition-all
                 ${!isCurrentMonth ? 'text-slate-300' : 'text-slate-600 font-medium'}
                 ${isSelected ? 'bg-indigo-600 text-white shadow-md scale-110 z-10' : 'hover:bg-slate-100'}
                 ${isTodayDate && !isSelected ? 'text-indigo-600 font-bold border border-indigo-200 bg-indigo-50/50' : ''}
+                ${isDisabled ? 'opacity-25 cursor-not-allowed bg-slate-50' : ''}
               `}
             >
               {format(day, 'd')}
@@ -223,7 +237,7 @@ export default function DatePicker({
               animate={{ opacity: 1, y: 5, scale: 1 }}
               exit={{ opacity: 0, y: 10, scale: 0.95 }}
               transition={{ duration: 0.15, ease: "easeOut" }}
-              className="absolute z-[100] mt-2 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden min-w-[280px]"
+              className="absolute z-[9999] mt-2 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden min-w-[280px]"
               style={{ left: 0 }}
             >
               {renderHeader()}

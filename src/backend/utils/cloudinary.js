@@ -140,6 +140,20 @@ export async function uploadStaffDocument(file, staffId, documentType) {
 }
 
 /**
+ * Upload branch administrator document
+ * @param {Buffer|string} file - File buffer or base64 string
+ * @param {string} adminId - Admin ID
+ * @param {string} documentType - Type of document
+ * @returns {Promise<Object>} Upload result
+ */
+export async function uploadAdminDocument(file, adminId, documentType) {
+  return uploadToCloudinary(file, {
+    folder: `adamjee-campus12/branch-admins/${adminId}/${documentType}`,
+    resourceType: 'auto',
+  });
+}
+
+/**
  * Upload QR code
  * @param {string} dataUrl - QR code data URL
  * @param {string} userId - User ID

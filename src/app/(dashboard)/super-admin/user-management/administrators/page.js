@@ -8,6 +8,9 @@ import BranchSelect from "@/components/ui/branch-select";
 import GenderSelect from "@/components/ui/gender-select";
 import BloodGroupSelect from "@/components/ui/blood-group";
 import DocumentTypeSelect from "@/components/ui/document-type-select";
+import PhoneInput from "@/components/ui/phone-input";
+import CNICInput from "@/components/ui/cnic-input";
+import DatePicker from "@/components/ui/date-picker";
 import {
   Table,
   TableHeader,
@@ -31,11 +34,15 @@ import {
   CheckCircle,
   XCircle,
   Building2,
+  X,
 } from "lucide-react";
+import dynamic from "next/dynamic";
+import Skeleton, { CardSkeleton, TableSkeleton, AdminManagementSkeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import Tabs, { TabPanel } from "@/components/ui/tabs";
 import UserManagementTable from "@/components/common/UserManagementTable";
 import ConfirmDeleteModal from "@/components/modals/ConfirmDeleteModal";
+import UserDetailModal from "@/components/modals/UserDetailModal";
 
 export default function AdministratorsPage() {
   const [admins, setAdmins] = useState([]);
@@ -47,7 +54,7 @@ export default function AdministratorsPage() {
   const [pagination, setPagination] = useState({
     totalPages: 1,
     totalItems: 0,
-    limit: 50,
+    limit: 10,
   });
   const [showModal, setShowModal] = useState(false);
   const [editingAdmin, setEditingAdmin] = useState(null);
@@ -78,7 +85,7 @@ export default function AdministratorsPage() {
   const TOTAL_TABS = 3;
   const [profileFile, setProfileFile] = useState(null);
   const [profileUploading, setProfileUploading] = useState(false);
-  const [docFile, setDocFile] = useState(null);
+  const [queuedDocuments, setQueuedDocuments] = useState([]); // [{ file, type }]
   const [docUploading, setDocUploading] = useState(false);
   const [uploadedAdminDocTypes, setUploadedAdminDocTypes] = useState([]);
 
@@ -179,7 +186,7 @@ export default function AdministratorsPage() {
     });
     setUploadedAdminDocTypes([]);
     setProfileFile(null);
-    setDocFile(null);
+    setQueuedDocuments([]);
     setShowModal(true);
   };
 
@@ -300,8 +307,8 @@ export default function AdministratorsPage() {
           )
         : API_ENDPOINTS.SUPER_ADMIN.BRANCH_ADMINS.CREATE;
 
-      // Build request body for branch-admins specific API (snake_case)
-      const body = {
+      // Build text data
+      const textData = {
         branch_id: formData.branchId,
         first_name: formData.firstName,
         last_name: formData.lastName,
@@ -318,12 +325,44 @@ export default function AdministratorsPage() {
           blood_group: formData.bloodGroup,
           address: formData.address,
         },
+        documents: editingAdmin ? editingAdmin.documents : undefined, // Keep existing docs on edit
       };
 
-      console.log("Creating/Updating branch admin with data:", body);
+      // Use FormData for integrated upload
+      const fd = new FormData();
+      fd.append("data", JSON.stringify(textData));
+
+      if (profileFile) {
+        fd.append("profilePhoto", profileFile);
+      }
+
+      if (queuedDocuments.length > 0) {
+        const docMetadata = [];
+        queuedDocuments.forEach((doc) => {
+          fd.append("documents", doc.file);
+          docMetadata.push({
+            type: doc.type,
+            name: doc.file.name,
+            isExisting: false,
+          });
+        });
+
+        // Add existing documents if editing
+        if (editingAdmin && editingAdmin.documents) {
+          editingAdmin.documents.forEach((doc) => {
+            docMetadata.push({ ...doc, isExisting: true });
+          });
+        }
+        fd.append("documentMetadata", JSON.stringify(docMetadata));
+      } else if (editingAdmin && editingAdmin.documents) {
+        // If no new docs but editing, we still need to send existing doc structure in JSON if changed
+        // Actually, the API handles 'documents' in textData too.
+      }
+
+      console.log("Submitting branch admin with integrated files...");
       const response = editingAdmin
-        ? await apiClient.put(url, body)
-        : await apiClient.post(url, body);
+        ? await apiClient.put(url, fd, { headers: { "Content-Type": "multipart/form-data" } })
+        : await apiClient.post(url, fd, { headers: { "Content-Type": "multipart/form-data" } });
 
       if (response?.success) {
         toast.success(
@@ -331,42 +370,12 @@ export default function AdministratorsPage() {
             ? "Administrator updated successfully"
             : "Administrator created successfully",
         );
-
-        // If created and files are waiting to be uploaded, upload them now using returned user id
-        const createdUser = response.data;
-        if (!editingAdmin && createdUser) {
-          try {
-            if (profileFile) {
-              const fd = new FormData();
-              fd.append("file", profileFile);
-              fd.append("fileType", "profile");
-              fd.append("userId", createdUser._id);
-              await apiClient.post("/api/upload", fd, {
-                headers: { "Content-Type": "multipart/form-data" },
-              });
-            }
-
-            if (docFile && formData && formData.selectedDocumentType) {
-              const fd2 = new FormData();
-              fd2.append("file", docFile);
-              fd2.append("fileType", "admin_document");
-              fd2.append("documentType", formData.selectedDocumentType);
-              fd2.append("userId", createdUser._id);
-              await apiClient.post("/api/upload", fd2, {
-                headers: { "Content-Type": "multipart/form-data" },
-              });
-            }
-          } catch (uploadErr) {
-            console.error("Post-create upload failed:", uploadErr);
-            toast.error(
-              "Profile/document upload failed. You can upload from edit later.",
-            );
-          }
-        }
-
+        
+        setQueuedDocuments([]);
+        setProfileFile(null);
         setShowModal(false);
         loadAdmins();
-        loadBranches(); // Reload to update available branches
+        loadBranches();
       } else {
         toast.error(response?.message || "Failed to save administrator");
       }
@@ -444,9 +453,9 @@ export default function AdministratorsPage() {
                 Saving...
               </span>
             ) : editingAdmin ? (
-              "Update Administrator"
+              "Update"
             ) : (
-              "Create Administrator"
+              "Create"
             )}
           </Button>
         )}
@@ -454,10 +463,10 @@ export default function AdministratorsPage() {
     </div>
   );
 
-  if (loading) {
+  if (loading && admins.length === 0) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-600"></div>
+      <div className="p-4 sm:p-6 min-h-screen">
+        <AdminManagementSkeleton />
       </div>
     );
   }
@@ -587,6 +596,48 @@ export default function AdministratorsPage() {
               }
             }}
           />
+
+          {/* Pagination Controls */}
+          {pagination.totalPages > 1 && (
+            <div className="flex items-center justify-between mt-6 bg-white dark:bg-gray-900 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-800">
+              <div className="text-sm text-gray-600 dark:text-gray-400 font-medium">
+                Showing <span className="font-bold text-blue-600">{((currentPage - 1) * pagination.limit) + 1}</span> to <span className="font-bold text-blue-600">{Math.min(currentPage * pagination.limit, pagination.totalItems)}</span> of {pagination.totalItems} administrators
+              </div>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))}
+                  disabled={currentPage === 1}
+                  className="px-4"
+                >
+                  Previous
+                </Button>
+                <div className="flex items-center gap-1">
+                  {[...Array(pagination.totalPages)].map((_, i) => (
+                    <Button
+                      key={i + 1}
+                      variant={currentPage === i + 1 ? "default" : "outline"}
+                      size="sm"
+                      className={`w-8 h-8 p-0 ${currentPage === i + 1 ? 'shadow-md shadow-blue-500/20' : ''}`}
+                      onClick={() => setCurrentPage(i + 1)}
+                    >
+                      {i + 1}
+                    </Button>
+                  ))}
+                </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setCurrentPage(prev => Math.min(pagination.totalPages, prev + 1))}
+                  disabled={currentPage >= pagination.totalPages}
+                  className="px-4"
+                >
+                  Next
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -606,7 +657,7 @@ export default function AdministratorsPage() {
       <Modal
         open={showModal}
         onClose={() => setShowModal(false)}
-        title={editingAdmin ? "Edit Administrator" : "Add New Administrator"}
+        title={editingAdmin ? "Update Administrator" : "Create Administrator"}
         size="lg"
         footer={modalFooter}
       >
@@ -684,32 +735,22 @@ export default function AdministratorsPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  Phone Number
-                </label>
-                <input
-                  type="tel"
+                <PhoneInput
+                  label="Phone Number"
                   value={formData.phone}
-                  onChange={(e) =>
-                    setFormData({ ...formData, phone: e.target.value })
-                  }
-                  placeholder="+92 300 1234567"
-                  className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  onChange={(val) => setFormData({ ...formData, phone: val })}
+                  required
                 />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Date of Birth <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="date"
+                  <DatePicker
+                    label="Date of Birth"
                     value={formData.dateOfBirth}
                     onChange={(e) =>
                       setFormData({ ...formData, dateOfBirth: e.target.value })
                     }
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     required
                   />
                 </div>
@@ -733,17 +774,11 @@ export default function AdministratorsPage() {
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    CNIC / ID Card
-                  </label>
-                  <input
-                    type="text"
+                  <CNICInput
+                    label="CNIC / ID Card"
                     value={formData.cnic}
-                    onChange={(e) =>
-                      setFormData({ ...formData, cnic: e.target.value })
-                    }
+                    onChange={(val) => setFormData({ ...formData, cnic: val })}
                     placeholder="42101-XXXXXXX-X"
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   />
                 </div>
 
@@ -931,7 +966,7 @@ export default function AdministratorsPage() {
 
           <TabPanel value={2} activeTab={activeTab}>
             {/* Account Configuration Section */}
-            <div className="space-y-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+            <div className="space-y-4 pt-4 border-t border-gray-200 dark:border-gray-700 min-h-[400px]">
               <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 uppercase tracking-wide">
                 Account Configuration
               </h3>
@@ -975,463 +1010,193 @@ export default function AdministratorsPage() {
           </TabPanel>
 
           <TabPanel value={3} activeTab={activeTab}>
-            {/* Account Status & Permissions Section */}
-            <div className="space-y-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-              {/* Profile Photo Upload */}
-              <div className="space-y-2">
-                <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100">
-                  Profile Photo
-                </h4>
-                {editingAdmin && editingAdmin.profilePhoto?.url ? (
-                  <div className="flex items-center gap-3">
-                    <img
-                      src={editingAdmin.profilePhoto.url}
-                      alt="profile"
-                      className="w-20 h-20 rounded-full object-cover"
-                    />
-                    <div>
-                      <p className="text-sm">Current photo</p>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        onClick={() =>
-                          window.open(editingAdmin.profilePhoto.url, "_blank")
-                        }
-                      >
-                        View
-                      </Button>
-                    </div>
+            <div className="space-y-6 pt-4 border-t border-gray-200 dark:border-gray-700 min-h-[400px]">
+              {/* Profile Photo Section */}
+              <div className="flex flex-col items-center justify-center p-6 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border-2 border-dashed border-slate-200 dark:border-slate-800 transition-all hover:border-indigo-400/50 group">
+                <div className="relative">
+                  <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-white dark:border-slate-800 shadow-xl bg-white dark:bg-slate-800 flex items-center justify-center group-hover:scale-105 transition-transform duration-300">
+                    {profileFile || (editingAdmin && (editingAdmin.avatar_url || editingAdmin.profilePhoto?.url)) ? (
+                      <img
+                        src={profileFile ? URL.createObjectURL(profileFile) : (editingAdmin.avatar_url || editingAdmin.profilePhoto?.url)}
+                        alt="Profile Preview"
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <UserCog className="w-12 h-12 text-slate-300" />
+                    )}
+                    
+                    {profileUploading && (
+                      <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
+                        <div className="w-8 h-8 border-4 border-white/30 border-t-white rounded-full animate-spin" />
+                      </div>
+                    )}
                   </div>
-                ) : (
-                  <p className="text-xs text-gray-500">
-                    No profile photo uploaded
-                  </p>
-                )}
-                <div className="flex items-center gap-2">
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={async (e) => {
-                      const f = e.target.files[0];
-                      if (!f) return;
-                      if (!editingAdmin) {
+                  
+                  <label className="absolute bottom-0 right-0 p-2.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-full shadow-lg cursor-pointer transition-all hover:scale-110 active:scale-95 group-hover:ring-4 group-hover:ring-indigo-500/20">
+                    <Plus className="w-5 h-5" />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={(e) => {
+                        const f = e.target.files[0];
+                        if (!f) return;
                         setProfileFile(f);
-                        toast.success(
-                          "Profile photo queued - will upload after creating admin",
-                        );
-                        return;
-                      }
-                      try {
-                        setProfileUploading(true);
-                        const fd = new FormData();
-                        fd.append("file", f);
-                        fd.append("fileType", "profile");
-                        fd.append("userId", editingAdmin.id);
-                        await apiClient.post("/api/upload", fd, {
-                          headers: { "Content-Type": "multipart/form-data" },
-                        });
-                        toast.success("Profile photo uploaded");
-                        loadAdmins();
-                      } catch (err) {
-                        console.error("Profile upload failed:", err);
-                        toast.error("Profile upload failed");
-                      } finally {
-                        setProfileUploading(false);
-                      }
-                    }}
-                  />
-                  {profileUploading && (
-                    <span className="text-sm">Uploading...</span>
-                  )}
+                        toast.success("Profile photo selected. It will be saved when you update the administrator.");
+                      }}
+                    />
+                  </label>
+                </div>
+                <div className="mt-4 text-center">
+                  <h4 className="text-sm font-bold text-slate-700 dark:text-slate-200">Administrator Photo</h4>
+                  <p className="text-xs text-slate-500 mt-1">PNG, JPG or JPEG (Max. 2MB)</p>
                 </div>
               </div>
+ 
+               {/* Documents Section */}
+               <div className="space-y-4">
+                 <div className="flex items-center justify-between">
+                   <h4 className="text-sm font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                     <Building2 className="w-4 h-4 text-indigo-500" />
+                     Management Documents
+                   </h4>
+                 </div>
+ 
+                 <div className="grid grid-cols-1 gap-4">
+                   <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
+                     <div className="p-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/50">
+                       <DocumentTypeSelect
+                         label="Document Category"
+                         value={formData.selectedDocumentType || ""}
+                         onChange={(e) => setFormData({ ...formData, selectedDocumentType: e.target?.value ?? e })}
+                         options={ADMIN_DOC_TYPES.map(t => ({ label: t.replace(/_/g, " "), value: t }))}
+                         placeholder="Choose Category..."
+                       />
+                     </div>
+                     
+                     <div className="p-6">
+                       <label 
+                         htmlFor="doc-upload"
+                         className="flex flex-col items-center justify-center p-8 border-2 border-dashed rounded-2xl transition-all cursor-pointer border-slate-200 dark:border-slate-800 hover:border-indigo-400 dark:hover:border-indigo-500 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                       >
+                         <input
+                           id="doc-upload"
+                           type="file"
+                           className="hidden"
+                           onChange={(e) => {
+                             const f = e.target.files[0];
+                             if (f) {
+                               if (!formData.selectedDocumentType) {
+                                 toast.error("Please select a document category first");
+                                 return;
+                               }
+                               // Add to queue
+                               const newDoc = { file: f, type: formData.selectedDocumentType, id: Math.random().toString(36).substr(2, 9) };
+                               setQueuedDocuments(prev => [...prev, newDoc]);
+                               toast.success(`${formData.selectedDocumentType.replace(/_/g, " ")} added to queue`);
+                             }
+                           }}
+                         />
+                         
+                         <div className="flex flex-col items-center text-center">
+                           <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-xl flex items-center justify-center mb-3 text-slate-400">
+                             <Plus className="w-6 h-6" />
+                           </div>
+                           <span className="text-sm font-bold text-slate-600 dark:text-slate-300">
+                             Click to add document
+                           </span>
+                           <span className="text-xs text-slate-400 mt-1">
+                             You can add multiple documents to the queue
+                           </span>
+                         </div>
+                       </label>
+                     </div>
+ 
+                     {/* Queued Documents List */}
+                     {queuedDocuments.length > 0 && (
+                       <div className="px-6 pb-4 space-y-2">
+                         <p className="text-[10px] font-bold text-indigo-500 uppercase tracking-widest px-1">Waiting to Upload ({queuedDocuments.length})</p>
+                         {queuedDocuments.map((doc) => (
+                           <div key={doc.id} className="flex items-center justify-between p-3 bg-indigo-50/50 dark:bg-indigo-900/10 border border-indigo-100 dark:border-indigo-900/30 rounded-xl">
+                             <div className="flex items-center gap-3">
+                               <div className="w-8 h-8 bg-indigo-100 dark:bg-indigo-900/50 rounded-lg flex items-center justify-center text-indigo-600">
+                                 <Building2 className="w-4 h-4" />
+                               </div>
+                               <div>
+                                 <p className="text-xs font-bold text-slate-700 dark:text-slate-200 uppercase tracking-tight">{doc.type.replace(/_/g, " ")}</p>
+                                 <p className="text-[10px] text-slate-500 truncate max-w-[150px]">{doc.file.name}</p>
+                               </div>
+                             </div>
+                             <button 
+                               onClick={() => setQueuedDocuments(prev => prev.filter(d => d.id !== doc.id))}
+                               className="p-1.5 hover:bg-red-100 hover:text-red-600 rounded-lg transition-colors text-slate-400"
+                             >
+                               <X className="w-4 h-4" />
+                             </button>
+                           </div>
+                         ))}
+                       </div>
+                     )}
+ 
+                      <div className="px-6 pb-6">
+                        {/* Integrated upload logic - no separate button needed */}
+                        <p className="text-[10px] text-slate-400 text-center italic">
+                          Files will be uploaded when you click "Save Administrator"
+                        </p>
+                      </div>
+                   </div>
+ 
+                   {uploadedAdminDocTypes.length > 0 && (
+                     <div className="space-y-2">
+                       <p className="text-[10px] font-bold text-green-500 uppercase tracking-widest px-1">Successfully Uploaded</p>
+                       <div className="flex flex-wrap gap-2">
+                         {uploadedAdminDocTypes.map((type, index) => (
+                           <div key={`${type}-${index}`} className="flex items-center gap-2 px-3 py-2 bg-white dark:bg-slate-900 border border-green-100 dark:border-green-900/50 rounded-xl shadow-sm">
+                             <div className="w-6 h-6 bg-green-50 dark:bg-green-900/30 rounded-lg flex items-center justify-center text-green-600">
+                               <CheckCircle className="w-3.5 h-3.5" />
+                             </div>
+                             <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 uppercase">
+                               {type.replace(/_/g, " ")}
+                             </span>
+                           </div>
+                         ))}
+                       </div>
+                     </div>
+                   )}
+                 </div>
+               </div>
 
-              {/* Admin Documents Upload */}
-              <div className="pt-3">
-                <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-100 mb-2">
-                  Documents
-                </h4>
-                <p className="text-xs text-gray-500 mb-2">
-                  Upload admin documents (CNIC, CV, ID card). Already uploaded
-                  types are hidden.
-                </p>
-                <div className="flex items-center gap-2">
-                  <DocumentTypeSelect
-                    id="adminDocumentType"
-                    name="adminDocumentType"
-                    value={formData.selectedDocumentType || ""}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        selectedDocumentType: e.target?.value ?? e,
-                      })
-                    }
-                    options={ADMIN_DOC_TYPES.filter(
-                      (t) => !uploadedAdminDocTypes.includes(t),
-                    ).map((t) => ({ label: t.replace(/_/g, " "), value: t }))}
-                    placeholder="Select document type"
-                    className="w-56"
-                  />
-
-                  <input
-                    type="file"
-                    onChange={(e) => setDocFile(e.target.files[0] || null)}
-                  />
-                  <Button
-                    onClick={async () => {
-                      if (!formData.selectedDocumentType) {
-                        toast.error("Select document type");
-                        return;
-                      }
-                      if (!docFile) {
-                        toast.error("Select a file");
-                        return;
-                      }
-                      if (!editingAdmin) {
-                        toast.error(
-                          "Upload documents after creating the admin (they will be queued)",
-                        );
-                        return;
-                      }
-                      try {
-                        setDocUploading(true);
-                        const fd = new FormData();
-                        fd.append("file", docFile);
-                        fd.append("fileType", "admin_document");
-                        fd.append(
-                          "documentType",
-                          formData.selectedDocumentType,
-                        );
-                        fd.append("userId", editingAdmin.id);
-                        await apiClient.post("/api/upload", fd, {
-                          headers: { "Content-Type": "multipart/form-data" },
-                        });
-                        toast.success("Document uploaded");
-                        // mark as uploaded so dropdown hides it
-                        setUploadedAdminDocTypes((s) => [
-                          ...s,
-                          formData.selectedDocumentType,
-                        ]);
-                        setDocFile(null);
-                        setFormData({ ...formData, selectedDocumentType: "" });
-                        loadAdmins();
-                      } catch (err) {
-                        console.error("Document upload failed:", err);
-                        toast.error("Document upload failed");
-                      } finally {
-                        setDocUploading(false);
-                      }
-                    }}
-                  >
-                    Upload
-                  </Button>
+              {/* Status Section */}
+              <div className="bg-slate-50 dark:bg-slate-900/50 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 flex items-center justify-between">
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-white">Account Status</h4>
+                  <p className="text-[11px] text-slate-500 mt-0.5">Control if this admin can login to the system</p>
                 </div>
-
-                {uploadedAdminDocTypes.length > 0 && (
-                  <div className="mt-3 text-xs text-gray-600">
-                    <strong>Uploaded:</strong>{" "}
-                    {uploadedAdminDocTypes.join(", ")}
-                  </div>
-                )}
-              </div>
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 uppercase tracking-wide">
-                Account Status
-              </h3>
-              <div className="bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
-                <label className="flex items-center space-x-3 cursor-pointer">
+                <label className="relative inline-flex items-center cursor-pointer">
                   <input
                     type="checkbox"
+                    className="sr-only peer"
                     checked={formData.isActive}
-                    onChange={(e) =>
-                      setFormData({ ...formData, isActive: e.target.checked })
-                    }
-                    className="w-4 h-4 text-blue-600 border-gray-300 dark:border-gray-600 rounded focus:ring-blue-500"
+                    onChange={(e) => setFormData({ ...formData, isActive: e.target.checked })}
                   />
-                  <div>
-                    <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                      Active Account
-                    </span>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      Account will be immediately accessible
-                    </p>
-                  </div>
+                  <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 dark:peer-focus:ring-indigo-800 rounded-full peer dark:bg-slate-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-indigo-600"></div>
                 </label>
               </div>
-
-              {/* Permissions removed as per request - no permissions UI */}
             </div>
           </TabPanel>
         </div>
       </Modal>
 
-      {/* View Modal - Readonly full administrator details */}
-      <Modal
+      {/* View Modal - Detailed administrator profile */}
+      <UserDetailModal
         open={showViewModal}
         onClose={() => {
           setShowViewModal(false);
           setViewingAdmin(null);
         }}
+        user={viewingAdmin}
         title="Administrator Details"
-        size="lg"
-        footer={
-          <div className="flex justify-end">
-            <Button
-              variant="outline"
-              onClick={() => {
-                setShowViewModal(false);
-                setViewingAdmin(null);
-              }}
-            >
-              Close
-            </Button>
-          </div>
-        }
-      >
-        {viewingAdmin ? (
-          <div className="space-y-6 max-h-[80vh] overflow-y-auto pr-2 custom-scrollbar">
-            {/* Header Section with Profile Banner */}
-            <div className="relative rounded-xl bg-gradient-to-r from-blue-600 to-indigo-700 p-6 text-white overflow-hidden shadow-lg mb-4">
-              <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl" />
-              <div className="absolute bottom-0 left-0 w-24 h-24 bg-blue-400/20 rounded-full -ml-12 -mb-12 blur-xl" />
-
-              <div className="relative flex flex-col md:flex-row items-center gap-6">
-                <div className="relative">
-                  {viewingAdmin.avatar_url ? (
-                    <img
-                      src={viewingAdmin.avatar_url}
-                      alt="profile"
-                      className="w-24 h-24 rounded-2xl object-cover ring-4 ring-white/20 shadow-xl"
-                    />
-                  ) : (
-                    <div className="w-24 h-24 rounded-2xl bg-white/20 backdrop-blur-md flex items-center justify-center text-white ring-4 ring-white/10 shadow-xl">
-                      <UserCog className="w-12 h-12" />
-                    </div>
-                  )}
-                  <div
-                    className={`absolute -bottom-1 -right-1 w-5 h-5 rounded-full border-2 border-white shadow-sm ${viewingAdmin.is_active ? "bg-green-500" : "bg-red-500"}`}
-                  />
-                </div>
-
-                <div className="text-center md:text-left">
-                  <h2 className="text-2xl font-bold tracking-tight">
-                    {viewingAdmin.first_name} {viewingAdmin.last_name}
-                  </h2>
-                  <div className="flex flex-wrap items-center justify-center md:justify-start gap-3 mt-2 text-blue-100">
-                    <span className="bg-white/10 backdrop-blur-sm px-3 py-0.5 rounded-full text-xs font-medium border border-white/10">
-                      Branch Administrator
-                    </span>
-                    <span className="flex items-center gap-1 text-xs text-sh-0">
-                      <Building2 className="w-3.5 h-3.5" />
-                      {viewingAdmin.branch?.name || "Global Head Office"}
-                    </span>
-                  </div>
-                  <div className="mt-4 flex flex-wrap gap-4 text-xs">
-                    <div className="flex items-center gap-2 bg-black/10 px-3 py-2 rounded-lg">
-                      <span className="text-blue-200">Reg:</span>
-                      <span className="font-mono font-semibold">
-                        {viewingAdmin.registration_no || "N/A"}
-                      </span>
-                    </div>
-                    <div className="flex items-center gap-2 bg-black/10 px-3 py-2 rounded-lg">
-                      <span className="text-blue-200">Status:</span>
-                      <span className="font-semibold uppercase tracking-wider">
-                        {viewingAdmin.is_active ? "Active" : "Inactive"}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* Contact Card */}
-              <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-5 shadow-sm hover:shadow-md transition-shadow">
-                <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
-                  <Mail className="w-4 h-4 text-blue-500" />
-                  Contact Details
-                </h3>
-                <div className="space-y-4">
-                  <div className="flex items-start gap-3">
-                    <div className="mt-0.5 w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-900/30 flex items-center justify-center shrink-0">
-                      <Mail className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                    </div>
-                    <div>
-                      <p className="text-[10px] text-gray-500 uppercase font-medium">
-                        Primary Email
-                      </p>
-                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100 break-all">
-                        {viewingAdmin.email}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex items-start gap-3">
-                    <div className="mt-0.5 w-8 h-8 rounded-lg bg-green-50 dark:bg-green-900/30 flex items-center justify-center shrink-0">
-                      <Phone className="w-4 h-4 text-green-600 dark:text-green-400" />
-                    </div>
-                    <div>
-                      <p className="text-[10px] text-gray-500 uppercase font-medium">
-                        Phone Number
-                      </p>
-                      <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
-                        {viewingAdmin.phone || "—"}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Personal Card */}
-              <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-5 shadow-sm hover:shadow-md transition-shadow">
-                <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
-                  <UserCog className="w-4 h-4 text-indigo-500" />
-                  Personal Info
-                </h3>
-                <div className="grid grid-cols-1 gap-y-3">
-                  <div className="flex justify-between items-center bg-gray-50 dark:bg-gray-700/30 p-2 rounded-lg">
-                    <span className="text-xs text-gray-500">Date of Birth</span>
-                    <span className="text-sm font-medium dark:text-gray-100">
-                      {viewingAdmin.details?.date_of_birth
-                        ? new Date(
-                            viewingAdmin.details.date_of_birth,
-                          ).toLocaleDateString()
-                        : "—"}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center bg-gray-50 dark:bg-gray-700/30 p-2 rounded-lg">
-                    <span className="text-xs text-gray-500">Gender</span>
-                    <span className="text-sm font-medium dark:text-gray-100">
-                      {viewingAdmin.details?.gender || "—"}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center bg-gray-50 dark:bg-gray-700/30 p-2 rounded-lg">
-                    <span className="text-xs text-gray-500 text-red-500 font-bold">
-                      Blood Group
-                    </span>
-                    <span className="text-sm font-bold text-red-600">
-                      {viewingAdmin.details?.blood_group || "—"}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-              {/* Address Card */}
-              <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-5 shadow-sm hover:shadow-md transition-shadow">
-                <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
-                  <MapPin className="w-4 h-4 text-red-500" />
-                  Address Details
-                </h3>
-                <div className="flex gap-4">
-                  <div className="w-10 h-10 rounded-full bg-red-50 dark:bg-red-900/20 flex items-center justify-center shrink-0">
-                    <MapPin className="w-5 h-5 text-red-600 dark:text-red-400" />
-                  </div>
-                  <div className="text-sm text-gray-700 dark:text-gray-300 space-y-1">
-                    <p className="font-semibold text-gray-900 dark:text-white">
-                      {viewingAdmin.details?.address?.street ||
-                        "No street address"}
-                    </p>
-                    <p>
-                      {viewingAdmin.details?.address?.city || "—"}
-                      {viewingAdmin.details?.address?.state
-                        ? `, ${viewingAdmin.details.address.state}`
-                        : ""}
-                    </p>
-                    <p className="text-xs font-mono text-gray-400">
-                      {viewingAdmin.details?.address?.postalCode || ""}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Identity Card */}
-              <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-5 shadow-sm hover:shadow-md transition-shadow">
-                <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
-                  <CheckCircle className="w-4 h-4 text-green-500" />
-                  Identity & Registration
-                </h3>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-gray-500">CNIC / ID</span>
-                    <span className="font-medium dark:text-gray-200">
-                      {viewingAdmin.details?.cnic || "—"}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-gray-500">Religion</span>
-                    <span className="font-medium dark:text-gray-200">
-                      {viewingAdmin.details?.religion || "—"}
-                    </span>
-                  </div>
-                  <div className="flex justify-between items-center text-sm">
-                    <span className="text-gray-500">Nationality</span>
-                    <span className="font-medium dark:text-gray-200">
-                      {viewingAdmin.details?.nationality || "Pakistani"}
-                    </span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Documents Section */}
-            <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-100 dark:border-gray-700 p-5 shadow-sm mt-6 mb-4">
-              <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 mb-4 flex items-center gap-2">
-                <Eye className="w-4 h-4 text-purple-500" />
-                Verification Documents
-              </h3>
-              {(viewingAdmin.documents || []).length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-6 bg-gray-50 dark:bg-gray-900/30 rounded-lg border border-dashed border-gray-200">
-                  <Eye className="w-8 h-8 text-gray-300 mb-2" />
-                  <p className="text-xs text-gray-500 font-medium">
-                    No documents uploaded for this profile
-                  </p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {viewingAdmin.documents.map((doc, idx) => (
-                    <div
-                      key={doc.id || idx}
-                      className="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-700 group hover:border-blue-200 dark:hover:border-blue-900 transition-all hover:shadow-sm"
-                    >
-                      <div className="flex items-center gap-3 overflow-hidden">
-                        <div className="w-10 h-10 rounded-lg bg-white dark:bg-gray-800 flex items-center justify-center shadow-sm shrink-0">
-                          <Eye className="w-5 h-5 text-gray-400 group-hover:text-blue-500 transition-colors" />
-                        </div>
-                        <div className="overflow-hidden">
-                          <p className="text-xs font-bold text-gray-900 dark:text-white truncate uppercase tracking-tighter">
-                            {doc.type?.replace("_", " ") || "DOCUMENT"}
-                          </p>
-                          <p className="text-[10px] text-gray-500 truncate">
-                            {doc.filename || "Original.pdf"}
-                          </p>
-                        </div>
-                      </div>
-                      {doc.url && (
-                        <a
-                          href={doc.url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="p-2 text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-full transition-colors flex items-center justify-center shrink-0"
-                          title="View Document"
-                        >
-                          <Eye className="w-4 h-4" />
-                        </a>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-        ) : (
-          <div className="h-60 flex flex-col items-center justify-center text-gray-500 space-y-3">
-            <div className="w-12 h-12 border-4 border-blue-100 border-t-blue-600 rounded-full animate-spin" />
-            <p className="text-sm font-medium animate-pulse text-blue-600">
-              Retrieving personnel file...
-            </p>
-          </div>
-        )}
-      </Modal>
+      />
     </div>
   );
 }

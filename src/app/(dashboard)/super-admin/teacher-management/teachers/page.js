@@ -45,6 +45,7 @@ export default function TeachersPage() {
   const [selectedBranch, setSelectedBranch] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
   const [selectedDesignation, setSelectedDesignation] = useState('');
+  const [pagination, setPagination] = useState({ page: 1, limit: 10 });
 
   // Stats
   const [stats, setStats] = useState({
@@ -81,7 +82,7 @@ export default function TeachersPage() {
     try {
       setLoading(true);
       const params = new URLSearchParams({
-        limit: '100',
+        limit: '100', // Still fetch a good batch for client-side filtering/slicing or keep server-side
         ...(searchTerm && { search: searchTerm }),
         ...(selectedBranch && { branchId: selectedBranch }),
         ...(selectedStatus && { status: selectedStatus }),
@@ -283,7 +284,7 @@ export default function TeachersPage() {
 
       {/* Teachers Table */}
       <UserManagementTable
-        data={teachers}
+        data={teachers.slice((pagination.page - 1) * pagination.limit, pagination.page * pagination.limit)}
         loading={loading}
         onView={handleView}
         onEdit={handleEdit}
@@ -302,6 +303,46 @@ export default function TeachersPage() {
           }
         }}
       />
+
+      {/* Pagination Controls */}
+      {Math.ceil(teachers.length / pagination.limit) > 1 && (
+        <div className="flex items-center justify-between mt-6 bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+          <div className="text-sm text-gray-600 font-medium">
+            Showing <span className="font-bold text-blue-600">{((pagination.page - 1) * pagination.limit) + 1}</span> to <span className="font-bold text-blue-600">{Math.min(pagination.page * pagination.limit, teachers.length)}</span> of {teachers.length} teachers
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
+              disabled={pagination.page === 1}
+            >
+              Previous
+            </Button>
+            <div className="flex items-center gap-1">
+              {[...Array(Math.ceil(teachers.length / pagination.limit))].map((_, i) => (
+                <Button
+                  key={i + 1}
+                  variant={pagination.page === i + 1 ? "default" : "outline"}
+                  size="sm"
+                  className="w-8 h-8 p-0"
+                  onClick={() => setPagination(prev => ({ ...prev, page: i + 1 }))}
+                >
+                  {i + 1}
+                </Button>
+              ))}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
+              disabled={pagination.page >= Math.ceil(teachers.length / pagination.limit)}
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
 
       {/* Teacher Form Modal */}
       <Modal

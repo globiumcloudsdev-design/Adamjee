@@ -434,9 +434,6 @@ const SuperAdminStudentsPage = () => {
   };
 
 
-  if (loading && students.length === 0) {
-    return <FullPageLoader message="Loading students..." />;
-  }
 
   return (
     <div className="p-6 space-y-6">

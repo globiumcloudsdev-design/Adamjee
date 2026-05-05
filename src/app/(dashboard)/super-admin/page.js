@@ -7,12 +7,16 @@ import { Table, TableHeader, TableBody, TableHead, TableRow, TableCell } from '@
 import Dropdown from '@/components/ui/dropdown';
 import { Input } from '@/components/ui/input';
 import FullPageLoader from '@/components/ui/full-page-loader';
+import Skeleton, { CardSkeleton, TableSkeleton } from '@/components/ui/skeleton';
 import SuperAdminStudentTrends from '@/components/dashboard/SuperAdminStudentTrends';
 import SuperAdminClassWiseStudents from '@/components/dashboard/SuperAdminClassWiseStudents';
 import SuperAdminBranchWiseStudents from '@/components/dashboard/SuperAdminBranchWiseStudents';
 import SuperAdminStudentAttendance from '@/components/dashboard/SuperAdminStudentAttendance';
 import SuperAdminMonthlyFeeCollection from '@/components/dashboard/SuperAdminMonthlyFeeCollection';
 import SuperAdminPassFailRatio from '@/components/dashboard/SuperAdminPassFailRatio';
+import DashboardHeader from '@/components/dashboard/DashboardHeader';
+import StatsCard from '@/components/dashboard/StatsCard';
+import QuickActions from '@/components/dashboard/QuickActions';
 import { API_ENDPOINTS } from '@/constants/api-endpoints';
 import { withAuth } from '@/hooks/useAuth';
 import { ROLES } from '@/constants/roles';
@@ -52,103 +56,29 @@ import {
 
 function SuperAdminDashboard() {
   const [dashboardData, setDashboardData] = useState({
-    headerStats: {
-      totalBranches: 12,
-      branchGrowth: 15,
-      activeBranches: 10,
-      inactiveBranches: 2,
-      totalStudents: 4500,
-      studentGrowth: 8,
-      totalTeachers: 280,
-      totalClasses: 120,
-      activeClasses: 115,
-      totalRevenue: 2500000,
-      revenueChange: 12,
-      feeCollectionRate: 92,
-      systemUptime: 99.9,
-      activeSessions: 45,
-      upcomingEvents: 5,
-      scheduledExams: 3,
-      pendingExpenses: 150000,
-      unreadNotifications: 12,
-      collectedAmount: 2300000,
-      totalExpenses: 800000,
-      paidExpenses: 650000,
-    },
-    performanceMetrics: {
-      avgAttendance: 88,
-      attendanceChange: 2,
-      passPercentage: 85,
-      passChange: 5,
-      apiResponseTime: 120,
-      responseChange: -10,
-      totalAttendanceRecords: 45000,
-      presentCount: 40000,
-      absentCount: 5000,
-      outstandingAmount: 200000,
-    },
+    headerStats: {},
+    performanceMetrics: {},
     revenueAnalytics: {},
     studentAnalytics: {
-      userRoleDistribution: [
-        { role: 'Students', percentage: 75, count: 4500 },
-        { role: 'Teachers', percentage: 23, count: 1380 },
-        { role: 'Staff', percentage: 2, count: 120 },
-      ]
+      userRoleDistribution: []
     },
     recentActivities: [],
     systemAlerts: [],
-    branchPerformance: [
-      { id: '1', name: 'Main Campus', code: 'MC-01', status: 'active', students: 1200, teachers: 80, classes: 40, attendanceRate: 92, revenue: 800000, expenses: 200000 },
-      { id: '2', name: 'North Branch', code: 'NB-02', status: 'active', students: 800, teachers: 50, classes: 25, attendanceRate: 85, revenue: 500000, expenses: 150000 },
-      { id: '3', name: 'South Branch', code: 'SB-03', status: 'active', students: 950, teachers: 60, classes: 30, attendanceRate: 89, revenue: 650000, expenses: 180000 },
-    ],
-    summary: {
-      totalUsers: 6000,
-      totalEvents: 25,
-      totalExams: 15,
-    }
+    branchPerformance: [],
+    summary: {}
   });
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [selectedTimeRange, setSelectedTimeRange] = useState('30days');
   const [selectedBranch, setSelectedBranch] = useState('all');
   const { execute } = useApi();
 
   // Chart data states
   const [chartsLoading, setChartsLoading] = useState(false);
-  const [studentTrendsData, setStudentTrendsData] = useState([
-    { name: 'Jan', students: 4000 },
-    { name: 'Feb', students: 4100 },
-    { name: 'Mar', students: 4200 },
-    { name: 'Apr', students: 4300 },
-    { name: 'May', students: 4400 },
-    { name: 'Jun', students: 4500 },
-  ]);
-  const [classWiseStudentsData, setClassWiseStudentsData] = useState([
-    { name: 'Class 1', students: 120 },
-    { name: 'Class 2', students: 110 },
-    { name: 'Class 3', students: 130 },
-    { name: 'Class 4', students: 105 },
-    { name: 'Class 5', students: 140 },
-  ]);
-  const [studentAttendanceData, setStudentAttendanceData] = useState([
-    { name: 'Mon', attendance: 95 },
-    { name: 'Tue', attendance: 92 },
-    { name: 'Wed', attendance: 88 },
-    { name: 'Thu', attendance: 90 },
-    { name: 'Fri', attendance: 94 },
-  ]);
-  const [monthlyFeeCollectionData, setMonthlyFeeCollectionData] = useState([
-    { name: 'Jan', amount: 200000 },
-    { name: 'Feb', amount: 220000 },
-    { name: 'Mar', amount: 210000 },
-    { name: 'Apr', amount: 240000 },
-    { name: 'May', amount: 230000 },
-    { name: 'Jun', amount: 250000 },
-  ]);
-  const [passFailRatioData, setPassFailRatioData] = useState([
-    { name: 'Pass', value: 85 },
-    { name: 'Fail', value: 15 },
-  ]);
+  const [studentTrendsData, setStudentTrendsData] = useState([]);
+  const [classWiseStudentsData, setClassWiseStudentsData] = useState([]);
+  const [studentAttendanceData, setStudentAttendanceData] = useState([]);
+  const [monthlyFeeCollectionData, setMonthlyFeeCollectionData] = useState([]);
+  const [passFailRatioData, setPassFailRatioData] = useState([]);
 
   useEffect(() => {
     loadDashboardData();
@@ -229,9 +159,34 @@ function SuperAdminDashboard() {
 
   if (loading && !dashboardData.headerStats.totalBranches) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen space-y-4">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        <p className="text-gray-500 font-medium animate-pulse">Initializing Dashboard...</p>
+      <div className="p-4 md:p-6 space-y-6 min-h-screen">
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 pt-8">
+           <div className="space-y-2">
+              <Skeleton className="h-10 w-64" />
+              <Skeleton className="h-4 w-96" />
+           </div>
+           <div className="flex gap-3">
+              <Skeleton className="h-10 w-32 rounded-lg" />
+              <Skeleton className="h-10 w-32 rounded-lg" />
+              <Skeleton className="h-10 w-32 rounded-lg" />
+           </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-3 gap-6">
+           <Skeleton className="h-32 rounded-2xl" />
+           <Skeleton className="h-32 rounded-2xl" />
+           <Skeleton className="h-32 rounded-2xl" />
+           <Skeleton className="h-32 rounded-2xl" />
+           <Skeleton className="h-32 rounded-2xl" />
+           <Skeleton className="h-32 rounded-2xl" />
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+           <Skeleton className="h-80 rounded-2xl" />
+           <Skeleton className="h-80 rounded-2xl" />
+        </div>
+
+        <Skeleton className="h-96 rounded-2xl" />
       </div>
     );
   }
@@ -249,188 +204,99 @@ function SuperAdminDashboard() {
   return (
     <div className="p-4 md:p-6 space-y-6  dark:from-gray-900 dark:via-blue-900 dark:to-purple-900 min-h-screen">
       {/* Header */}
-      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 pt-8">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold  text-black dark:text-white">
-            Super Admin Dashboard
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1 text-sm md:text-base">
-            Comprehensive overview of all branches, users, and system performance
-          </p>
-        </div>
+      <DashboardHeader 
+        title="Super Admin Dashboard"
+        subtitle="Comprehensive overview of all branches, users, and system performance"
+        onRefresh={loadDashboardData}
+      >
+        <Dropdown
+          value={selectedTimeRange}
+          onChange={(e) => setSelectedTimeRange(e.target.value)}
+          options={[
+            { value: '7days', label: 'Last 7 Days' },
+            { value: '30days', label: 'Last 30 Days' },
+            { value: '90days', label: 'Last 90 Days' },
+            { value: '1year', label: 'Last Year' }
+          ]}
+          placeholder="Select Time Range"
+          className="min-w-[140px]"
+        />
+        <Dropdown
+          value={selectedBranch}
+          onChange={(e) => setSelectedBranch(e.target.value)}
+          options={[
+            { value: 'all', label: 'All Branches' },
+            ...branchPerformance.map(branch => ({
+              value: branch.id,
+              label: branch.name
+            }))
+          ]}
+          placeholder="Select Branch"
+          className="min-w-[140px]"
+        />
+      </DashboardHeader>
 
-        <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
-          <Dropdown
-            value={selectedTimeRange}
-            onChange={(e) => setSelectedTimeRange(e.target.value)}
-            options={[
-              { value: '7days', label: 'Last 7 Days' },
-              { value: '30days', label: 'Last 30 Days' },
-              { value: '90days', label: 'Last 90 Days' },
-              { value: '1year', label: 'Last Year' }
-            ]}
-            placeholder="Select Time Range"
-            className="min-w-[140px]"
-          />
-          <Dropdown
-            value={selectedBranch}
-            onChange={(e) => setSelectedBranch(e.target.value)}
-            options={[
-              { value: 'all', label: 'All Branches' },
-              ...branchPerformance.map(branch => ({
-                value: branch.id,
-                label: branch.name
-              }))
-            ]}
-            placeholder="Select Branch"
-            className="min-w-[140px]"
-          />
-          <Button onClick={loadDashboardData} className="whitespace-nowrap">
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Refresh
-          </Button>
-        </div>
-      </div>
-
-      {/* Key Metrics Cards - Enhanced */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-3 gap-4 md:gap-6">
-        {/* Branches */}
-        <Card className="hover:shadow-lg transition-shadow">
-          <CardContent className="p-4 md:p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs md:text-sm font-medium text-gray-600 dark:text-gray-400">Total Branches</p>
-                <p className="text-xl md:text-2xl font-bold text-gray-900 dark:text-gray-100">{formatNumber(headerStats.totalBranches || 0)}</p>
-                <div className="flex items-center mt-1">
-                  {getChangeIcon(headerStats.branchGrowth)}
-                  <span className={`text-xs md:text-sm ml-1 ${getChangeColor(headerStats.branchGrowth)}`}>
-                    {Math.abs(headerStats.branchGrowth || 0)}%
-                  </span>
-                </div>
-              </div>
-              <div className="p-2 md:p-3 bg-blue-100 dark:bg-blue-900 rounded-full">
-                <Building2 className="w-5 h-5 md:w-6 md:h-6 text-blue-600 dark:text-blue-400" />
-              </div>
-            </div>
-            <div className="mt-3 md:mt-4 text-xs text-gray-500">
-              {headerStats.activeBranches || 0} Active • {headerStats.inactiveBranches || 0} Inactive
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Students */}
-        <Card className="hover:shadow-lg transition-shadow">
-          <CardContent className="p-4 md:p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs md:text-sm font-medium text-gray-600 dark:text-gray-400">Total Students</p>
-                <p className="text-xl md:text-2xl font-bold text-gray-900 dark:text-gray-100">{formatNumber(headerStats.totalStudents || 0)}</p>
-                <div className="flex items-center mt-1">
-                  {getChangeIcon(headerStats.studentGrowth)}
-                  <span className={`text-xs md:text-sm ml-1 ${getChangeColor(headerStats.studentGrowth)}`}>
-                    {Math.abs(headerStats.studentGrowth || 0)}%
-                  </span>
-                </div>
-              </div>
-              <div className="p-2 md:p-3 bg-green-100 dark:bg-green-900 rounded-full">
-                <GraduationCap className="w-5 h-5 md:w-6 md:h-6 text-green-600 dark:text-green-400" />
-              </div>
-            </div>
-            <div className="mt-3 md:mt-4 text-xs text-gray-500">
-              Across {headerStats.activeBranches || 0} active branches
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Teachers */}
-        <Card className="hover:shadow-lg transition-shadow">
-          <CardContent className="p-4 md:p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs md:text-sm font-medium text-gray-600 dark:text-gray-400">Total Teachers</p>
-                <p className="text-xl md:text-2xl font-bold text-gray-900 dark:text-gray-100">{formatNumber(headerStats.totalTeachers || 0)}</p>
-                <div className="flex items-center mt-1">
-                  <UserCheck className="w-4 h-4 text-blue-500" />
-                  <span className="text-xs md:text-sm ml-1 text-blue-600">Active</span>
-                </div>
-              </div>
-              <div className="p-2 md:p-3 bg-purple-100 dark:bg-purple-900 rounded-full">
-                <UserCheck className="w-5 h-5 md:w-6 md:h-6 text-purple-600 dark:text-purple-400" />
-              </div>
-            </div>
-            <div className="mt-3 md:mt-4 text-xs text-gray-500">
-              Faculty members
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Classes */}
-        <Card className="hover:shadow-lg transition-shadow">
-          <CardContent className="p-4 md:p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs md:text-sm font-medium text-gray-600 dark:text-gray-400">Total Classes</p>
-                <p className="text-xl md:text-2xl font-bold text-gray-900 dark:text-gray-100">{formatNumber(headerStats.totalClasses || 0)}</p>
-                <div className="flex items-center mt-1">
-                  <BookOpen className="w-4 h-4 text-indigo-500" />
-                  <span className="text-xs md:text-sm ml-1 text-indigo-600">{headerStats.activeClasses || 0} Active</span>
-                </div>
-              </div>
-              <div className="p-2 md:p-3 bg-indigo-100 dark:bg-indigo-900 rounded-full">
-                <BookOpen className="w-5 h-5 md:w-6 md:h-6 text-indigo-600 dark:text-indigo-400" />
-              </div>
-            </div>
-            <div className="mt-3 md:mt-4 text-xs text-gray-500">
-              Academic sections
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Revenue */}
-        <Card className="hover:shadow-lg transition-shadow">
-          <CardContent className="p-4 md:p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs md:text-sm font-medium text-gray-600 dark:text-gray-400">Total Revenue</p>
-                <p className="text-xl md:text-2xl font-bold text-gray-900 dark:text-gray-100">{formatCurrency(headerStats.totalRevenue || 0)}</p>
-                <div className="flex items-center mt-1">
-                  {getChangeIcon(headerStats.revenueChange)}
-                  <span className={`text-xs md:text-sm ml-1 ${getChangeColor(headerStats.revenueChange)}`}>
-                    {Math.abs(headerStats.revenueChange || 0)}%
-                  </span>
-                </div>
-              </div>
-              <div className="p-2 md:p-3 bg-yellow-100 dark:bg-yellow-900 rounded-full">
-                <DollarSign className="w-5 h-5 md:w-6 md:h-6 text-yellow-600 dark:text-yellow-400" />
-              </div>
-            </div>
-            <div className="mt-3 md:mt-4 text-xs text-gray-500">
-              {headerStats.feeCollectionRate || 0}% collection rate
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* System Health */}
-        <Card className="hover:shadow-lg transition-shadow">
-          <CardContent className="p-4 md:p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs md:text-sm font-medium text-gray-600 dark:text-gray-400">System Uptime</p>
-                <p className="text-xl md:text-2xl font-bold text-gray-900 dark:text-gray-100">{headerStats.systemUptime || 0}%</p>
-                <div className="flex items-center mt-1">
-                  <CheckCircle className="w-4 h-4 text-green-500" />
-                  <span className="text-xs md:text-sm ml-1 text-green-600">Healthy</span>
-                </div>
-              </div>
-              <div className="p-2 md:p-3 bg-emerald-100 dark:bg-emerald-900 rounded-full">
-                <Activity className="w-5 h-5 md:w-6 md:h-6 text-emerald-600 dark:text-emerald-400" />
-              </div>
-            </div>
-            <div className="mt-3 md:mt-4 text-xs text-gray-500">
-              {headerStats.activeSessions || 0} active sessions
-            </div>
-          </CardContent>
-        </Card>
+      {/* Key Metrics Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatsCard 
+          title="Total Branches"
+          value={formatNumber(headerStats.totalBranches || 0)}
+          icon={Building2}
+          change={headerStats.branchGrowth}
+          description={`${headerStats.activeBranches || 0} Active • ${headerStats.inactiveBranches || 0} Inactive`}
+          color="blue"
+        />
+        <StatsCard 
+          title="Total Students"
+          value={formatNumber(headerStats.totalStudents || 0)}
+          icon={GraduationCap}
+          change={headerStats.studentGrowth}
+          description={`Across ${headerStats.activeBranches || 0} active branches`}
+          color="green"
+        />
+        <StatsCard 
+          title="Total Teachers"
+          value={formatNumber(headerStats.totalTeachers || 0)}
+          icon={UserCheck}
+          description="Active faculty members"
+          color="purple"
+        />
+        <StatsCard 
+          title="Total Admins"
+          value={formatNumber(headerStats.totalAdmins || 0)}
+          icon={Users}
+          description="Branch administrators"
+          color="indigo"
+        />
+        <StatsCard 
+          title="Total Classes"
+          value={formatNumber(headerStats.totalClasses || 0)}
+          icon={BookOpen}
+          description={`${headerStats.activeClasses || 0} Active sections`}
+          color="emerald"
+        />
+        <StatsCard 
+          title="Total Revenue"
+          value={formatCurrency(headerStats.totalRevenue || 0)}
+          icon={DollarSign}
+          change={headerStats.revenueChange}
+          description={`${headerStats.feeCollectionRate || 0}% collection rate`}
+          color="yellow"
+        />
+        <StatsCard 
+          title="Total Attendance"
+          value={formatNumber(headerStats.totalAttendance || 0)}
+          icon={CheckCircle}
+          description="Records processed"
+          color="orange"
+        />
+        <StatsCard 
+          title="System Uptime"
+          value={`${headerStats.systemUptime || 0}%`}
+          icon={Activity}
+          description={`${headerStats.activeSessions || 0} active sessions`}
+          color="red"
+        />
       </div>
 
       {/* Performance Metrics & System Overview */}
@@ -694,42 +560,16 @@ function SuperAdminDashboard() {
         </Card>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Settings className="w-5 h-5" />
-            Quick Actions
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            <Button variant="outline" className="h-20 flex flex-col items-center gap-2 hover:bg-blue-50 hover:border-blue-200">
-              <Users className="w-6 h-6 text-blue-600" />
-              <span className="text-sm text-center">Manage Users</span>
-            </Button>
-            <Button variant="outline" className="h-20 flex flex-col items-center gap-2 hover:bg-green-50 hover:border-green-200">
-              <Building2 className="w-6 h-6 text-green-600" />
-              <span className="text-sm text-center">Branch Settings</span>
-            </Button>
-            <Button variant="outline" className="h-20 flex flex-col items-center gap-2 hover:bg-purple-50 hover:border-purple-200">
-              <FileText className="w-6 h-6 text-purple-600" />
-              <span className="text-sm text-center">Reports</span>
-            </Button>
-            <Button variant="outline" className="h-20 flex flex-col items-center gap-2 hover:bg-yellow-50 hover:border-yellow-200">
-              <Bell className="w-6 h-6 text-yellow-600" />
-              <span className="text-sm text-center">Notifications</span>
-            </Button>
-            <Button variant="outline" className="h-20 flex flex-col items-center gap-2 hover:bg-red-50 hover:border-red-200">
-              <Receipt className="w-6 h-6 text-red-600" />
-              <span className="text-sm text-center">Expenses</span>
-            </Button>
-            <Button variant="outline" className="h-20 flex flex-col items-center gap-2 hover:bg-indigo-50 hover:border-indigo-200">
-              <Calendar className="w-6 h-6 text-indigo-600" />
-              <span className="text-sm text-center">Events</span>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <QuickActions 
+        actions={[
+          { title: "Manage Users", icon: Users, color: "text-blue-600" },
+          { title: "Branch Settings", icon: Building2, color: "text-green-600" },
+          { title: "Reports", icon: FileText, color: "text-purple-600" },
+          { title: "Notifications", icon: Bell, color: "text-yellow-600" },
+          { title: "Expenses", icon: Receipt, color: "text-red-600" },
+          { title: "Events", icon: Calendar, color: "text-indigo-600" },
+        ]}
+      />
 
       {/* Analytics Charts */}
       <div className="space-y-6">

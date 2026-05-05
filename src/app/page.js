@@ -386,7 +386,7 @@ function AnimatedCounter({ endVal, suffix, duration = 2500, isVisible = false })
   }, [isVisible, endVal, duration]);
 
   return (
-    <span className="text-4xl font-black text-slate-950">
+    <span className="text-4xl font-bold text-slate-950">
       {Math.floor(count).toLocaleString()}{suffix}
     </span>
   );
@@ -661,7 +661,7 @@ export default function Home() {
                 Smart Coaching System
               </div>
 
-              <h1 className="mt-6 max-w-xl text-4xl font-black tracking-tight text-slate-950 sm:text-5xl lg:text-6xl">
+              <h1 className="mt-6 max-w-xl text-4xl font-bold tracking-tight text-slate-950 sm:text-5xl lg:text-6xl">
                 Manage Students, Teachers & Exams Easily
               </h1>
 
@@ -687,7 +687,7 @@ export default function Home() {
               <div className="mt-10 grid max-w-2xl grid-cols-2 gap-4 sm:grid-cols-4">
                 {statistics.map((stat) => (
                   <div key={stat.label} className="rounded-2xl border border-white/70 bg-white/80 p-4 shadow-sm backdrop-blur">
-                    <div className="text-2xl font-bold text-slate-950">{stat.value}</div>
+                    <div className="text-2xl font-semibold text-slate-950">{stat.value}</div>
                     <div className="mt-1 text-xs uppercase tracking-[0.22em] text-slate-500">{stat.label}</div>
                   </div>
                 ))}

@@ -56,4 +56,66 @@ export const TableSkeleton = ({ rows = 5 }) => (
   </div>
 );
 
+export const BranchManagementSkeleton = () => (
+  <div className="space-y-6">
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pt-8">
+      <div className="space-y-2">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-4 w-72" />
+      </div>
+      <Skeleton className="h-10 w-32" />
+    </div>
+    
+    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+      {[...Array(4)].map((_, i) => (
+        <Skeleton key={i} className="h-28 rounded-xl" />
+      ))}
+    </div>
+
+    <div className="bg-white p-4 rounded-lg border border-gray-100">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <Skeleton className="h-10 rounded-lg" />
+        <Skeleton className="h-10 rounded-lg" />
+      </div>
+    </div>
+
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {[...Array(3)].map((_, i) => (
+        <CardSkeleton key={i} />
+      ))}
+    </div>
+  </div>
+);
+
+export const AdminManagementSkeleton = () => (
+  <div className="space-y-6">
+    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pt-8 gap-4">
+      <div className="space-y-2">
+        <Skeleton className="h-10 w-64" />
+        <Skeleton className="h-4 w-96" />
+      </div>
+    </div>
+    
+    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      {[...Array(4)].map((_, i) => (
+        <Skeleton key={i} className="h-28 rounded-xl" />
+      ))}
+    </div>
+
+    <div className="bg-white p-4 rounded-xl border border-gray-100 shadow-sm">
+      <Skeleton className="h-12 w-full rounded-lg" />
+    </div>
+
+    <div className="bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm">
+      <div className="p-6 border-b border-gray-100 flex justify-between items-center">
+        <Skeleton className="h-8 w-48" />
+        <Skeleton className="h-10 w-40 rounded-lg" />
+      </div>
+      <div className="p-6">
+        <TableSkeleton rows={6} />
+      </div>
+    </div>
+  </div>
+);
+
 export default Skeleton;

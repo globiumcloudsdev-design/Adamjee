@@ -177,11 +177,11 @@ User.prototype.comparePassword = async function (plainPassword) {
 User.prototype.addDocument = function (docType, url, filename) {
   const docs = this.documents || [];
   docs.push({
-    id: uuidv4(),
-    type: docType,
-    url,
-    filename,
-    uploaded_at: new Date(),
+      id: uuidv4(),
+      type: docType,
+      url,
+      filename,
+      uploaded_at: new Date(),
   });
   return this.update({ documents: docs });
 };

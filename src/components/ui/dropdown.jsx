@@ -11,7 +11,7 @@ import { ChevronDown, Check } from 'lucide-react';
 // - className: extra classes
 // - disabled
 // - icon: React node (defaults to ChevronDown)
-export default function Dropdown({ id, name, value, onChange, options = [], placeholder = 'Select an option', className = '', disabled = false, icon = null, ...props }) {
+export default function Dropdown({ id, name, value, onChange, options = [], placeholder = 'Select an option', className = '', disabled = false, icon = null, label = null, required = false, ...props }) {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
   const Icon = icon || ChevronDown;
@@ -43,7 +43,14 @@ export default function Dropdown({ id, name, value, onChange, options = [], plac
   };
 
   return (
-    <div className={`relative ${className}`} ref={dropdownRef}>
+    <div className={`flex flex-col w-full ${className}`} ref={dropdownRef}>
+      {label && (
+        <label className="text-sm text-gray-600 mb-1 flex items-center gap-1">
+          {label}
+          {required && <span className="text-red-500 font-bold">*</span>}
+        </label>
+      )}
+      <div className="relative">
       {/* Hidden native select for form compatibility */}
       <select
         id={id}
@@ -122,6 +129,7 @@ export default function Dropdown({ id, name, value, onChange, options = [], plac
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 }

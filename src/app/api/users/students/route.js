@@ -29,7 +29,6 @@ export async function POST(req) {
       last_name,
       email,
       phone,
-      password,
       branch_id,
       academic_year_id,
       class_id,
@@ -39,6 +38,8 @@ export async function POST(req) {
       registration_no,
       roll_no,
     } = data;
+
+    const password = data.password || phone;
 
     // 1. Authorization
     const targetBranchId =

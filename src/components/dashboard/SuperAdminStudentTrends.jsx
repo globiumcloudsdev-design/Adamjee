@@ -7,6 +7,7 @@ import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, Responsi
 import { TrendingUp, TrendingDown, RefreshCw } from 'lucide-react';
 import apiClient from '@/lib/api-client';
 import { API_ENDPOINTS } from '@/constants/api-endpoints';
+import Skeleton from '@/components/ui/skeleton';
 
 const SuperAdminStudentTrends = ({ selectedBranch = 'all', branchPerformance = [] }) => {
   const [data, setData] = useState([]);
@@ -136,8 +137,8 @@ const SuperAdminStudentTrends = ({ selectedBranch = 'all', branchPerformance = [
       </CardHeader>
       <CardContent className="pt-2">
         {loading ? (
-          <div className="h-48 sm:h-64 md:h-80 flex items-center justify-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+          <div className="h-48 sm:h-64 md:h-[300px]">
+            <Skeleton className="w-full h-full rounded-lg" />
           </div>
         ) : error && data.length === 0 ? (
           <div className="h-48 sm:h-64 md:h-80 flex flex-col items-center justify-center text-gray-500 dark:text-gray-400">

@@ -143,17 +143,17 @@ const ROLE_MENUS = {
       isCollapsible: true,
       items: [
         { name: "My Classes", path: "/teacher/classes", icon: School },
-        { name: "Assignments", path: "/teacher/assignments", icon: FileText },
+        // { name: "Assignments", path: "/teacher/assignments", icon: FileText },
         { name: "Exams", path: "/teacher/exams", icon: Calendar },
-        { name: "Self Attendance", path: "/teacher/self-attendance", icon: UserCheck },
+        // { name: "Self Attendance", path: "/teacher/self-attendance", icon: UserCheck },
       ],
     },
-    {
-      category: "Communication",
-      items: [
-        { name: "Parent Contact", path: "/teacher/parent-contact", icon: Users },
-      ],
-    },
+    // {
+    //   category: "Communication",
+    //   items: [
+    //     { name: "Parent Contact", path: "/teacher/parent-contact", icon: Users },
+    //   ],
+    // },
     {
       category: "Account",
       items: [
@@ -276,25 +276,25 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
           "fixed md:sticky left-0 z-50 flex flex-col transition-all duration-500 cubic-bezier(0.4, 0, 0.2, 1)",
           "bg-white/80 dark:bg-slate-950/80 backdrop-blur-xl border-r border-slate-200/50 dark:border-slate-800/50",
           "top-0 h-[100dvh] md:top-0 md:h-screen shadow-2xl shadow-indigo-500/5",
-          isOpen ? "w-72" : "w-[88px]",
+          isOpen ? "w-64" : "w-[80px]",
           mobileOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0"
         )}
       >
         {/* Logo Section */}
-        <div className="h-20 flex items-center justify-between px-6 border-b border-slate-100/50 dark:border-slate-800/50">
+        <div className="h-20 flex items-center justify-between px-4 border-b border-slate-100/50 dark:border-slate-800/50">
           {isOpen ? (
-            <div className="flex items-center gap-3 animate-in fade-in slide-in-from-left-4 duration-500">
-              <div className="relative group">
+            <div className="flex items-center gap-2.5 animate-in fade-in slide-in-from-left-4 duration-500 min-w-0">
+              <div className="relative group flex-shrink-0">
                 <div className="absolute -inset-1 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl blur opacity-25 group-hover:opacity-50 transition duration-1000 group-hover:duration-200"></div>
-                <div className="relative w-11 h-11 rounded-xl bg-white dark:bg-slate-900 overflow-hidden flex items-center justify-center shadow-xl shadow-indigo-500/20">
-                  <img src="/logo.png" alt="Logo" className="w-9 h-9 object-contain" />
+                <div className="relative w-10 h-10 rounded-xl bg-white dark:bg-slate-900 overflow-hidden flex items-center justify-center shadow-xl shadow-indigo-500/20">
+                  <img src="/logo.png" alt="Logo" className="w-8 h-8 object-contain" />
                 </div>
               </div>
-              <div className="flex flex-col">
-                <h2 className="font-extrabold text-base tracking-tight text-slate-900 dark:text-white leading-tight">
+              <div className="flex flex-col min-w-0">
+                <h2 className="font-bold text-[15px] tracking-tight text-slate-900 dark:text-white leading-tight truncate">
                   Adamjee <span className="text-indigo-600">Coaching</span>
                 </h2>
-                <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-slate-400 dark:text-slate-500">Management System</span>
+                <span className="text-[9px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-500 truncate">Management System</span>
               </div>
             </div>
           ) : (
@@ -320,18 +320,20 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
 
         {/* User Card */}
         {isOpen && (
-          <div className="px-5 py-6">
-            <div className="relative group p-4 rounded-2xl bg-slate-50/50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800/50 hover:border-indigo-200 dark:hover:border-indigo-900/30 transition-all duration-300">
-              <div className="flex items-center gap-4">
-                <div className="relative">
-                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-500 to-indigo-600 text-white flex items-center justify-center font-bold text-lg shadow-lg shadow-indigo-500/20 ring-2 ring-white dark:ring-slate-950">
+          <div className="px-4 py-4">
+            <div className="relative group p-3 rounded-2xl bg-slate-50/50 dark:bg-slate-900/40 border border-slate-100 dark:border-slate-800/50 hover:border-indigo-200 dark:hover:border-indigo-900/30 transition-all duration-300">
+              <div className="flex items-center gap-3">
+                <div className="relative flex-shrink-0">
+                  <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-indigo-500 via-purple-500 to-indigo-600 text-white flex items-center justify-center font-bold text-base shadow-lg shadow-indigo-500/20 ring-2 ring-white dark:ring-slate-950">
                     {user.fullName?.[0]}
                   </div>
-                  <div className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-950 ring-2 ring-emerald-500/20 animate-pulse"></div>
+                  <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full bg-emerald-500 border-2 border-white dark:border-slate-950 ring-2 ring-emerald-500/20 animate-pulse"></div>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-bold text-slate-900 dark:text-white truncate tracking-tight">{user.fullName}</p>
-                  <p className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-widest">{role.replace("_", " ")}</p>
+                  <p className="text-sm font-semibold text-slate-900 dark:text-white truncate tracking-tight mb-0.5">{user.fullName}</p>
+                  <div className="inline-flex items-center px-1.5 py-0.5 rounded-md bg-indigo-50 dark:bg-indigo-900/30 border border-indigo-100 dark:border-indigo-800/50">
+                    <p className="text-[9px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider truncate">{role.replace("_", " ")}</p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -350,7 +352,7 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
                   <button
                     onClick={() => group.isCollapsible && toggleSection(group.category)}
                     className={cn(
-                      "w-full flex items-center justify-between px-3 py-2 text-[10px] font-black uppercase tracking-[0.2em] transition-all",
+                      "w-full flex items-center justify-between px-3 py-2 text-[10px] font-bold uppercase tracking-[0.2em] transition-all",
                       group.isCollapsible ? "cursor-pointer hover:text-indigo-600" : "cursor-default",
                       hasActive ? "text-indigo-600" : "text-slate-400 dark:text-slate-500"
                     )}
@@ -378,7 +380,7 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
                           scroll={false}
                           onClick={() => setMobileOpen(false)}
                           className={cn(
-                            "group relative flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-semibold transition-all duration-300",
+                            "group relative flex items-center gap-3.5 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-300",
                             isActive
                               ? "bg-indigo-600 text-white shadow-xl shadow-indigo-600/25 ring-1 ring-white/10"
                               : "text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-900/50 hover:text-slate-900 dark:hover:text-white",
@@ -429,7 +431,7 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
              <Button
                 variant="ghost"
                 onClick={() => setMobileOpen(false)}
-                className="w-full flex md:hidden items-center justify-start gap-3 px-4 h-12 text-slate-500 hover:text-slate-900 font-bold rounded-xl"
+                 className="w-full flex md:hidden items-center justify-start gap-3 px-4 h-12 text-slate-500 hover:text-slate-900 font-semibold rounded-xl"
              >
                 <X size={20} />
                 <span>Close Sidebar</span>
@@ -440,7 +442,7 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
             variant="ghost"
             onClick={logout}
             className={cn(
-              "group w-full h-12 rounded-xl text-slate-500 hover:bg-red-50 dark:hover:bg-red-950/20 hover:text-red-600 font-bold transition-all duration-300",
+               "group w-full h-12 rounded-xl text-slate-500 hover:bg-red-50 dark:hover:bg-red-950/20 hover:text-red-600 font-semibold transition-all duration-300",
               isOpen ? "justify-start px-4" : "justify-center px-0"
             )}
             title={!isOpen ? "Logout" : undefined}

@@ -219,7 +219,19 @@ async function createBranchAdmin(req) {
     );
   }
 
-  const body = await req.json();
+  // --- Content-Type Detection ---
+  const contentType = req.headers.get("content-type") || "";
+  let data = {};
+  let formData = null;
+
+  if (contentType.includes("multipart/form-data")) {
+    formData = await req.formData();
+    const dataStr = formData.get('data');
+    if (dataStr) data = JSON.parse(dataStr);
+  } else {
+    data = await req.json();
+  }
+
   let {
     branch_id,
     first_name,
@@ -230,7 +242,7 @@ async function createBranchAdmin(req) {
     registration_no,
     details,
     avatar,
-  } = body;
+  } = data;
 
   if (!branch_id || !first_name || !last_name || !phone || !password) {
     return NextResponse.json(
@@ -300,6 +312,46 @@ async function createBranchAdmin(req) {
       const uploadResult = await uploadProfilePhoto(avatar, newAdmin.id);
       avatarUrl = uploadResult.url;
       avatarPublicId = uploadResult.publicId;
+    } else if (formData && formData.get('profilePhoto')) {
+      const profilePhoto = formData.get('profilePhoto');
+      if (profilePhoto instanceof File) {
+        const buffer = Buffer.from(await profilePhoto.arrayBuffer());
+        const base64 = `data:${profilePhoto.type};base64,${buffer.toString('base64')}`;
+        const uploadResult = await uploadProfilePhoto(base64, newAdmin.id);
+        avatarUrl = uploadResult.url;
+        avatarPublicId = uploadResult.publicId;
+      }
+    }
+
+    // Handle documents upload (if provided via FormData)
+    let finalDocuments = [];
+    if (formData) {
+      const docFiles = formData.getAll('documents');
+      const docMetaStr = formData.get('documentMetadata');
+      const docMeta = docMetaStr ? JSON.parse(docMetaStr) : [];
+      
+      let fileIdx = 0;
+      for (const meta of docMeta) {
+        const file = docFiles[fileIdx++];
+        if (file && file instanceof File) {
+          try {
+            const buffer = Buffer.from(await file.arrayBuffer());
+            const base64 = `data:${file.type};base64,${buffer.toString('base64')}`;
+            const uploadRes = await uploadAdminDocument(base64, newAdmin.id, meta.type || "other");
+            
+            finalDocuments.push({
+              id: uuidv4(),
+              type: meta.type || "other",
+              name: meta.name || file.name,
+              url: uploadRes.url,
+              publicId: uploadRes.publicId,
+              uploaded_at: new Date().toISOString()
+            });
+          } catch (uploadErr) {
+            console.error("Doc Upload Error:", uploadErr);
+          }
+        }
+      }
     }
 
     // Generate QR code (data URL)
@@ -313,13 +365,14 @@ async function createBranchAdmin(req) {
     qrCodeUrl = qrUpload.url;
     qrCodePublicId = qrUpload.publicId;
 
-    // Update user with avatar and QR code
+    // Update user with avatar, QR code, and documents
     await newAdmin.update(
       {
         avatar_url: avatarUrl,
         avatar_public_id: avatarPublicId,
         qr_code_url: qrCodeUrl,
         qr_code_public_id: qrCodePublicId,
+        documents: finalDocuments,
       },
       { transaction },
     );

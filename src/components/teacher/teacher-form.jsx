@@ -15,6 +15,8 @@ import ClassSelect from '@/components/ui/class-select';
 import DocumentTypeSelect from '@/components/ui/document-type-select';
 import ButtonLoader from '@/components/ui/button-loader';
 import DatePicker from '@/components/ui/date-picker';
+import PhoneInput from '@/components/ui/phone-input';
+import CNICInput from '@/components/ui/cnic-input';
 
 export default function TeacherForm({
   userRole = 'super_admin',
@@ -623,32 +625,18 @@ export default function TeacherForm({
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Phone <span className="text-red-500">*</span>
-                </label>
-                <Input
-                  type="tel"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleInputChange}
-                  required
-                  placeholder="+92 300 1234567"
-                  icon={Phone}
-                />
-              </div>
+              <PhoneInput
+                label="Phone"
+                value={formData.phone}
+                onChange={(val) => setFormData({ ...formData, phone: val })}
+                required
+              />
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Alternate Phone</label>
-                <Input
-                  type="tel"
-                  name="alternatePhone"
-                  value={formData.alternatePhone}
-                  onChange={handleInputChange}
-                  placeholder="+92 300 1234568"
-                  icon={Phone}
-                />
-              </div>
+              <PhoneInput
+                label="Alternate Phone"
+                value={formData.alternatePhone}
+                onChange={(val) => setFormData({ ...formData, alternatePhone: val })}
+              />
 
               <DatePicker
                 label="Date of Birth"
@@ -678,16 +666,11 @@ export default function TeacherForm({
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">CNIC</label>
-                <Input
-                  type="text"
-                  name="cnic"
-                  value={formData.cnic}
-                  onChange={handleInputChange}
-                  placeholder="42101-1234567-1"
-                />
-              </div>
+              <CNICInput
+                label="CNIC"
+                value={formData.cnic}
+                onChange={(val) => setFormData({ ...formData, cnic: val })}
+              />
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Religion</label>

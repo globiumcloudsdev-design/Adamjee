@@ -1,34 +1,40 @@
-'use client';
-import { useState } from 'react';
-import { useAuth } from '@/hooks/useAuth';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Mail, Lock, AlertCircle, Loader, Eye, EyeOff } from 'lucide-react';
-import Link from 'next/link';
+"use client";
+import { useState } from "react";
+import { useAuth } from "@/hooks/useAuth";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Card,
+  CardContent,
+  CardHeader,
+  CardTitle,
+  CardDescription,
+} from "@/components/ui/card";
+import { Mail, Lock, AlertCircle, Loader, Eye, EyeOff } from "lucide-react";
+import Link from "next/link";
 
 export default function LoginPage() {
-  const [loginValue, setLoginValue] = useState('');
-  const [password, setPassword] = useState('');
+  const [loginValue, setLoginValue] = useState("");
+  const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError('');
+    setError("");
     setLoading(true);
 
     try {
       if (!loginValue || !password) {
-        setError('Login ID and password are required');
+        setError("Login ID and password are required");
         setLoading(false);
         return;
       }
 
       if (password.length < 6) {
-        setError('Password must be at least 6 characters');
+        setError("Password must be at least 6 characters");
         setLoading(false);
         return;
       }
@@ -36,27 +42,31 @@ export default function LoginPage() {
       const result = await login(loginValue, password);
 
       if (!result.success) {
-        setError(result.message || 'Login failed');
+        setError(result.message || "Login failed");
       }
     } catch (err) {
-      setError('An unexpected error occurred');
-      console.error('Login error:', err);
+      setError("An unexpected error occurred");
+      console.error("Login error:", err);
     } finally {
       setLoading(false);
     }
   };
 
   const testAccounts = [
-    { login: 'admin@coaching.com', password: 'Admin@123', role: 'Super Admin' },
-    { login: 'sajoodali486@gmail.com', password: '111111', role: 'Branch Admin' },
-    { login: 'sajoodali@gmail.com', password: '111111', role: 'Teacher' },
-    { login: 'ali@111gmail.com', password: '24568655342', role: 'Student' },
+    { login: "admin@coaching.com", password: "Admin@123", role: "Super Admin" },
+    {
+      login: "sajoodali486@gmail.com",
+      password: "111111",
+      role: "Branch Admin",
+    },
+    { login: "sajoodali@gmail.com", password: "111111", role: "Teacher" },
+    // { login: 'ali@111gmail.com', password: '24568655342', role: 'Student' },
   ];
 
   const fillTestCredentials = (testLogin, testPassword) => {
     setLoginValue(testLogin);
     setPassword(testPassword);
-    setError('');
+    setError("");
   };
 
   return (
@@ -64,9 +74,13 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         {/* Header */}
         <div className="text-center mb-8">
-            <div className="flex items-center justify-center mb-4">
+          <div className="flex items-center justify-center mb-4">
             <div className="w-20 h-20 bg-white rounded-2xl flex items-center justify-center shadow-xl border border-gray-100 overflow-hidden">
-              <img src="/logo.png" alt="Adamjee Logo" className="w-16 h-16 object-contain" />
+              <img
+                src="/logo.png"
+                alt="Adamjee Logo"
+                className="w-16 h-16 object-contain"
+              />
             </div>
           </div>
           <h1 className="text-3xl font-bold text-gray-900">Adamjee Coaching</h1>
@@ -76,7 +90,9 @@ export default function LoginPage() {
         {/* Login Card */}
         <Card className="shadow-lg border-gray-200">
           <CardHeader className="pb-6">
-            <CardTitle className="text-xl font-semibold text-gray-900">Welcome Back</CardTitle>
+            <CardTitle className="text-xl font-semibold text-gray-900">
+              Welcome Back
+            </CardTitle>
             <CardDescription className="text-gray-600">
               Sign in to your account to continue
             </CardDescription>
@@ -94,7 +110,10 @@ export default function LoginPage() {
             {/* Login Form */}
             <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
-                <label htmlFor="login" className="text-sm font-medium text-gray-700">
+                <label
+                  htmlFor="login"
+                  className="text-sm font-medium text-gray-700"
+                >
                   Login ID (Email or Reg No)
                 </label>
                 <div className="relative">
@@ -113,11 +132,14 @@ export default function LoginPage() {
 
               <div className="space-y-2">
                 <div className="flex justify-between items-center">
-                  <label htmlFor="password" className="text-sm font-medium text-gray-700">
+                  <label
+                    htmlFor="password"
+                    className="text-sm font-medium text-gray-700"
+                  >
                     Password
                   </label>
-                  <Link 
-                    href="/auth/forgot-password" 
+                  <Link
+                    href="/auth/forgot-password"
                     className="text-sm text-blue-600 hover:text-blue-800"
                   >
                     Forgot password?
@@ -159,7 +181,7 @@ export default function LoginPage() {
                     Signing in...
                   </>
                 ) : (
-                  'Sign In'
+                  "Sign In"
                 )}
               </Button>
             </form>
@@ -173,31 +195,29 @@ export default function LoginPage() {
                 <div className="h-px bg-gray-200 mt-3" />
               </div>
 
-            <div className="space-y-2">
-              {testAccounts.map((account, index) => (
-                <Button
-                  key={index}
-                  type="button"
-                  onClick={() => fillTestCredentials(account.login, account.password)}
-                  disabled={loading}
-                  className="w-full justify-start space-y-0.5"
-                >
-                  <div>
-                    {account.role}
-                  </div>
-                  <div className="text-xs opacity-70">
-                    {account.login}
-                  </div>
-                </Button>
-              ))}
-            </div>
+              <div className="space-y-2">
+                {testAccounts.map((account, index) => (
+                  <Button
+                    key={index}
+                    type="button"
+                    onClick={() =>
+                      fillTestCredentials(account.login, account.password)
+                    }
+                    disabled={loading}
+                    className="w-full justify-start space-y-0.5"
+                  >
+                    <div>{account.role}</div>
+                    <div className="text-xs opacity-70">{account.login}</div>
+                  </Button>
+                ))}
+              </div>
 
-            {/* Footer */}
-            <div className="pt-4 border-t border-gray-200">
-              <p className="text-center text-sm text-gray-500">
-                Demo application • Use test accounts above
-              </p>
-            </div>
+              {/* Footer */}
+              <div className="pt-4 border-t border-gray-200">
+                <p className="text-center text-sm text-gray-500">
+                  Demo application • Use test accounts above
+                </p>
+              </div>
             </div>
           </CardContent>
         </Card>

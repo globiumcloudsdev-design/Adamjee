@@ -11,6 +11,10 @@ import BranchSelect from '@/components/ui/branch-select';
 import ButtonLoader from '@/components/ui/button-loader';
 import Dropdown from '@/components/ui/dropdown';
 import { toast } from 'sonner';
+import PhoneInput from '@/components/ui/phone-input';
+import CNICInput from '@/components/ui/cnic-input';
+import DatePicker from '@/components/ui/date-picker';
+import TimePicker from '@/components/ui/time-picker';
 
 const STAFF_TYPE_OPTIONS = [
   // Administrative Staff
@@ -460,46 +464,24 @@ export default function AddStaffModal({ open, onClose, onSuccess, branches, role
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Phone (Optional)
-              </label>
-              <input
-                type="tel"
-                name="phone"
-                value={formData.phone}
-                onChange={handleChange}
-                placeholder="+92 300 1234567"
-                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
-              />
-            </div>
+            <PhoneInput
+              label="Phone"
+              value={formData.phone}
+              onChange={(val) => setFormData(prev => ({ ...prev, phone: val }))}
+            />
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Alternate Phone
-              </label>
-              <input
-                type="tel"
-                name="alternatePhone"
-                value={formData.alternatePhone}
-                onChange={handleChange}
-                placeholder="+92 300 1234567"
-                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
-              />
-            </div>
+            <PhoneInput
+              label="Alternate Phone"
+              value={formData.alternatePhone}
+              onChange={(val) => setFormData(prev => ({ ...prev, alternatePhone: val }))}
+            />
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Date of Birth
-              </label>
-              <input
-                type="date"
-                name="dateOfBirth"
-                value={formData.dateOfBirth}
-                onChange={handleChange}
-                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
-              />
-            </div>
+            <DatePicker
+              label="Date of Birth"
+              name="dateOfBirth"
+              value={formData.dateOfBirth}
+              onChange={handleChange}
+            />
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -512,19 +494,11 @@ export default function AddStaffModal({ open, onClose, onSuccess, branches, role
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                CNIC
-              </label>
-              <input
-                type="text"
-                name="cnic"
-                value={formData.cnic}
-                onChange={handleChange}
-                placeholder="XXXXX-XXXXXXX-X"
-                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
-              />
-            </div>
+            <CNICInput
+              label="CNIC"
+              value={formData.cnic}
+              onChange={(val) => setFormData(prev => ({ ...prev, cnic: val }))}
+            />
 
 
 
@@ -621,18 +595,12 @@ export default function AddStaffModal({ open, onClose, onSuccess, branches, role
 
 
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Joining Date
-              </label>
-              <input
-                type="date"
-                name="joiningDate"
-                value={formData.joiningDate}
-                onChange={handleChange}
-                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
-              />
-            </div>
+            <DatePicker
+              label="Joining Date"
+              name="joiningDate"
+              value={formData.joiningDate}
+              onChange={handleChange}
+            />
           </div>
         </div>
 
@@ -691,31 +659,23 @@ export default function AddStaffModal({ open, onClose, onSuccess, branches, role
         <div>
           <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Working Hours</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Start Time
-              </label>
-              <input
-                type="time"
-                name="workingHours.startTime"
-                value={formData.workingHours.startTime}
-                onChange={handleChange}
-                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
-              />
-            </div>
+            <TimePicker
+              label="Start Time"
+              value={formData.workingHours.startTime}
+              onChange={(val) => setFormData(prev => ({
+                ...prev,
+                workingHours: { ...prev.workingHours, startTime: val }
+              }))}
+            />
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                End Time
-              </label>
-              <input
-                type="time"
-                name="workingHours.endTime"
-                value={formData.workingHours.endTime}
-                onChange={handleChange}
-                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
-              />
-            </div>
+            <TimePicker
+              label="End Time"
+              value={formData.workingHours.endTime}
+              onChange={(val) => setFormData(prev => ({
+                ...prev,
+                workingHours: { ...prev.workingHours, endTime: val }
+              }))}
+            />
 
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -788,18 +748,12 @@ export default function AddStaffModal({ open, onClose, onSuccess, branches, role
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  License Expiry Date
-                </label>
-                <input
-                  type="date"
+                <DatePicker
+                  label="License Expiry Date"
                   name="specializedInfo.driverLicense.expiryDate"
                   value={formData.specializedInfo.driverLicense.expiryDate}
                   onChange={handleChange}
-                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
                 />
-              </div>
             </div>
           </div>
         )}

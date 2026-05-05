@@ -418,9 +418,7 @@ export default function BranchAdminStudentsPage() {
   };
 
 
-  if (loading && students.length === 0) {
-    return <FullPageLoader message="Loading students..." />;
-  }
+
 
   return (
     <div className="p-6 space-y-6">
@@ -571,6 +569,8 @@ export default function BranchAdminStudentsPage() {
         branches={[]}
         classes={classes}
         departments={[]}
+        academicYears={academicYears}
+        groups={branchGroups}
       />
 
       {/* Delete Confirmation Modal */}

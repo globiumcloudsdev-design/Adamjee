@@ -94,7 +94,9 @@ import { User } from "@/backend/models/postgres";
 import {
   uploadProfilePhoto,
   deleteFromCloudinary,
+  uploadAdminDocument,
 } from "@/backend/utils/cloudinary";
+import { v4 as uuidv4 } from "uuid";
 
 async function updateBranchAdmin(req, { params }) {
   const currentUser = req.user;
@@ -114,7 +116,19 @@ async function updateBranchAdmin(req, { params }) {
     );
   }
 
-  const body = await req.json();
+  // --- Content-Type Detection ---
+  const contentType = req.headers.get("content-type") || "";
+  let data = {};
+  let formData = null;
+
+  if (contentType.includes("multipart/form-data")) {
+    formData = await req.formData();
+    const dataStr = formData.get('data');
+    if (dataStr) data = JSON.parse(dataStr);
+  } else {
+    data = await req.json();
+  }
+
   const {
     first_name,
     last_name,
@@ -124,7 +138,7 @@ async function updateBranchAdmin(req, { params }) {
     is_active,
     registration_no,
     avatar,
-  } = body;
+  } = data;
 
   // Update simple fields
   if (first_name !== undefined) admin.first_name = first_name;
@@ -136,14 +150,66 @@ async function updateBranchAdmin(req, { params }) {
   if (password) admin.password_hash = password;
 
   // Handle avatar update
-  if (avatar) {
-    // Delete old avatar from Cloudinary if exists
+  if (avatar && avatar.startsWith("data:image")) {
     if (admin.avatar_public_id) {
       await deleteFromCloudinary(admin.avatar_public_id).catch(console.error);
     }
     const uploadResult = await uploadProfilePhoto(avatar, admin.id);
     admin.avatar_url = uploadResult.url;
     admin.avatar_public_id = uploadResult.publicId;
+  } else if (formData && formData.get('profilePhoto')) {
+    const profilePhoto = formData.get('profilePhoto');
+    if (profilePhoto instanceof File) {
+      if (admin.avatar_public_id) {
+        await deleteFromCloudinary(admin.avatar_public_id).catch(console.error);
+      }
+      const buffer = Buffer.from(await profilePhoto.arrayBuffer());
+      const base64 = `data:${profilePhoto.type};base64,${buffer.toString('base64')}`;
+      const uploadResult = await uploadProfilePhoto(base64, admin.id);
+      admin.avatar_url = uploadResult.url;
+      admin.avatar_public_id = uploadResult.publicId;
+    }
+  }
+
+  // Handle documents update
+  if (formData) {
+    const docFiles = formData.getAll('documents');
+    const docMetaStr = formData.get('documentMetadata');
+    const docMeta = docMetaStr ? JSON.parse(docMetaStr) : [];
+    
+    const updatedDocs = [];
+    let fileIdx = 0;
+    for (const meta of docMeta) {
+      if (meta.isExisting) {
+        updatedDocs.push(meta);
+      } else {
+        const file = docFiles[fileIdx++];
+        if (file && file instanceof File) {
+          try {
+            const buffer = Buffer.from(await file.arrayBuffer());
+            const base64 = `data:${file.type};base64,${buffer.toString('base64')}`;
+            const uploadRes = await uploadAdminDocument(base64, admin.id, meta.type || "other");
+            
+            updatedDocs.push({
+              id: uuidv4(),
+              type: meta.type || "other",
+              name: meta.name || file.name,
+              url: uploadRes.url,
+              publicId: uploadRes.publicId,
+              uploaded_at: new Date().toISOString()
+            });
+          } catch (uploadErr) {
+            console.error("Doc Upload Error:", uploadErr);
+          }
+        }
+      }
+    }
+    admin.documents = updatedDocs;
+    admin.changed('documents', true);
+  } else if (data.documents) {
+    // If sent via JSON (e.g. just deleting a doc)
+    admin.documents = data.documents;
+    admin.changed('documents', true);
   }
 
   admin.updated_by = currentUser.id;

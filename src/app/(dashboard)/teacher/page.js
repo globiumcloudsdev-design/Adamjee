@@ -9,13 +9,15 @@ import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 
 // Import all the new components
-import DashboardGreeting from "@/components/teacher/DashboardGreeting";
-import DashboardStats from "@/components/teacher/DashboardStats";
-import QuickActions from "@/components/teacher/QuickActions";
+import DashboardHeader from "@/components/dashboard/DashboardHeader";
+import StatsCard from "@/components/dashboard/StatsCard";
+import QuickActions from "@/components/dashboard/QuickActions";
+import { BookOpen, Users, CheckCircle, Calendar } from "lucide-react";
+
+// Import teacher-specific components
 import MyClassesCard from "@/components/teacher/MyClassesCard";
 import UpcomingExamsCard from "@/components/teacher/UpcomingExamsCard";
 import TodayAttendanceCard from "@/components/teacher/TodayAttendanceCard";
-import RecentActivityFeed from "@/components/teacher/RecentActivityFeed";
 import CheckInOutCard from "@/components/teacher/CheckInOutCard";
 import AttendanceHistoryCard from "@/components/teacher/AttendanceHistoryCard";
 import DashboardSkeleton from "@/components/teacher/DashboardSkeleton";
@@ -77,11 +79,6 @@ export default function TeacherDashboard() {
         },
       }));
 
-      // UNCOMMENT WHEN BACKEND IS READY:
-      // const response = await apiClient.post(API_ENDPOINTS.TEACHER.CHECK_IN);
-      // if (response.success) {
-      //   fetchDashboardData();
-      // }
     } catch (error) {
       console.error("Check-in error:", error);
       throw error;
@@ -114,11 +111,6 @@ export default function TeacherDashboard() {
         },
       }));
 
-      // UNCOMMENT WHEN BACKEND IS READY:
-      // const response = await apiClient.post(API_ENDPOINTS.TEACHER.CHECK_OUT);
-      // if (response.success) {
-      //   fetchDashboardData();
-      // }
     } catch (error) {
       console.error("Check-out error:", error);
       throw error;
@@ -131,19 +123,12 @@ export default function TeacherDashboard() {
 
   if (error) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Card className="p-6 max-w-md">
-          <div className="text-center">
-            <h2 className="text-xl font-semibold text-destructive mb-2">
-              Error Loading Dashboard
-            </h2>
-            <p className="text-muted-foreground">{error}</p>
-            <button
-              onClick={fetchDashboardData}
-              className="mt-4 px-4 py-2 bg-primary text-primary-foreground rounded hover:bg-primary/90 transition-colors"
-            >
-              Retry
-            </button>
+      <div className="flex items-center justify-center min-h-screen p-6">
+        <Card className="p-8 max-w-md border-red-100 bg-red-50/30">
+          <div className="text-center space-y-4">
+             <h2 className="text-xl font-bold text-slate-900">Error Loading Dashboard</h2>
+             <p className="text-slate-600">{error}</p>
+             <Button onClick={fetchDashboardData} className="w-full">Retry</Button>
           </div>
         </Card>
       </div>
@@ -160,18 +145,50 @@ export default function TeacherDashboard() {
     upcomingExams,
     branchInfo,
     todayAttendance,
-    recentActivity,
     teacherAttendance,
     attendanceHistory,
   } = dashboardData;
 
   return (
-    <div className="p-6 space-y-6 max-w-[1400px] mx-auto">
-      {/* Greeting Section */}
-      <DashboardGreeting user={user} branchInfo={branchInfo} />
+    <div className="p-4 md:p-6 space-y-6 max-w-[1400px] mx-auto min-h-screen">
+      {/* Header & Greeting Section */}
+      <DashboardHeader 
+        title={`Welcome, ${user?.first_name || ''} ${user?.last_name || 'Teacher'}!`}
+        subtitle={`Here's what's happening at ${branchInfo?.branchName || 'your branch'} today.`}
+        onRefresh={fetchDashboardData}
+      />
 
       {/* Stats Grid */}
-      <DashboardStats stats={stats} />
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatsCard 
+          title="My Classes"
+          value={stats?.classes?.total || 0}
+          icon={BookOpen}
+          description={`${stats?.classes?.active || 0} active classes`}
+          color="blue"
+        />
+        <StatsCard 
+          title="Total Students"
+          value={stats?.students?.total || 0}
+          icon={Users}
+          description="Across all assigned classes"
+          color="green"
+        />
+        <StatsCard 
+          title="Attendance Rate"
+          value={`${stats?.attendance?.average || 0}%`}
+          icon={CheckCircle}
+          description="Average this month"
+          color="purple"
+        />
+        <StatsCard 
+          title="Upcoming Exams"
+          value={stats?.exams?.total || 0}
+          icon={Calendar}
+          description={`${stats?.exams?.thisWeek || 0} exams this week`}
+          color="orange"
+        />
+      </div>
 
       {/* Check-In/Out & Attendance History */}
       <div className="grid gap-6 lg:grid-cols-2">
@@ -193,7 +210,16 @@ export default function TeacherDashboard() {
       <TodayAttendanceCard attendanceData={todayAttendance} />
 
       {/* Quick Actions */}
-      <QuickActions />
+      <QuickActions 
+        actions={[
+          { title: "My Profile", icon: Users, color: "text-blue-600", onClick: () => router.push('/profile') },
+          { title: "Attendance", icon: CheckCircle, color: "text-green-600", onClick: () => router.push('/teacher/attendance') },
+          { title: "Syllabus", icon: BookOpen, color: "text-purple-600" },
+          { title: "Exams", icon: Calendar, color: "text-orange-600" },
+          { title: "Leaves", icon: Users, color: "text-red-600" },
+          { title: "Resources", icon: BookOpen, color: "text-indigo-600" },
+        ]}
+      />
     </div>
   );
 }

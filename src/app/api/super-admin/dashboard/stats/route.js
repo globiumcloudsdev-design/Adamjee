@@ -5,7 +5,8 @@ import {
   User, 
   Class, 
   AcademicYear,
-  sequelize 
+  sequelize,
+  Attendance 
 } from '@/backend/models/postgres';
 import { Op } from 'sequelize';
 
@@ -21,7 +22,12 @@ async function getDashboardStats(request) {
     const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
 
     // 1. Branch Metrics
-    const branches = await Branch.findAll();
+    let branches;
+    if (selectedBranchId !== 'all') {
+      branches = await Branch.findAll({ where: { id: selectedBranchId } });
+    } else {
+      branches = await Branch.findAll();
+    }
     const activeBranches = branches.filter(b => b.is_active).length;
     const inactiveBranches = branches.length - activeBranches;
 
@@ -48,6 +54,13 @@ async function getDashboardStats(request) {
     const classes = await Class.findAll({ where: classWhere });
     const activeClasses = classes.filter(c => c.is_active).length;
 
+    // 4. Attendance Metrics
+    const attendanceWhere = {};
+    if (selectedBranchId !== 'all') {
+      attendanceWhere.branch_id = selectedBranchId;
+    }
+    const attendanceCount = await Attendance?.count({ where: attendanceWhere }) || 0;
+
     // 4. Header Statistics
     const headerStats = {
       totalBranches: branches.length,
@@ -56,13 +69,15 @@ async function getDashboardStats(request) {
       branchGrowth,
       totalStudents: students.length,
       studentGrowth,
-      totalRevenue: 0, // Placeholder
+      totalRevenue: 0, 
       revenueChange: 0,
       systemUptime: 99.9,
       activeSessions: allUsers.filter(u => u.last_login_at && (now - new Date(u.last_login_at)) < 24 * 60 * 60 * 1000).length,
       feeCollectionRate: 0,
       totalClasses: classes.length,
       totalTeachers: teachers.length,
+      totalAdmins: branchAdmins.length,
+      totalAttendance: attendanceCount,
       upcomingEvents: 0,
       scheduledExams: 0,
       totalExpenses: 0,

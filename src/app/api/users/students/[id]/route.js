@@ -122,6 +122,17 @@ export async function PUT(req, { params }) {
       student,
     });
   } catch (error) {
+    if (error.name === "SequelizeUniqueConstraintError") {
+      const field = error.errors[0]?.path;
+      const message =
+        field === "email"
+          ? "A student with this email already exists."
+          : field === "phone"
+            ? "A student with this phone number already exists."
+            : "Duplicate entry detected.";
+      return NextResponse.json({ error: message }, { status: 400 });
+    }
+    console.error("Student update error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

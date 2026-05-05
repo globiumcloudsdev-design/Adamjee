@@ -12,6 +12,7 @@ export default function Input({
   className = '',
   icon = null,
   fullWidth = true,
+  required = false,
   ...props
 }) {
   const hasIcon = icon !== null && icon !== false;
@@ -19,7 +20,12 @@ export default function Input({
 
   return (
     <div className={`flex flex-col ${fullWidth ? 'w-full' : ''} ${className}`}>
-      {label && <label className="text-sm text-gray-600 mb-1">{label}</label>}
+      {label && (
+        <label className="text-sm text-gray-600 mb-1 flex items-center gap-1">
+          {label}
+          {required && <span className="text-red-500 font-bold">*</span>}
+        </label>
+      )}
       <div className="relative">
         <input
           type={type}

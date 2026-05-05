@@ -25,7 +25,7 @@ import { Input } from '@/components/ui/input';
 import Dropdown from '@/components/ui/dropdown';
 import Modal from '@/components/ui/modal';
 import dynamic from 'next/dynamic';
-import Skeleton, { CardSkeleton } from '@/components/ui/skeleton';
+import Skeleton, { CardSkeleton, BranchManagementSkeleton } from '@/components/ui/skeleton';
 
 // Branch Components
 import BranchCard from '@/components/branch/BranchCard';
@@ -243,6 +243,14 @@ function BranchesPage() {
   const totalStaff = branches.reduce((sum, b) => sum + (b.stats?.staff || 0), 0);
 
 
+  if (loading && branches.length === 0) {
+    return (
+      <div className="p-4 md:p-6">
+        <BranchManagementSkeleton />
+      </div>
+    );
+  }
+
   return (
     <div className="p-4 md:p-6 space-y-4 md:space-y-6">
       {/* Header */}
@@ -344,14 +352,7 @@ function BranchesPage() {
       {/* Branches Grid */}
       <div className="min-h-[400px]">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {loading && branches.length === 0 ? (
-            // Initial loading skeletons
-            <>
-              <CardSkeleton />
-              <CardSkeleton />
-              <CardSkeleton />
-            </>
-          ) : branches.length === 0 && !loading ? (
+          {branches.length === 0 ? (
             <div className="col-span-full bg-white p-12 rounded-lg border border-gray-200 text-center">
               <Building2 className="w-16 h-16 text-gray-400 mx-auto mb-4" />
               <p className="text-gray-500">No branches found. Create your first branch to get started.</p>

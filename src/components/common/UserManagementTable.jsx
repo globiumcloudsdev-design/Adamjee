@@ -21,6 +21,7 @@ import {
   TableCell 
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
+import Skeleton from "@/components/ui/skeleton";
 
 /**
  * UserManagementTable - A standardized table component for Students, Teachers, Staff, and Admins.
@@ -44,9 +45,57 @@ export default function UserManagementTable({
 }) {
   if (loading) {
     return (
-      <div className="flex flex-col items-center justify-center p-12 space-y-4">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600"></div>
-        <p className="text-gray-500 font-medium">Fetching records...</p>
+      <div className="overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader className="bg-gray-50/50 dark:bg-gray-800/50">
+              <TableRow>
+                <TableHead className="w-[280px]">User Profile</TableHead>
+                <TableHead className="w-[250px]">Contact Information</TableHead>
+                <TableHead className="w-[180px]">Branch & Location</TableHead>
+                <TableHead className="w-[120px]">Account Status</TableHead>
+                <TableHead className="text-right w-[150px]">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {[...Array(5)].map((_, i) => (
+                <TableRow key={i}>
+                  <TableCell>
+                    <div className="flex items-center gap-4">
+                      <Skeleton className="h-12 w-12 rounded-xl" />
+                      <div className="space-y-2">
+                        <Skeleton className="h-4 w-32" />
+                        <Skeleton className="h-3 w-20" />
+                      </div>
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="space-y-2">
+                      <Skeleton className="h-3 w-40" />
+                      <Skeleton className="h-3 w-28" />
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-3 w-20" />
+                    </div>
+                  </TableCell>
+                  <TableCell>
+                    <Skeleton className="h-6 w-20 rounded-full" />
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-1">
+                      <Skeleton className="h-8 w-8 rounded-lg" />
+                      <Skeleton className="h-8 w-8 rounded-lg" />
+                      <Skeleton className="h-8 w-8 rounded-lg" />
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
       </div>
     );
   }
@@ -90,9 +139,9 @@ export default function UserManagementTable({
                   <div className="flex items-center gap-4">
                     <div className="relative">
                       <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-blue-100 to-indigo-100 dark:from-blue-900/40 dark:to-indigo-900/40 flex items-center justify-center overflow-hidden border border-white dark:border-gray-800 shadow-sm group-hover:shadow-md transition-shadow">
-                        {user.avatar_url ? (
+                        {(user.avatar_url || user.profilePhoto?.url || user.profile_photo?.url) ? (
                           <img
-                            src={user.avatar_url}
+                            src={user.avatar_url || user.profilePhoto?.url || user.profile_photo?.url}
                             alt={`${user.first_name} ${user.last_name}`}
                             className="h-full w-full object-cover"
                           />

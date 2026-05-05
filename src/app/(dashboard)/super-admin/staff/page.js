@@ -24,6 +24,7 @@ import Dropdown from '@/components/ui/dropdown';
 import { toast } from 'sonner';
 import UserManagementTable from '@/components/common/UserManagementTable';
 import ConfirmDeleteModal from '@/components/modals/ConfirmDeleteModal';
+import UserDetailModal from '@/components/modals/UserDetailModal';
 
 const STATUS_OPTIONS = [
   { label: 'All Status', value: 'all' },
@@ -47,6 +48,7 @@ export default function SuperAdminStaffPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [staffToDelete, setStaffToDelete] = useState(null);
   const [branches, setBranches] = useState([]);
+  const [pagination, setPagination] = useState({ page: 1, limit: 10 });
 
   // Load staff
   const loadStaff = async () => {
@@ -106,7 +108,15 @@ export default function SuperAdminStaffPage() {
     }
 
     setFilteredStaff(filtered);
+    setPagination(prev => ({ ...prev, page: 1 })); // Reset to page 1 on filter change
   }, [searchQuery, statusFilter, branchFilter, staff]);
+
+  // Paginated data
+  const paginatedStaff = filteredStaff.slice(
+    (pagination.page - 1) * pagination.limit,
+    pagination.page * pagination.limit
+  );
+  const totalPages = Math.ceil(filteredStaff.length / pagination.limit);
 
   // Handle add staff
   const handleAddStaff = () => {
@@ -178,9 +188,6 @@ export default function SuperAdminStaffPage() {
     }
   };
 
-  if (loading) {
-    return <FullPageLoader message="Loading staff..." />;
-  }
 
   return (
     <div className="p-6 space-y-6">
@@ -249,14 +256,55 @@ export default function SuperAdminStaffPage() {
 
       {/* Staff Table */}
       <UserManagementTable
-        data={filteredStaff}
+        data={paginatedStaff}
         loading={loading}
         onView={handleViewStaff}
         onEdit={handleEditStaff}
         onDelete={handleDeleteStaff}
         onToggleStatus={handleToggleStatus}
-        onDownloadQR={handleDownloadQR}
       />
+
+      {/* Pagination Controls */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between mt-6 bg-white dark:bg-gray-800 p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700">
+          <div className="text-sm text-gray-600 dark:text-gray-400 font-medium">
+            Showing <span className="font-bold text-blue-600">{((pagination.page - 1) * pagination.limit) + 1}</span> to <span className="font-bold text-blue-600">{Math.min(pagination.page * pagination.limit, filteredStaff.length)}</span> of {filteredStaff.length} members
+          </div>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
+              disabled={pagination.page === 1}
+              className="px-4"
+            >
+              Previous
+            </Button>
+            <div className="flex items-center gap-1">
+              {[...Array(totalPages)].map((_, i) => (
+                <Button
+                  key={i + 1}
+                  variant={pagination.page === i + 1 ? "default" : "outline"}
+                  size="sm"
+                  className={`w-8 h-8 p-0 ${pagination.page === i + 1 ? 'shadow-md shadow-blue-500/20' : ''}`}
+                  onClick={() => setPagination(prev => ({ ...prev, page: i + 1 }))}
+                >
+                  {i + 1}
+                </Button>
+              ))}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
+              disabled={pagination.page >= totalPages}
+              className="px-4"
+            >
+              Next
+            </Button>
+          </div>
+        </div>
+      )}
 
       {showDeleteModal && (
         <ConfirmDeleteModal
@@ -292,244 +340,13 @@ export default function SuperAdminStaffPage() {
       )}
 
       {/* View Staff Modal */}
-      {showViewModal && selectedStaff && (
-        <Modal
-          open={showViewModal}
-          onClose={() => setShowViewModal(false)}
-          title="Staff Profile Overview"
-          size="xl"
-        >
-          <div className="space-y-8 p-2">
-            {/* Header Section: Profile & QR */}
-            <div className="flex flex-col md:flex-row gap-8 items-start bg-gray-50 dark:bg-gray-700/30 p-6 rounded-2xl border border-gray-100 dark:border-gray-700">
-              <div className="relative group">
-                <div className="h-40 w-40 rounded-2xl bg-white dark:bg-gray-800 flex items-center justify-center overflow-hidden border-4 border-white dark:border-gray-800 shadow-xl">
-                  {selectedStaff.avatar_url ? (
-                    <img
-                      src={selectedStaff.avatar_url}
-                      alt={`${selectedStaff.first_name} ${selectedStaff.last_name}`}
-                      className="h-full w-full object-cover transition-transform group-hover:scale-110"
-                    />
-                  ) : (
-                    <span className="text-5xl font-bold text-blue-500">
-                      {selectedStaff.first_name?.charAt(0)}{selectedStaff.last_name?.charAt(0)}
-                    </span>
-                  )}
-                </div>
-                <div className={`absolute -bottom-3 -right-3 px-4 py-1 rounded-full text-xs font-bold uppercase shadow-lg ${
-                  selectedStaff.is_active ? 'bg-green-500 text-white' : 'bg-red-500 text-white'
-                }`}>
-                  {selectedStaff.is_active ? 'Active' : 'Inactive'}
-                </div>
-              </div>
-
-              <div className="flex-1 space-y-4">
-                <div>
-                  <h2 className="text-3xl font-extrabold text-gray-900 dark:text-white">
-                    {selectedStaff.first_name} {selectedStaff.last_name}
-                  </h2>
-                  <p className="text-blue-600 dark:text-blue-400 font-semibold tracking-wide uppercase text-sm mt-1">
-                    {selectedStaff.staff_sub_type || 'Staff Member'}
-                  </p>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-y-2 gap-x-6 text-sm">
-                  <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-                    <span className="font-bold text-gray-900 dark:text-gray-200">ID:</span>
-                    {selectedStaff.registration_no}
-                  </div>
-                  <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-                    <span className="font-bold text-gray-900 dark:text-gray-200">Email:</span>
-                    {selectedStaff.email}
-                  </div>
-                  <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-                    <span className="font-bold text-gray-900 dark:text-gray-200">Phone:</span>
-                    {selectedStaff.phone || 'N/A'}
-                  </div>
-                  <div className="flex items-center gap-2 text-gray-600 dark:text-gray-400">
-                    <span className="font-bold text-gray-900 dark:text-gray-200">Branch:</span>
-                    {selectedStaff.branch?.name || 'N/A'}
-                  </div>
-                </div>
-              </div>
-
-              {selectedStaff.qr_code_url && (
-                <div className="bg-white p-3 rounded-xl shadow-md border border-gray-100">
-                  <img
-                    src={selectedStaff.qr_code_url}
-                    alt="Access QR"
-                    className="h-28 w-28"
-                  />
-                  <p className="text-[10px] text-center mt-2 font-bold text-gray-400 uppercase tracking-tighter">Digital ID</p>
-                </div>
-              )}
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-              {/* Left Column: Personal & Address */}
-              <div className="lg:col-span-2 space-y-8">
-                {/* Personal Information */}
-                <section>
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                    <div className="w-1.5 h-6 bg-blue-600 rounded-full" />
-                    Personal Details
-                  </h3>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-6 bg-gray-50/50 dark:bg-gray-800/40 p-5 rounded-xl border border-gray-100 dark:border-gray-700">
-                    <DetailItem label="Gender" value={selectedStaff.details?.gender || selectedStaff.gender} />
-                    <DetailItem label="Date of Birth" value={selectedStaff.details?.dateOfBirth || selectedStaff.details?.date_of_birth} isDate />
-                    <DetailItem label="CNIC" value={selectedStaff.details?.cnic || selectedStaff.cnic} />
-                    <DetailItem label="Religion" value={selectedStaff.details?.religion} />
-                    <DetailItem label="Nationality" value={selectedStaff.details?.nationality} />
-                    <DetailItem label="Blood Group" value={selectedStaff.details?.bloodGroup || selectedStaff.details?.blood_group} />
-                    <DetailItem label="Alt. Phone" value={selectedStaff.details?.alternatePhone || selectedStaff.details?.alternate_phone} />
-                  </div>
-                </section>
-
-                {/* Address Information */}
-                <section>
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                    <div className="w-1.5 h-6 bg-purple-600 rounded-full" />
-                    Residential Address
-                  </h3>
-                  <div className="bg-gray-50/50 dark:bg-gray-800/40 p-5 rounded-xl border border-gray-100 dark:border-gray-700">
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-                      <div className="sm:col-span-2">
-                        <DetailItem label="Street Address" value={selectedStaff.details?.address?.street} />
-                      </div>
-                      <DetailItem label="City" value={selectedStaff.details?.address?.city} />
-                      <DetailItem label="State/Province" value={selectedStaff.details?.address?.state} />
-                      <DetailItem label="Country" value={selectedStaff.details?.address?.country} />
-                    </div>
-                  </div>
-                </section>
-
-                {/* Documents Grid */}
-                <section>
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                    <div className="w-1.5 h-6 bg-green-600 rounded-full" />
-                    Verified Documents
-                  </h3>
-                  {selectedStaff.documents?.length > 0 ? (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      {selectedStaff.documents.map((doc, idx) => (
-                        <div key={idx} className="flex items-center justify-between p-4 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm hover:shadow-md transition-shadow">
-                          <div className="flex items-center gap-3">
-                            <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                              <Download className="w-5 h-5 text-blue-600" />
-                            </div>
-                            <div className="overflow-hidden">
-                              <p className="text-sm font-bold text-gray-900 dark:text-white truncate max-w-[140px]">{doc.name}</p>
-                              <p className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">{doc.type}</p>
-                            </div>
-                          </div>
-                          <a href={doc.url} target="_blank" rel="noreferrer" className="text-xs font-bold text-blue-600 hover:underline">VIEW</a>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-gray-500 italic">No documents uploaded</p>
-                  )}
-                </section>
-              </div>
-
-              {/* Right Column: Work & Specialized */}
-              <div className="space-y-8">
-                {/* Employment */}
-                <section>
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                    <div className="w-1.5 h-6 bg-orange-600 rounded-full" />
-                    Job Profile
-                  </h3>
-                  <div className="space-y-4 bg-gray-50/50 dark:bg-gray-800/40 p-5 rounded-xl border border-gray-100 dark:border-gray-700">
-                    <DetailItem label="Designation" value={selectedStaff.details?.designation} />
-                    <DetailItem label="Joining Date" value={selectedStaff.details?.joiningDate || selectedStaff.details?.joining_date} isDate />
-                    <DetailItem label="Staff Sub-Type" value={selectedStaff.staff_sub_type} />
-                  </div>
-                </section>
-
-                {/* Working Schedule */}
-                <section>
-                  <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                    <div className="w-1.5 h-6 bg-cyan-600 rounded-full" />
-                    Work Schedule
-                  </h3>
-                  <div className="space-y-4 bg-gray-50/50 dark:bg-gray-800/40 p-5 rounded-xl border border-gray-100 dark:border-gray-700">
-                    <div className="flex justify-between items-center">
-                      <DetailItem label="Start Time" value={selectedStaff.details?.workingHours?.startTime || selectedStaff.details?.working_hours?.startTime} />
-                      <DetailItem label="End Time" value={selectedStaff.details?.workingHours?.endTime || selectedStaff.details?.working_hours?.endTime} />
-                    </div>
-                    <DetailItem label="Break" value={selectedStaff.details?.workingHours?.breakDuration || selectedStaff.details?.working_hours?.breakDuration ? `${selectedStaff.details?.workingHours?.breakDuration || selectedStaff.details?.working_hours?.breakDuration} mins` : null} />
-                    <div>
-                      <p className="text-[10px] font-bold text-gray-400 uppercase mb-2">Working Days</p>
-                      <div className="flex flex-wrap gap-1">
-                        {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map(day => {
-                          const workingDays = selectedStaff.details?.workingHours?.workingDays || selectedStaff.details?.working_hours?.workingDays || [];
-                          return (
-                            <span key={day} className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                              workingDays.some(d => d.startsWith(day))
-                                ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300'
-                                : 'bg-gray-200 text-gray-400 dark:bg-gray-700 dark:text-gray-500'
-                            }`}>
-                              {day}
-                            </span>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  </div>
-                </section>
-
-                {/* Specialized Info (If any) */}
-                {(selectedStaff.details?.specializedInfo?.driverLicense?.number || 
-                  selectedStaff.details?.specialized_info?.driverLicense?.number ||
-                  selectedStaff.details?.specializedInfo?.securityBadgeNumber || 
-                  selectedStaff.details?.specialized_info?.securityBadgeNumber) && (
-                  <section>
-                    <h3 className="text-lg font-bold text-gray-900 dark:text-white mb-4 flex items-center gap-2">
-                      <div className="w-1.5 h-6 bg-red-600 rounded-full" />
-                      Specialized Info
-                    </h3>
-                    <div className="space-y-4 bg-red-50/30 dark:bg-red-900/10 p-5 rounded-xl border border-red-100 dark:border-red-900/30">
-                      {(selectedStaff.details?.specializedInfo?.driverLicense?.number || selectedStaff.details?.specialized_info?.driverLicense?.number) && (
-                        <>
-                          <DetailItem label="License No" value={selectedStaff.details?.specializedInfo?.driverLicense?.number || selectedStaff.details?.specialized_info?.driverLicense?.number} />
-                          <DetailItem label="License Type" value={selectedStaff.details?.specializedInfo?.driverLicense?.type || selectedStaff.details?.specialized_info?.driverLicense?.type} />
-                          <DetailItem label="License Expiry" value={selectedStaff.details?.specializedInfo?.driverLicense?.expiryDate || selectedStaff.details?.specialized_info?.driverLicense?.expiryDate} isDate />
-                        </>
-                      )}
-                      {(selectedStaff.details?.specializedInfo?.securityBadgeNumber || selectedStaff.details?.specialized_info?.securityBadgeNumber) && (
-                        <DetailItem label="Security Badge" value={selectedStaff.details?.specializedInfo?.securityBadgeNumber || selectedStaff.details?.specialized_info?.securityBadgeNumber} />
-                      )}
-                      {(selectedStaff.details?.specializedInfo?.medicalQualification || selectedStaff.details?.specialized_info?.medicalQualification) && (
-                        <DetailItem label="Medical Qual." value={selectedStaff.details?.specializedInfo?.medicalQualification || selectedStaff.details?.specialized_info?.medicalQualification} />
-                      )}
-                    </div>
-                  </section>
-                )}
-              </div>
-            </div>
-          </div>
-        </Modal>
-      )}
+      <UserDetailModal
+        open={showViewModal}
+        onClose={() => setShowViewModal(false)}
+        user={selectedStaff}
+        title="Staff Profile Overview"
+      />
     </div>
   );
 }
 
-// Helper Component for Details
-function DetailItem({ label, value, isDate = false }) {
-  if (!value && value !== 0) return (
-    <div>
-      <p className="text-[10px] font-bold text-gray-400 uppercase">{label}</p>
-      <p className="text-sm font-medium text-gray-400">---</p>
-    </div>
-  );
-  
-  return (
-    <div>
-      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">{label}</p>
-      <p className="text-sm font-bold text-gray-900 dark:text-gray-100 truncate">
-        {isDate ? new Date(value).toLocaleDateString('en-PK', { day: 'numeric', month: 'short', year: 'numeric' }) : value}
-      </p>
-    </div>
-  );
-}

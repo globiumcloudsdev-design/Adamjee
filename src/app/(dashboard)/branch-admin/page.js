@@ -41,7 +41,11 @@ import {
   Receipt,
   RefreshCw
 } from 'lucide-react';
+import Skeleton from '@/components/ui/skeleton';
 import { useRouter } from 'next/navigation';
+import DashboardHeader from '@/components/dashboard/DashboardHeader';
+import StatsCard from '@/components/dashboard/StatsCard';
+import QuickActions from '@/components/dashboard/QuickActions';
 import TotalStudentsTrend from '@/components/dashboard/TotalStudentsTrend';
 import ClassWiseStudentsCount from '@/components/dashboard/ClassWiseStudentsCount';
 
@@ -100,20 +104,8 @@ export default function BranchAdminDashboard() {
         apiClient.get(API_ENDPOINTS.BRANCH_ADMIN.CHARTS.CLASS_WISE_STUDENTS)
       ]);
 
-      const mockData = {
-        studentTrends: [
-          { month: 'Aug', students: 45 }, { month: 'Sept', students: 52 },
-          { month: 'Oct', students: 48 }, { month: 'Nov', students: 61 },
-          { month: 'Dec', students: 58 }, { month: 'Jan', students: 65 }
-        ],
-        classWise: [
-          { class: 'Class 9', students: 25 }, { class: 'Class 10', students: 30 },
-          { class: 'Class 11', students: 28 }, { class: 'Class 12', students: 32 }
-        ]
-      };
-
-      setStudentTrendsData(studentTrendsRes.status === 'fulfilled' && studentTrendsRes.value.success ? studentTrendsRes.value.data : mockData.studentTrends);
-      setClassWiseStudentsData(classWiseStudentsRes.status === 'fulfilled' && classWiseStudentsRes.value.success ? classWiseStudentsRes.value.data : mockData.classWise);
+      setStudentTrendsData(studentTrendsRes.status === 'fulfilled' && studentTrendsRes.value.success ? studentTrendsRes.value.data : []);
+      setClassWiseStudentsData(classWiseStudentsRes.status === 'fulfilled' && classWiseStudentsRes.value.success ? classWiseStudentsRes.value.data : []);
     } catch (err) {
       console.error('Chart data fetch error:', err);
     } finally {
@@ -147,9 +139,31 @@ export default function BranchAdminDashboard() {
 
   if (authLoading || loading) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen space-y-4">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-        <p className="text-gray-500 font-medium animate-pulse">Initializing Dashboard...</p>
+      <div className="p-4 md:p-6 space-y-6 min-h-screen">
+        <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 pt-8">
+           <div className="space-y-2">
+              <Skeleton className="h-10 w-64" />
+              <Skeleton className="h-4 w-96" />
+           </div>
+           <div className="flex gap-3">
+              <Skeleton className="h-10 w-32 rounded-lg" />
+              <Skeleton className="h-10 w-32 rounded-lg" />
+           </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+           <Skeleton className="h-32 rounded-2xl" />
+           <Skeleton className="h-32 rounded-2xl" />
+           <Skeleton className="h-32 rounded-2xl" />
+           <Skeleton className="h-32 rounded-2xl" />
+        </div>
+
+        <Skeleton className="h-40 rounded-2xl" />
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+           <Skeleton className="h-80 rounded-2xl" />
+           <Skeleton className="h-80 rounded-2xl" />
+        </div>
       </div>
     );
   }
@@ -184,166 +198,69 @@ export default function BranchAdminDashboard() {
   return (
     <div className="p-4 md:p-6 space-y-6 dark:from-gray-900 dark:via-blue-900 dark:to-purple-900 min-h-screen">
       {/* Header */}
-      <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 pt-8">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-black dark:text-white">
-            Branch Admin Dashboard
-          </h1>
-          <p className="text-gray-600 dark:text-gray-400 mt-1 text-sm md:text-base">
-            Comprehensive overview of {branchInfo.name} ({branchInfo.code})
-          </p>
-        </div>
-
-        <div className="flex flex-col sm:flex-row gap-3 w-full lg:w-auto">
-          <Dropdown
-            value={selectedTimeRange}
-            onChange={(e) => setSelectedTimeRange(e.target.value)}
-            options={[
-              { value: '7days', label: 'Last 7 Days' },
-              { value: '30days', label: 'Last 30 Days' },
-              { value: '90days', label: 'Last 90 Days' },
-              { value: '1year', label: 'Last Year' }
-            ]}
-            placeholder="Select Time Range"
-            className="min-w-[140px]"
-          />
-          <Button onClick={loadDashboardData} className="whitespace-nowrap">
-            <RefreshCw className="w-4 h-4 mr-2" />
-            Refresh
-          </Button>
-        </div>
-      </div>
+      <DashboardHeader 
+        title="Branch Admin Dashboard"
+        subtitle={`Comprehensive overview of ${branchInfo.name} (${branchInfo.code})`}
+        onRefresh={loadDashboardData}
+      >
+        <Dropdown
+          value={selectedTimeRange}
+          onChange={(e) => setSelectedTimeRange(e.target.value)}
+          options={[
+            { value: '7days', label: 'Last 7 Days' },
+            { value: '30days', label: 'Last 30 Days' },
+            { value: '90days', label: 'Last 90 Days' },
+            { value: '1year', label: 'Last Year' }
+          ]}
+          placeholder="Select Time Range"
+          className="min-w-[140px]"
+        />
+      </DashboardHeader>
 
       {/* Key Metrics Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-4 gap-4 md:gap-6">
-        {/* Students */}
-        <Card className="hover:shadow-lg transition-shadow">
-          <CardContent className="p-4 md:p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs md:text-sm font-medium text-gray-600 dark:text-gray-400">Total Students</p>
-                <p className="text-xl md:text-2xl font-bold text-gray-900 dark:text-gray-100">{formatNumber(headerStats.totalStudents || 0)}</p>
-                <div className="flex items-center mt-1">
-                  {getChangeIcon(headerStats.studentGrowth || 12)}
-                  <span className={`text-xs md:text-sm ml-1 ${getChangeColor(headerStats.studentGrowth || 12)}`}>
-                    {Math.abs(headerStats.studentGrowth || 12)}%
-                  </span>
-                </div>
-              </div>
-              <div className="p-2 md:p-3 bg-green-100 dark:bg-green-900 rounded-full">
-                <GraduationCap className="w-5 h-5 md:w-6 md:h-6 text-green-600 dark:text-green-400" />
-              </div>
-            </div>
-            <div className="mt-3 md:mt-4 text-xs text-gray-500">
-              {headerStats.activeStudents || 0} Active • {headerStats.inactiveStudents || 0} Inactive
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Teachers */}
-        <Card className="hover:shadow-lg transition-shadow">
-          <CardContent className="p-4 md:p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs md:text-sm font-medium text-gray-600 dark:text-gray-400">Total Teachers</p>
-                <p className="text-xl md:text-2xl font-bold text-gray-900 dark:text-gray-100">{formatNumber(headerStats.totalTeachers || 0)}</p>
-                <div className="flex items-center mt-1">
-                  <UserCheck className="w-4 h-4 text-blue-500" />
-                  <span className="text-xs md:text-sm ml-1 text-blue-600">Active</span>
-                </div>
-              </div>
-              <div className="p-2 md:p-3 bg-purple-100 dark:bg-purple-900 rounded-full">
-                <UserCheck className="w-5 h-5 md:w-6 md:h-6 text-purple-600 dark:text-purple-400" />
-              </div>
-            </div>
-            <div className="mt-3 md:mt-4 text-xs text-gray-500">
-              Faculty members
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Classes */}
-        <Card className="hover:shadow-lg transition-shadow">
-          <CardContent className="p-4 md:p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs md:text-sm font-medium text-gray-600 dark:text-gray-400">Total Classes</p>
-                <p className="text-xl md:text-2xl font-bold text-gray-900 dark:text-gray-100">{formatNumber(headerStats.totalClasses || 0)}</p>
-                <div className="flex items-center mt-1">
-                  <BookOpen className="w-4 h-4 text-indigo-500" />
-                  <span className="text-xs md:text-sm ml-1 text-indigo-600">{headerStats.activeClasses || 0} Active</span>
-                </div>
-              </div>
-              <div className="p-2 md:p-3 bg-indigo-100 dark:bg-indigo-900 rounded-full">
-                <BookOpen className="w-5 h-5 md:w-6 md:h-6 text-indigo-600 dark:text-indigo-400" />
-              </div>
-            </div>
-            <div className="mt-3 md:mt-4 text-xs text-gray-500">
-              Academic sections
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* System Health */}
-        <Card className="hover:shadow-lg transition-shadow">
-          <CardContent className="p-4 md:p-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-xs md:text-sm font-medium text-gray-600 dark:text-gray-400">System Uptime</p>
-                <p className="text-xl md:text-2xl font-bold text-gray-900 dark:text-gray-100">100%</p>
-                <div className="flex items-center mt-1">
-                  <CheckCircle className="w-4 h-4 text-green-500" />
-                  <span className="text-xs md:text-sm ml-1 text-green-600">Healthy</span>
-                </div>
-              </div>
-              <div className="p-2 md:p-3 bg-emerald-100 dark:bg-emerald-900 rounded-full">
-                <Activity className="w-5 h-5 md:w-6 md:h-6 text-emerald-600 dark:text-emerald-400" />
-              </div>
-            </div>
-            <div className="mt-3 md:mt-4 text-xs text-gray-500">
-              Fully operational
-            </div>
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+        <StatsCard 
+          title="Total Students"
+          value={formatNumber(headerStats.totalStudents || 0)}
+          icon={GraduationCap}
+          change={headerStats.studentGrowth || 12}
+          description={`${headerStats.activeStudents || 0} Active • ${headerStats.inactiveStudents || 0} Inactive`}
+          color="green"
+        />
+        <StatsCard 
+          title="Total Teachers"
+          value={formatNumber(headerStats.totalTeachers || 0)}
+          icon={UserCheck}
+          description="Active faculty members"
+          color="purple"
+        />
+        <StatsCard 
+          title="Total Classes"
+          value={formatNumber(headerStats.totalClasses || 0)}
+          icon={BookOpen}
+          description={`${headerStats.activeClasses || 0} Active sections`}
+          color="indigo"
+        />
+        <StatsCard 
+          title="System Health"
+          value="100%"
+          icon={Activity}
+          description="Fully operational"
+          color="emerald"
+        />
       </div>
 
       {/* Quick Actions */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Settings className="w-5 h-5" />
-            Quick Actions
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-6 gap-4">
-            <Button variant="outline" className="h-20 flex flex-col items-center gap-2 hover:bg-blue-50 hover:border-blue-200" onClick={() => router.push('/branch-admin/students')}>
-              <Users className="w-6 h-6 text-blue-600" />
-              <span className="text-sm text-center">Manage Users</span>
-            </Button>
-            <Button variant="outline" className="h-20 flex flex-col items-center gap-2 hover:bg-indigo-50 hover:border-indigo-200" onClick={() => router.push('/branch-admin/classes')}>
-              <BookOpen className="w-6 h-6 text-indigo-600" />
-              <span className="text-sm text-center">Classes</span>
-            </Button>
-            <Button variant="outline" className="h-20 flex flex-col items-center gap-2 hover:bg-purple-50 hover:border-purple-200">
-              <FileText className="w-6 h-6 text-purple-600" />
-              <span className="text-sm text-center">Reports</span>
-            </Button>
-            <Button variant="outline" className="h-20 flex flex-col items-center gap-2 hover:bg-yellow-50 hover:border-yellow-200" onClick={() => router.push('/branch-admin/notifications')}>
-              <Bell className="w-6 h-6 text-yellow-600" />
-              <span className="text-sm text-center">Notifications</span>
-            </Button>
-            <Button variant="outline" className="h-20 flex flex-col items-center gap-2 hover:bg-red-50 hover:border-red-200">
-              <Receipt className="w-6 h-6 text-red-600" />
-              <span className="text-sm text-center">Expenses</span>
-            </Button>
-            <Button variant="outline" className="h-20 flex flex-col items-center gap-2 hover:bg-orange-50 hover:border-orange-200" onClick={() => router.push('/branch-admin/academic-years')}>
-              <Calendar className="w-6 h-6 text-orange-600" />
-              <span className="text-sm text-center">Calendar</span>
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+      <QuickActions 
+        actions={[
+          { title: "Manage Users", icon: Users, color: "text-blue-600", onClick: () => router.push('/branch-admin/students') },
+          { title: "Classes", icon: BookOpen, color: "text-indigo-600", onClick: () => router.push('/branch-admin/classes') },
+          { title: "Reports", icon: FileText, color: "text-purple-600" },
+          { title: "Notifications", icon: Bell, color: "text-yellow-600", onClick: () => router.push('/branch-admin/notifications') },
+          { title: "Expenses", icon: Receipt, color: "text-red-600" },
+          { title: "Calendar", icon: Calendar, color: "text-orange-600", onClick: () => router.push('/branch-admin/academic-years') },
+        ]}
+      />
 
       {/* User Role Distribution & System Overview */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
