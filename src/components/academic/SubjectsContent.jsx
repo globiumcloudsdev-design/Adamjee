@@ -25,7 +25,9 @@ import { Input } from '@/components/ui/input';
 import Modal from '@/components/ui/modal';
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import apiClient from '@/lib/api-client';
+import Tooltip from '@/components/ui/tooltip';
 import { useAuth } from '@/hooks/useAuth';
+import { AcademicGridSkeleton } from '@/components/ui/skeleton';
 
 export default function SubjectsContent() {
   const { user } = useAuth();
@@ -165,12 +167,7 @@ export default function SubjectsContent() {
   );
 
   if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[400px] gap-4">
-        <Loader2 className="w-10 h-10 text-indigo-600 animate-spin" />
-        <p className="text-slate-500 font-medium animate-pulse">Loading Subject Repository...</p>
-      </div>
-    );
+    return <AcademicGridSkeleton />;
   }
 
   return (
@@ -308,34 +305,38 @@ export default function SubjectsContent() {
                    </div>
                 </div>
 
-                <div className="flex gap-2 relative z-10">
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="h-9 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800"
-                    onClick={() => {
-                      setEditingSubject(sub);
-                      setFormData({
-                        name: sub.name,
-                        subject_code: sub.subject_code || '',
-                        class_id: sub.class_id,
-                        branch_id: sub.branch_id,
-                        files: []
-                      });
-                      setShowModal(true);
-                    }}
-                  >
-                    <Edit className="w-4 h-4 mr-2 text-indigo-600" />
-                    Edit
-                  </Button>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    className="h-9 border-rose-200 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20"
-                    onClick={() => handleDelete(sub.id)}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
+                 <div className="flex gap-2 relative z-10">
+                  <Tooltip content="Edit Definitions">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-9 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800"
+                      onClick={() => {
+                        setEditingSubject(sub);
+                        setFormData({
+                          name: sub.name,
+                          subject_code: sub.subject_code || '',
+                          class_id: sub.class_id,
+                          branch_id: sub.branch_id,
+                          files: []
+                        });
+                        setShowModal(true);
+                      }}
+                    >
+                      <Edit className="w-4 h-4 mr-2 text-indigo-600" />
+                      Edit
+                    </Button>
+                  </Tooltip>
+                  <Tooltip content="Delete Subject">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="h-9 border-rose-200 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20"
+                      onClick={() => handleDelete(sub.id)}
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </Button>
+                  </Tooltip>
                 </div>
               </CardHeader>
               <CardContent className="p-0 border-t dark:border-slate-800">
@@ -362,14 +363,18 @@ export default function SubjectsContent() {
                               <TableCell className="text-right pr-6">
                                 <div className="flex justify-end gap-2">
                                    <a href={mat.url} target="_blank" rel="noopener noreferrer">
-                                     <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-full hover:bg-indigo-50 text-indigo-600">
-                                       <Eye className="w-4 h-4" />
-                                     </Button>
+                                     <Tooltip content="Preview Resource">
+                                       <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-full hover:bg-indigo-50 text-indigo-600">
+                                         <Eye className="w-4 h-4" />
+                                       </Button>
+                                     </Tooltip>
                                    </a>
                                    <a href={mat.url} download>
-                                     <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-full hover:bg-emerald-50 text-emerald-600">
-                                       <Download className="w-4 h-4" />
-                                     </Button>
+                                     <Tooltip content="Download Resource">
+                                       <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-full hover:bg-emerald-50 text-emerald-600">
+                                         <Download className="w-4 h-4" />
+                                       </Button>
+                                     </Tooltip>
                                    </a>
                                 </div>
                               </TableCell>
@@ -552,3 +557,5 @@ export default function SubjectsContent() {
     </div>
   );
 }
+
+SubjectsContent.Skeleton = AcademicGridSkeleton;

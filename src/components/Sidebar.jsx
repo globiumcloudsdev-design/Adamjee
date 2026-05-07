@@ -64,12 +64,18 @@ const ROLE_MENUS = {
       ],
     },
     {
-      category: "Operations",
+      category: "Students",
+      items: [
+        { name: "Student List", path: "/super-admin/student-management/students", icon: Users },
+      ],
+    },
+    {
+      category: "Finance",
       isCollapsible: true,
       items: [
-        { name: "Students", path: "/super-admin/student-management/students", icon: Users },
         { name: "Fee Vouchers", path: "/super-admin/fee-vouchers", icon: Receipt },
         { name: "Expenses", path: "/super-admin/expenses", icon: Wallet },
+        { name: "Finance Reports", path: "/super-admin/reports", icon: BarChart3 },
       ],
     },
     {
@@ -115,14 +121,21 @@ const ROLE_MENUS = {
       ],
     },
     {
-      category: "Operations",
+      category: "Attendance",
       isCollapsible: true,
       items: [
-        { name: "Attendance", path: "/branch-admin/attendance", icon: Clock },
+        { name: "Student Attendance", path: "/branch-admin/attendance", icon: QrCode },
         { name: "Staff Attendance", path: "/branch-admin/staff-attendance", icon: UserCheck },
         { name: "Leaves", path: "/branch-admin/leaves", icon: Calendar },
+      ],
+    },
+    {
+      category: "Finance",
+      isCollapsible: true,
+      items: [
         { name: "Fee Vouchers", path: "/branch-admin/fee-vouchers", icon: Receipt },
         { name: "Expenses", path: "/branch-admin/expenses", icon: Wallet },
+        { name: "Finance Reports", path: "/branch-admin/reports", icon: BarChart3 },
       ],
     },
     {
@@ -143,7 +156,7 @@ const ROLE_MENUS = {
       isCollapsible: true,
       items: [
         { name: "My Classes", path: "/teacher/classes", icon: School },
-        // { name: "Assignments", path: "/teacher/assignments", icon: FileText },
+        { name: "Assignments", path: "/teacher/assignments", icon: FileText },
         { name: "Exams", path: "/teacher/exams", icon: Calendar },
         // { name: "Self Attendance", path: "/teacher/self-attendance", icon: UserCheck },
       ],

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Op } from "sequelize";
 import { getCurrentUser } from "@/lib/auth";
 import { Attendance, User, Branch } from "@/backend/models/postgres";
+import NotificationService from "@/backend/services/NotificationService";
 
 export async function POST(req) {
   try {
@@ -77,6 +78,23 @@ export async function POST(req) {
     await Attendance.bulkCreate(recordsToSave, {
       ignoreDuplicates: true,
     });
+
+    // Send notifications asynchronously
+    (async () => {
+      try {
+        for (const record of recordsToSave) {
+          await NotificationService.sendToUsers([record.student_id], {
+            title: "Attendance Marked",
+            message: `Your attendance for ${record.date} has been marked as ${record.status}.`,
+            type: "attendance",
+            branchId: record.branch_id,
+            sentBy: user.id,
+          });
+        }
+      } catch (err) {
+        console.error("Attendance Notification Error:", err);
+      }
+    })();
 
     return NextResponse.json({
       success: true,

@@ -585,7 +585,7 @@ const StudentFormModal = ({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Input label="Roll No (Auto-generate)" value={formData.roll_no} onChange={(e) => handleFieldChange('roll_no', e.target.value)} placeholder="Enter roll number" />
+              <Input label="GR No (Auto-generate)" value={formData.roll_no} onChange={(e) => handleFieldChange('roll_no', e.target.value)} placeholder="Enter GR No" />
               <Input label="Registration No" value={formData.registration_no} onChange={(e) => handleFieldChange('registration_no', e.target.value)} placeholder="Reg-2024-XXX"/>
               <DatePicker
                 label="Admission Date"
@@ -727,18 +727,6 @@ const StudentFormModal = ({
                     <Input label="Income" type="number" value={formData.father.income} onChange={(e) => handleNestedFieldChange('father', 'income', Number(e.target.value))} placeholder="Monthly income" />
                   </div>
                 </div>
-
-                {/* <div className="border-t pt-4">
-                  <h4 className="font-medium text-gray-700 mb-2">Mother Info</h4>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Input label="Name" value={formData.mother.name} onChange={(e) => handleNestedFieldChange('mother', 'name', e.target.value)} />
-                    <Input label="Phone" value={formData.mother.phone} onChange={(e) => handleNestedFieldChange('mother', 'phone', e.target.value)} />
-                  </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-2">
-                    <Input label="CNIC" value={formData.mother.cnic} onChange={(e) => handleNestedFieldChange('mother', 'cnic', e.target.value)} />
-                    <Input label="Occupation" value={formData.mother.occupation} onChange={(e) => handleNestedFieldChange('mother', 'occupation', e.target.value)} />
-                  </div>
-                </div> */}
               </>
             ) : (
               <div className="border-t pt-4">

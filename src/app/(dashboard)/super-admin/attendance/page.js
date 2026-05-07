@@ -17,7 +17,7 @@ import apiClient from '@/lib/api-client';
 import API_ENDPOINTS from '@/constants/api-endpoints';
 import DatePicker from '@/components/ui/date-picker';
 import { toast } from 'sonner';
-import { Camera, Search, Save, CheckCircle, XCircle, Clock, UserSearch, Eye, DollarSign, Calendar, X, QrCode, Scan } from 'lucide-react';
+import { Camera, Search, Save, CheckCircle, XCircle, Clock, UserSearch, Eye, DollarSign, Calendar, X, QrCode, Scan, Upload, FileText } from 'lucide-react';
 import FullPageLoader from '@/components/ui/full-page-loader';
 import ButtonLoader from '@/components/ui/button-loader';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -99,12 +99,62 @@ export default function SuperAdminAttendancePage() {
   const [attendanceRecords, setAttendanceRecords] = useState({});
   const [scannedStudents, setScannedStudents] = useState([]);
   const [markedStudents, setMarkedStudents] = useState([]);
-  
-  // Hand Scanner States
-  const [isScannerModalOpen, setIsScannerModalOpen] = useState(false);
-  const [scanInput, setScanInput] = useState('');
   const [recentScans, setRecentScans] = useState([]);
+  const [isScannerModalOpen, setIsScannerModalOpen] = useState(false);
+  const [isBulkUploadModalOpen, setIsBulkUploadModalOpen] = useState(false);
+  const [bulkUploadFile, setBulkUploadFile] = useState(null);
+  const [bulkUploadDate, setBulkUploadDate] = useState(new Date().toISOString().split('T')[0]);
+  const [scanInput, setScanInput] = useState('');
+  const [lastScannedStudent, setLastScannedStudent] = useState(null);
+  const [scanningStatus, setScanningStatus] = useState('idle'); // idle, checking, marking, success, error
+  const [studentsCache, setStudentsCache] = useState({});
   const scannerInputRef = useRef(null);
+
+  const playBuzzer = (type = 'success') => {
+    try {
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const oscillator = audioCtx.createOscillator();
+      const gainNode = audioCtx.createGain();
+
+      oscillator.connect(gainNode);
+      gainNode.connect(audioCtx.destination);
+
+      if (type === 'success') {
+        oscillator.type = 'sine';
+        oscillator.frequency.setValueAtTime(880, audioCtx.currentTime); // A5
+        oscillator.frequency.exponentialRampToValueAtTime(440, audioCtx.currentTime + 0.1);
+        gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gainNode.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+        oscillator.start();
+        oscillator.stop(audioCtx.currentTime + 0.1);
+      } else {
+        oscillator.type = 'square';
+        oscillator.frequency.setValueAtTime(220, audioCtx.currentTime); // A3
+        gainNode.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        gainNode.gain.linearRampToValueAtTime(0, audioCtx.currentTime + 0.2);
+        oscillator.start();
+        oscillator.stop(audioCtx.currentTime + 0.2);
+      }
+    } catch (e) {
+      console.error('Audio buzzer failed', e);
+    }
+  };
+
+  const handleOpenScanner = () => {
+    setRecentScans([]);
+    setLastScannedStudent(null);
+    setScanInput('');
+    setScanningStatus('idle');
+    setIsScannerModalOpen(true);
+  };
+
+  const handleCloseScanner = () => {
+    setIsScannerModalOpen(false);
+    setRecentScans([]);
+    setLastScannedStudent(null);
+    setScanInput('');
+    setScanningStatus('idle');
+  };
 
   // Student search states
   const [studentSearchQuery, setStudentSearchQuery] = useState('');
@@ -119,11 +169,42 @@ export default function SuperAdminAttendancePage() {
     fetchClasses();
   }, []);
 
+  // Strict focus management for Hand Scanner
+  useEffect(() => {
+    let focusInterval;
+    if (isScannerModalOpen) {
+      // Immediate focus
+      setTimeout(() => scannerInputRef.current?.focus(), 100);
+      
+      // Periodic check every 500ms
+      focusInterval = setInterval(() => {
+        if (isScannerModalOpen && document.activeElement !== scannerInputRef.current) {
+          scannerInputRef.current?.focus();
+        }
+      }, 500);
+
+      // Global keydown redirect
+      const handleGlobalKeyDown = (e) => {
+        if (isScannerModalOpen && document.activeElement !== scannerInputRef.current) {
+          // If user starts typing while modal is open but focus lost, bring it back
+          scannerInputRef.current?.focus();
+        }
+      };
+
+      window.addEventListener('keydown', handleGlobalKeyDown);
+      return () => {
+        clearInterval(focusInterval);
+        window.removeEventListener('keydown', handleGlobalKeyDown);
+      };
+    }
+  }, [isScannerModalOpen]);
+
 
   // Fetch classes when branch changes
   useEffect(() => {
     if (selectedBranch) {
       fetchClasses();
+      loadStudentsCache(); // Pre-load students for this branch into cache
       // Reset dependent selects
       setSelectedClass('');
       setSelectedSection('');
@@ -350,6 +431,37 @@ export default function SuperAdminAttendancePage() {
     }
   };
 
+  const loadStudentsCache = async () => {
+    if (!selectedBranch) return;
+    try {
+      const response = await apiClient.get(API_ENDPOINTS.SUPER_ADMIN.STUDENTS.LIST, {
+        branch_id: selectedBranch
+      });
+      const studentArray = Array.isArray(response) ? response : (response.data?.students || response.data || []);
+      
+      const cache = {};
+      studentArray.forEach(s => {
+        const studentData = {
+          id: s.id || s._id,
+          _id: s.id || s._id,
+          fullName: `${s.first_name} ${s.last_name}`,
+          first_name: s.first_name,
+          last_name: s.last_name,
+          registrationNumber: s.registration_no,
+          rollNumber: s.details?.academic_info?.roll_no || s.details?.student?.roll_no,
+          branchName: s.branch?.name,
+          avatar_url: s.avatar_url,
+          feeInfo: { status: 'Syncing...' } // Placeholder until API confirms
+        };
+        if (s.registration_no) cache[s.registration_no] = studentData;
+        cache[s.id || s._id] = studentData;
+      });
+      setStudentsCache(cache);
+    } catch (e) {
+      console.error("Student cache load failed:", e);
+    }
+  };
+
   const fetchStudents = async () => {
     try {
       setLoading(true);
@@ -424,6 +536,76 @@ export default function SuperAdminAttendancePage() {
     }));
   };
 
+  const handleBulkUpload = async (e) => {
+    if (e) e.preventDefault();
+    if (!bulkUploadFile || !bulkUploadDate) {
+      toast.error("Please select a file and a date");
+      return;
+    }
+
+    setSaving(true);
+    const reader = new FileReader();
+    reader.onload = async (event) => {
+      try {
+        const text = event.target.result;
+        // Simple extraction: any alphanumeric string that looks like a registration number
+        // Support common formats like REG-2024-0001 or just 20240001
+        const regNos = text.split(/[\n,;\t]/)
+          .map(s => s.trim())
+          .filter(s => s.length > 3);
+        
+        const uniqueRegNos = [...new Set(regNos)];
+        const foundStudentIds = [];
+        const notFound = [];
+
+        uniqueRegNos.forEach(regNo => {
+          // Check cache for registration number
+          const student = studentsCache[regNo];
+          if (student) {
+            foundStudentIds.push(student.id || student._id);
+          } else {
+            notFound.push(regNo);
+          }
+        });
+
+        if (foundStudentIds.length === 0) {
+          toast.error("No matching students found in the file. Please ensure Registration Numbers are correct.");
+          setSaving(false);
+          return;
+        }
+
+        const response = await apiClient.post(API_ENDPOINTS.ATTENDANCE.CREATE, {
+          date: bulkUploadDate,
+          student_ids: foundStudentIds,
+          status: 'PRESENT',
+          branch_id: selectedBranch
+        });
+
+        if (response.success) {
+          toast.success(`Successfully marked attendance for ${foundStudentIds.length} students.`);
+          if (notFound.length > 0) {
+            toast.warning(`${notFound.length} entries in file were not recognized.`);
+          }
+          setIsBulkUploadModalOpen(false);
+          setBulkUploadFile(null);
+          fetchTodayAttendance();
+        } else {
+          throw new Error(response.error || "Failed to process bulk upload");
+        }
+      } catch (err) {
+        console.error("Bulk upload error:", err);
+        toast.error(err.message || "An error occurred during bulk upload");
+      } finally {
+        setSaving(false);
+      }
+    };
+    reader.onerror = () => {
+      toast.error("Failed to read file");
+      setSaving(false);
+    };
+    reader.readAsText(bulkUploadFile);
+  };
+
   const handleHandScan = async (e) => {
     if (e) e.preventDefault();
     if (!scanInput.trim()) return;
@@ -431,49 +613,109 @@ export default function SuperAdminAttendancePage() {
     const currentScan = scanInput.trim();
     setScanInput(''); // Clear immediately for next scan
 
+    // 1. Instant Cache Lookup for 0ms Perceived Latency
+    let cachedStudent = studentsCache[currentScan];
+    if (!cachedStudent && currentScan.startsWith('{')) {
+      try {
+        const parsed = JSON.parse(currentScan);
+        cachedStudent = studentsCache[parsed.id] || studentsCache[parsed.registrationNumber] || studentsCache[parsed.registration_no];
+      } catch (e) {}
+    }
+
+    if (cachedStudent) {
+      setLastScannedStudent({
+        ...cachedStudent,
+        scanTime: new Date().toLocaleTimeString(),
+        isFromCache: true
+      });
+      setScanningStatus('idle'); // No global loader needed for cache hits
+    } else {
+      setScanningStatus('checking');
+    }
+
     try {
-      const res = await apiClient.post(API_ENDPOINTS.SUPER_ADMIN.ATTENDANCE.SCAN, {
+      // Step 1: Fetch/Verify Student & Fee Info (Background if cached)
+      const checkRes = await apiClient.post(API_ENDPOINTS.SUPER_ADMIN.ATTENDANCE.SCAN, {
         qr: currentScan,
         date: attendanceDate,
+        attendanceType,
+        subjectId: selectedSubject,
+        eventId: selectedEvent,
+        mode: 'check'
       });
 
-      if (res.success) {
-        const student = res.data?.student || res.student;
-        
-        // Add to recent scans with animation flag
+      if (!checkRes.success || !checkRes.data?.student) {
+        throw new Error(checkRes.error || 'Student not found');
+      }
+
+      const student = checkRes.data.student;
+      const alreadyMarked = checkRes.data.existingAttendance;
+      
+      // Update UI with latest data (including real Fee Status)
+      setLastScannedStudent({
+        ...student,
+        scanTime: new Date().toLocaleTimeString(),
+        already_marked: alreadyMarked
+      });
+      
+      setScanningStatus('idle');
+
+      if (alreadyMarked) {
+        playBuzzer('error');
+        setScanningStatus('error');
+        toast.info(`Attendance already marked for ${student.fullName}`);
         setRecentScans(prev => {
           const filtered = prev.filter(s => (s.id || s._id) !== (student.id || student._id));
-          return [{ 
-            ...student, 
-            scanTime: new Date().toLocaleTimeString(),
-            isNew: true 
-          }, ...filtered].slice(0, 10);
+          return [{...student, already_marked: true, scanTime: new Date().toLocaleTimeString()}, ...filtered].slice(0, 10);
+        });
+        return;
+      }
+
+      // Step 2: Mark Attendance in Background
+      setScanningStatus('marking');
+      const markRes = await apiClient.post(API_ENDPOINTS.SUPER_ADMIN.ATTENDANCE.SCAN, {
+        qr: currentScan,
+        date: attendanceDate,
+        attendanceType,
+        subjectId: selectedSubject,
+        eventId: selectedEvent
+      });
+
+      if (markRes.success) {
+        playBuzzer('success');
+        toast.success(`Attendance marked for ${student.fullName}`);
+        setScanningStatus('success');
+        
+        const scannedStudent = {
+          ...student,
+          scanTime: new Date().toLocaleTimeString(),
+          isNew: true
+        };
+
+        setRecentScans(prev => {
+          const filtered = prev.filter(s => (s.id || s._id) !== (student.id || student._id));
+          return [scannedStudent, ...filtered].slice(0, 10);
         });
 
-        // Also update the main marked students list if it exists
-        if (!markedStudents.find(s => (s.id || s._id) === (student.id || student._id))) {
-          setMarkedStudents(prev => [{
-            ...student,
-            registrationNumber: student.registrationNumber || student.registration_no,
-            rollNumber: student.rollNumber || student.roll_no,
-            feeStatus: student.hasPaidFees ? 'paid' : 'unpaid'
-          }, ...prev]);
-        }
-
-        toast.success(res.message || `Attendance marked for ${student.fullName}`);
+        fetchTodayAttendance();
         
-        // Remove 'isNew' flag after animation
         setTimeout(() => {
           setRecentScans(prev => prev.map(s => (s.id || s._id) === (student.id || student._id) ? { ...s, isNew: false } : s));
+          setScanningStatus('idle');
         }, 1000);
 
       } else {
-        toast.error(res.error || 'Scan failed');
+        throw new Error(markRes.error || 'Failed to mark attendance');
       }
-    } catch (err) {
-      toast.error(err.response?.data?.error || 'Failed to record scan');
+
+    } catch (error) {
+      console.error("Hand scan error:", error);
+      playBuzzer('error');
+      toast.error(error.message || "Failed to process scan");
+      setScanningStatus('error');
+      // Reset to idle after 2 seconds on error so user can scan again
+      setTimeout(() => setScanningStatus('idle'), 2000);
     } finally {
-      // Ensure input is focused for next scan
       if (scannerInputRef.current) {
         scannerInputRef.current.focus();
       }
@@ -784,7 +1026,70 @@ export default function SuperAdminAttendancePage() {
 
   return (
     <div className="p-6 space-y-6">
-      {/* Manual Attendance Modal */}
+      {/* Bulk Upload Modal */}
+      <Modal
+        open={isBulkUploadModalOpen}
+        onClose={() => setIsBulkUploadModalOpen(false)}
+        title="Bulk Attendance Upload"
+        size="lg"
+      >
+        <form onSubmit={handleBulkUpload} className="space-y-6">
+          <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 text-sm text-amber-800">
+            <p className="font-bold mb-1">Instructions:</p>
+            <ul className="list-disc ml-4 space-y-1">
+              <li>Upload a <b>.txt</b> or <b>.csv</b> file.</li>
+              <li>The file should contain <b>Registration Numbers</b> (one per line or separated by commas).</li>
+              <li>Example: REG-2024-0001, REG-2024-0002</li>
+            </ul>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-2">
+              <Label>Attendance Date</Label>
+              <DatePicker
+                value={bulkUploadDate}
+                onChange={(e) => setBulkUploadDate(e.target.value)}
+                disableFuture={true}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Select File</Label>
+              <div className="relative">
+                <input
+                  type="file"
+                  accept=".txt,.csv"
+                  onChange={(e) => setBulkUploadFile(e.target.files[0])}
+                  className="hidden"
+                  id="bulk-file-upload"
+                />
+                <label
+                  htmlFor="bulk-file-upload"
+                  className="flex items-center justify-center gap-2 px-4 py-2 border-2 border-dashed border-gray-300 rounded-xl hover:border-indigo-500 hover:bg-indigo-50 transition-all cursor-pointer group"
+                >
+                  <FileText className="h-5 w-5 text-gray-400 group-hover:text-indigo-500" />
+                  <span className="text-sm font-medium text-gray-600 group-hover:text-indigo-600">
+                    {bulkUploadFile ? bulkUploadFile.name : 'Choose Text/CSV File'}
+                  </span>
+                </label>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-end gap-3 pt-4 border-t">
+            <Button variant="outline" onClick={() => setIsBulkUploadModalOpen(false)} type="button">
+              Cancel
+            </Button>
+            <Button 
+              type="submit" 
+              className="bg-emerald-600 hover:bg-emerald-700 text-white min-w-[120px]"
+              disabled={saving || !bulkUploadFile}
+            >
+              {saving ? <ButtonLoader /> : 'Upload & Mark'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
       <Modal
         open={manualAttendanceModalOpen}
         onClose={() => setManualAttendanceModalOpen(false)}
@@ -919,159 +1224,278 @@ export default function SuperAdminAttendancePage() {
         title="Student Attendance - Hand Scanner"
         size="xl"
       >
-        <div className="space-y-6">
-          <div className="bg-indigo-50 dark:bg-indigo-900/20 p-6 rounded-xl border border-indigo-100 dark:border-indigo-800 shadow-sm">
-            <div className="flex flex-col items-center justify-center space-y-4">
-              <div className="bg-white dark:bg-gray-800 p-4 rounded-full shadow-inner border-2 border-indigo-200 dark:border-indigo-700 animate-pulse">
-                <QrCode className="h-12 w-12 text-indigo-600 dark:text-indigo-400" />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 min-h-[500px]">
+          {/* Left Side: Scanner Input & Instructions */}
+          <div className="space-y-6 flex flex-col justify-center border-r pr-8">
+            <div className="text-center space-y-4">
+              <div className="bg-indigo-50 dark:bg-indigo-900/20 w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-2 shadow-inner border border-indigo-100 dark:border-indigo-800">
+                <Scan className={`h-12 w-12 text-indigo-600 dark:text-indigo-400 ${scanInput ? 'animate-pulse' : ''}`} />
               </div>
-              <div className="text-center">
-                <h3 className="text-lg font-bold text-indigo-900 dark:text-indigo-100">Ready to Scan</h3>
-                <p className="text-sm text-indigo-600 dark:text-indigo-400">Please scan student ID card using the hand scanner</p>
+              <div>
+                <h3 className="text-2xl font-bold text-gray-900 dark:text-gray-100 tracking-tight">Ready to Scan</h3>
+                <p className="text-gray-500 dark:text-gray-400 text-sm mt-1">Please scan student ID card using the hand scanner</p>
               </div>
               
-              <form onSubmit={handleHandScan} className="w-full max-w-md relative">
+              <form onSubmit={handleHandScan} className="w-full relative pt-4">
+                {/* Hidden but focused input for hand scanner */}
                 <Input
                   ref={scannerInputRef}
                   value={scanInput}
                   onChange={(e) => setScanInput(e.target.value)}
                   placeholder="Scanning..."
                   autoFocus
-                  className="h-14 text-2xl text-center font-mono tracking-widest border-2 border-indigo-300 focus:border-indigo-500 focus:ring-indigo-500 rounded-xl shadow-lg bg-white dark:bg-gray-800"
+                  className="fixed -top-10 left-0 opacity-0 h-1 w-1"
                   autoComplete="off"
                   onBlur={() => {
-                    // Keep focus unless modal is closed
                     if (isScannerModalOpen) {
-                      setTimeout(() => scannerInputRef.current?.focus(), 100);
+                      setTimeout(() => scannerInputRef.current?.focus(), 10);
                     }
                   }}
                 />
-                <div className="absolute right-3 top-1/2 -translate-y-1/2">
-                  <Badge variant="outline" className="bg-indigo-100 text-indigo-700 border-indigo-200">Focused</Badge>
+                
+                <div 
+                  className={`bg-white dark:bg-gray-800 border-2 border-dashed rounded-2xl p-8 text-center shadow-inner transition-all duration-300 ${
+                    scanningStatus === 'checking' || scanningStatus === 'marking' 
+                      ? 'border-indigo-500 bg-indigo-50/50' 
+                      : 'border-indigo-200 dark:border-indigo-800'
+                  }`}
+                  onClick={() => scannerInputRef.current?.focus()}
+                >
+                  <div className="flex flex-col items-center gap-3">
+                    {scanningStatus === 'checking' || scanningStatus === 'marking' ? (
+                      <div className="flex flex-col items-center gap-4">
+                        <div className="h-12 w-12 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                        <span className="text-lg font-mono font-bold text-indigo-600 dark:text-indigo-400 tracking-widest">PROCESSING SCAN...</span>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="w-3 h-3 rounded-full bg-green-500 shadow-[0_0_15px_rgba(34,197,94,0.6)] animate-pulse"></div>
+                        <span className="text-lg font-mono font-bold text-indigo-600 dark:text-indigo-400 tracking-widest">LISTENING FOR SCANS...</span>
+                      </>
+                    )}
+                  </div>
+                </div>
+
+                <div className="mt-4 flex items-center justify-center gap-2 text-xs font-medium text-gray-400">
+                  <div className={`w-2 h-2 rounded-full ${isScannerModalOpen ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                  Scanner focused & ready
                 </div>
               </form>
+
+              <div className="pt-8 text-left">
+                <div className="flex items-center justify-between mb-4 border-b pb-2">
+                  <h4 className="text-sm font-bold uppercase tracking-wider text-gray-500 flex items-center gap-2">
+                    <Clock className="h-4 w-4" />
+                    Recent Scans
+                  </h4>
+                  <Badge variant="outline" className="rounded-full">{recentScans.length}</Badge>
+                </div>
+
+                <div className="space-y-2 max-h-64 overflow-y-auto pr-2 custom-scrollbar">
+                  {recentScans.length > 0 ? (
+                    recentScans.map((student) => (
+                      <div 
+                        key={student.id || student._id} 
+                        className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 dark:border-gray-800 bg-gray-50/50 dark:bg-gray-900/30 hover:bg-white dark:hover:bg-gray-800 transition-colors"
+                      >
+                        <div className="h-8 w-8 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-indigo-700 dark:text-indigo-300 text-xs font-bold shrink-0">
+                          {student.fullName?.charAt(0) || 'S'}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-xs font-bold truncate">{student.fullName}</p>
+                          <p className="text-[10px] text-gray-500">{student.registrationNumber || student.registration_no}</p>
+                        </div>
+                        <Badge className={student.already_marked ? "bg-amber-100 text-amber-700 text-[10px]" : "bg-green-100 text-green-700 text-[10px]"}>
+                          {student.already_marked ? "Already" : "Marked"}
+                        </Badge>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-center py-8 text-xs text-gray-400 italic">No scans yet in this session</p>
+                  )}
+                </div>
+              </div>
             </div>
           </div>
 
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <h4 className="text-lg font-semibold flex items-center gap-2">
-                <Clock className="h-5 w-5 text-gray-500" />
-                Recent Scans
-              </h4>
-              <Badge variant="secondary">{recentScans.length} Students</Badge>
-            </div>
+          {/* Right Side: Student Details & Fee Status */}
+          <div className="space-y-6">
+            {scanningStatus === 'checking' || scanningStatus === 'marking' ? (
+              <div className="h-full flex flex-col items-center justify-center space-y-4 bg-gray-50/50 dark:bg-gray-900/20 rounded-3xl border-2 border-dashed border-indigo-200 p-8">
+                <div className="h-16 w-16 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                <div className="text-center">
+                  <h4 className="text-xl font-bold text-indigo-600">Fetching Student Info</h4>
+                  <p className="text-sm text-gray-400 mt-2">Please wait while we retrieve the records...</p>
+                </div>
+              </div>
+            ) : lastScannedStudent ? (
+              <div className="space-y-6 animate-in fade-in slide-in-from-right-4 duration-500">
+                {/* Student Header Info */}
+                <div className="bg-white dark:bg-gray-800 rounded-3xl p-6 shadow-sm border border-gray-100 dark:border-gray-700 relative overflow-hidden">
+                  <div className="absolute top-0 right-0 p-4">
+                    {lastScannedStudent.already_marked ? (
+                      <Badge className="bg-amber-100 text-amber-700 border-amber-200 px-3 py-1 text-sm font-bold shadow-sm">
+                        ALREADY MARKED
+                      </Badge>
+                    ) : (
+                      <Badge className="bg-green-100 text-green-700 border-green-200 px-3 py-1 text-sm font-bold shadow-sm">
+                        PRESENT MARKED
+                      </Badge>
+                    )}
+                  </div>
 
-            {recentScans.length > 0 ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {recentScans.map((student, index) => (
-                  <div 
-                    key={student.id || student._id} 
-                    className={`flex items-center gap-4 p-4 rounded-xl border transition-all duration-500 ${
-                      student.isNew 
-                        ? 'bg-green-50 border-green-200 dark:bg-green-900/30 dark:border-green-800 scale-[1.02] shadow-md ring-2 ring-green-500 ring-opacity-20' 
-                        : 'bg-white border-gray-100 dark:bg-gray-800 dark:border-gray-700'
-                    }`}
-                  >
-                    <div className="relative">
-                      {student.avatar_url ? (
+                  <div className="flex flex-col items-center sm:items-start sm:flex-row gap-6">
+                    <div className="relative shrink-0">
+                      {lastScannedStudent.avatar_url ? (
                         <img 
-                          src={student.avatar_url} 
-                          alt={student.fullName} 
-                          className="h-12 w-12 rounded-full object-cover border-2 border-white dark:border-gray-700 shadow-sm"
+                          src={lastScannedStudent.avatar_url} 
+                          alt={lastScannedStudent.fullName} 
+                          className="h-28 w-28 rounded-2xl object-cover border-4 border-indigo-50 dark:border-indigo-900/30 shadow-lg"
                         />
                       ) : (
-                        <div className="h-12 w-12 rounded-full bg-indigo-100 dark:bg-indigo-900 flex items-center justify-center text-indigo-700 dark:text-indigo-300 font-bold">
-                          {student.fullName?.charAt(0) || 'S'}
+                        <div className="h-28 w-28 rounded-2xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center text-white text-4xl font-black shadow-lg">
+                          {lastScannedStudent.fullName?.charAt(0) || 'S'}
                         </div>
                       )}
-                      <div className="absolute -bottom-1 -right-1 bg-green-500 rounded-full p-0.5 border-2 border-white dark:border-gray-800">
-                        <CheckCircle className="h-3 w-3 text-white" />
+                      <div className="absolute -bottom-2 -right-2 bg-green-500 rounded-full p-1.5 border-4 border-white dark:border-gray-800 shadow-md">
+                        <CheckCircle className="h-5 w-5 text-white" />
                       </div>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-gray-900 dark:text-gray-100 truncate">
-                        {student.fullName}
-                      </p>
-                      <div className="flex flex-wrap gap-x-3 gap-y-1 mt-1">
-                        <p className="text-xs text-gray-500 dark:text-gray-400">Reg: <span className="font-medium text-gray-700 dark:text-gray-300">{student.registrationNumber || student.registration_no}</span></p>
-                        <p className="text-xs text-gray-500 dark:text-gray-400">Roll: <span className="font-medium text-gray-700 dark:text-gray-300">{student.rollNumber || student.roll_no || 'N/A'}</span></p>
+                    
+                    <div className="flex-1 text-center sm:text-left min-w-0 pt-2">
+                      <h3 className="text-2xl font-black text-gray-900 dark:text-white truncate tracking-tight uppercase">
+                        {lastScannedStudent.fullName}
+                      </h3>
+                      <div className="flex flex-wrap justify-center sm:justify-start gap-x-4 gap-y-1 mt-2">
+                        <div className="flex items-center gap-1.5 text-gray-600 dark:text-gray-400">
+                          <Badge variant="secondary" className="bg-indigo-50 text-indigo-700 font-mono text-xs">REG: {lastScannedStudent.registrationNumber || lastScannedStudent.registration_no}</Badge>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-gray-600 dark:text-gray-400">
+                          <Badge variant="secondary" className="bg-purple-50 text-purple-700 font-mono text-xs">ROLL: {lastScannedStudent.rollNumber || 'N/A'}</Badge>
+                        </div>
                       </div>
-                      <p className="text-[10px] text-gray-400 mt-1 flex items-center gap-1">
-                        <Clock className="h-3 w-3" />
-                        Scanned at {student.scanTime}
-                      </p>
-                    </div>
-                    <div className="flex flex-col items-end gap-2">
-                      <Badge className={student.already_marked ? "bg-amber-100 text-amber-700 border-amber-200" : "bg-green-100 text-green-700 border-green-200"}>
-                        {student.already_marked ? "Verified" : "Marked"}
-                      </Badge>
-                      <span className="text-[10px] font-medium text-indigo-600 dark:text-indigo-400 uppercase tracking-wider">{student.branchName}</span>
+                      <div className="mt-4 flex flex-wrap justify-center sm:justify-start gap-3">
+                         <span className="text-xs font-bold px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700">{lastScannedStudent.branchName}</span>
+                         <span className="text-xs font-bold px-2 py-1 bg-gray-100 dark:bg-gray-800 rounded text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700">CLASS {lastScannedStudent.classId || 'N/A'}</span>
+                      </div>
                     </div>
                   </div>
-                ))}
+                </div>
+
+                {/* Fee Status Card */}
+                <div className="bg-gradient-to-br from-gray-50 to-white dark:from-gray-900/50 dark:to-gray-900 border border-gray-200 dark:border-gray-800 rounded-3xl p-6 shadow-sm overflow-hidden relative">
+                  <div className="absolute -right-8 -bottom-8 text-gray-100 dark:text-gray-800">
+                    <DollarSign className="w-32 h-32 rotate-12" />
+                  </div>
+                  
+                  <div className="flex items-center justify-between mb-6 relative z-10">
+                    <h4 className="text-lg font-bold flex items-center gap-2">
+                      <DollarSign className="h-5 w-5 text-indigo-500" />
+                      Fee Status Breakdown
+                    </h4>
+                    {lastScannedStudent.feeInfo?.status === 'PAID' ? (
+                      <Badge className="bg-green-500 hover:bg-green-600 text-white px-4 py-1.5 rounded-full font-black tracking-widest text-xs">FULL PAID</Badge>
+                    ) : lastScannedStudent.feeInfo?.status === 'PARTIAL' ? (
+                      <Badge className="bg-amber-500 hover:bg-amber-600 text-white px-4 py-1.5 rounded-full font-black tracking-widest text-xs">PARTIAL PAID</Badge>
+                    ) : (
+                      <Badge className="bg-red-500 hover:bg-red-600 text-white px-4 py-1.5 rounded-full font-black tracking-widest text-xs">UNPAID</Badge>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 relative z-10">
+                    <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+                      <p className="text-[10px] text-gray-400 uppercase font-black tracking-widest mb-1">Total Amount</p>
+                      <p className="text-xl font-black text-gray-900 dark:text-white">Rs. {lastScannedStudent.feeInfo?.amount_due || 0}</p>
+                    </div>
+                    <div className="bg-white dark:bg-gray-800 p-4 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+                      <p className="text-[10px] text-green-500 uppercase font-black tracking-widest mb-1">Paid Amount</p>
+                      <p className="text-xl font-black text-green-600 dark:text-green-400">Rs. {lastScannedStudent.feeInfo?.paid_amount || 0}</p>
+                    </div>
+                    <div className="col-span-2 bg-indigo-600 p-5 rounded-2xl shadow-lg border border-indigo-400">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-[10px] text-indigo-100 uppercase font-black tracking-widest mb-1">Outstanding Balance</p>
+                          <p className="text-3xl font-black text-white">Rs. {lastScannedStudent.feeInfo?.outstanding || 0}</p>
+                        </div>
+                        <div className="h-12 w-12 bg-white/20 rounded-full flex items-center justify-center">
+                          <Clock className="h-6 w-6 text-white" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="mt-4 flex items-center gap-2 text-[10px] text-gray-400 font-bold px-1 relative z-10 uppercase tracking-widest">
+                    <Search className="h-3 w-3" />
+                    Voucher #: {lastScannedStudent.feeInfo?.voucher_no}
+                  </div>
+                </div>
+                
+                <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-2xl border border-blue-100 dark:border-blue-800 flex items-start gap-3">
+                  <Clock className="h-5 w-5 text-blue-600 dark:text-blue-400 mt-0.5 shrink-0" />
+                  <p className="text-xs text-blue-700 dark:text-blue-300 font-medium">
+                    SMS/Notification has been sent to the student automatically. Latest scan time: <span className="font-bold">{lastScannedStudent.scanTime}</span>
+                  </p>
+                </div>
               </div>
             ) : (
-              <div className="text-center py-12 bg-gray-50 dark:bg-gray-900/50 rounded-xl border-2 border-dashed border-gray-200 dark:border-gray-800">
-                <div className="bg-white dark:bg-gray-800 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 shadow-sm">
-                  <UserSearch className="h-8 w-8 text-gray-300" />
+              <div className="h-full flex flex-col items-center justify-center text-center space-y-6 bg-gray-50/50 dark:bg-gray-900/20 rounded-3xl border-2 border-dashed border-gray-200 dark:border-gray-800 p-8">
+                <div className="bg-white dark:bg-gray-800 w-24 h-24 rounded-full flex items-center justify-center shadow-md">
+                  <UserSearch className="h-12 w-12 text-gray-200" />
                 </div>
-                <p className="text-gray-500 dark:text-gray-400">No students scanned yet in this session</p>
+                <div>
+                  <h4 className="text-xl font-bold text-gray-400">No Student Scanned</h4>
+                  <p className="text-sm text-gray-400 max-w-[250px] mx-auto mt-2">Scan a student ID card to view their details and fee status here.</p>
+                </div>
               </div>
             )}
           </div>
         </div>
-        <div className="mt-8 flex justify-between items-center border-t pt-6">
-          <div className="text-sm text-gray-500">
-            <span className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></span>
-              Scanner Active & Connected
-            </span>
-          </div>
-          <Button variant="outline" onClick={() => setIsScannerModalOpen(false)}>
-            Close Scanner
+
+        <div className="mt-8 pt-6 border-t flex justify-end">
+          <Button variant="outline" size="lg" className="rounded-xl px-8" onClick={handleCloseScanner}>
+            Close Scanner Session
           </Button>
         </div>
       </Modal>
 
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 pt-8">
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold">Mark Attendance</h1>
-          <p className="text-sm sm:text-base text-gray-500 dark:text-gray-400">
-            Mark attendance for students across all branches
+          <h1 className="text-2xl md:text-3xl font-black tracking-tight text-gray-900 dark:text-white uppercase">Mark Attendance</h1>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
+            Manage global student attendance and campus records
           </p>
         </div>
-        <div className="flex flex-col sm:flex-row gap-2 mt-2 sm:mt-0 w-full sm:w-auto">
-          <Button
-            onClick={() => setIsScannerModalOpen(true)}
-            className="w-full sm:w-auto bg-indigo-600 hover:bg-indigo-700 text-white"
+        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+          <Button 
+            onClick={handleOpenScanner}
+            className="flex-1 md:flex-none bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200 dark:shadow-none transition-all active:scale-95 py-6 px-6 rounded-2xl"
           >
-            <Scan className="h-4 w-4 mr-2" />
-            Hand Scanner
+            <Scan className="h-5 w-5 mr-2" />
+            <span className="font-bold">Hand Scanner</span>
           </Button>
           <Button
-            onClick={() => setShowScanner(true)}
+            onClick={() => setIsBulkUploadModalOpen(true)}
             variant="outline"
-            className="w-full sm:w-auto border-indigo-600 text-indigo-600 hover:bg-indigo-50"
+            className="flex-1 md:flex-none border-2 border-emerald-600 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all active:scale-95 py-6 px-6 rounded-2xl"
           >
-            <Camera className="h-4 w-4 mr-2" />
-            Camera Scan
+            <Upload className="h-5 w-5 mr-2" />
+            <span className="font-bold">Bulk Upload</span>
           </Button>
-          <Button
-            onClick={() => setManualAttendanceModalOpen(true)}
+          <Button 
+            onClick={() => setManualAttendanceModalOpen(true)} 
             variant="outline"
-            className="w-full sm:w-auto"
+            className="flex-1 md:flex-none border-2 transition-all active:scale-95 py-6 px-6 rounded-2xl"
           >
-            <UserSearch className="h-4 w-4 mr-2" />
-            Manual Attendance
+            <UserSearch className="h-5 w-5 mr-2" />
+            <span className="font-bold">Manual</span>
           </Button>
-          <Button
-            onClick={() => setIsHolidayModalOpen(true)}
+          <Button 
+            onClick={() => setIsHolidayModalOpen(true)} 
             variant="secondary"
-            className="w-full sm:w-auto bg-amber-600 hover:bg-amber-700 text-white font-bold shadow-md flex items-center gap-2"
+            className="flex-1 md:flex-none bg-amber-600 hover:bg-amber-700 text-white shadow-lg shadow-amber-200 dark:shadow-none transition-all active:scale-95 py-6 px-5 rounded-2xl"
+            title="Mark Holiday"
           >
-            <Calendar className="h-4 w-4 mr-2" />
-            Mark Holiday
+            <Calendar className="h-5 w-5" />
           </Button>
         </div>
 
@@ -1360,7 +1784,7 @@ export default function SuperAdminAttendancePage() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Roll No.</TableHead>
+                        <TableHead>GR No.</TableHead>
                         <TableHead>Reg. No.</TableHead>
                         <TableHead>Student Name</TableHead>
                         <TableHead>Status</TableHead>
@@ -1472,7 +1896,7 @@ export default function SuperAdminAttendancePage() {
                     <Table>
                       <TableHeader>
                         <TableRow>
-                          <TableHead>Roll No.</TableHead>
+                          <TableHead>GR No.</TableHead>
                           <TableHead>Reg. No.</TableHead>
                           <TableHead>Student Name</TableHead>
                           <TableHead>Status</TableHead>

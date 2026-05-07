@@ -25,7 +25,7 @@ export default function ExamFormModal({
 }) {
   const [formData, setFormData] = useState({
     title: "",
-    exam_type: "midterm",
+    exam_type: "mid",
     branch_id: "",
     class_id: "",
     section_id: "",
@@ -42,7 +42,7 @@ export default function ExamFormModal({
     if (exam) {
       setFormData({
         title: exam.title || "",
-        exam_type: exam.exam_type || "midterm",
+        exam_type: exam.exam_type || "mid",
         branch_id: exam.branch_id || "",
         class_id: exam.class_id || "",
         section_id: exam.section_id || "",
@@ -181,7 +181,7 @@ export default function ExamFormModal({
       <form
         id="exam-form"
         onSubmit={handleSubmit}
-        className="space-y-8 pr-2 custom-scrollbar pb-80 min-h-[500px]"
+        className="space-y-8 pr-2 custom-scrollbar pb-10"
       >
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           <div className="space-y-2 col-span-1 md:col-span-2 lg:col-span-3">
@@ -316,11 +316,9 @@ export default function ExamFormModal({
               value={formData.exam_type}
               onChange={(e) => handleInputChange("exam_type", e.target.value)}
               options={[
-                { value: "midterm", label: "Midterm" },
-                { value: "final", label: "Final" },
-                { value: "quiz", label: "Quiz" },
-                { value: "unit_test", label: "Unit Test" },
-                { value: "mock", label: "Mock Exam" },
+                { value: "weekly", label: "Weekly" },
+                { value: "mid", label: "Mid" },
+                { value: "final/annual", label: "Final/Annual" },
               ]}
               placeholder="Select Exam Type"
             />
@@ -429,6 +427,8 @@ export default function ExamFormModal({
                         onChange={(e) =>
                           updateSubject(idx, "date", e.target.value)
                         }
+                        disablePast={true}
+                        disableFuture={false}
                         className="h-10"
                       />
                     </div>

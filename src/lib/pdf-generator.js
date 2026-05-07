@@ -645,7 +645,7 @@ export const generateFeeVoucherPDF = (voucher) => {
 
   yPosition += 6;
   doc.setFont('helvetica', 'bold');
-  doc.text('Roll Number:', margin, yPosition);
+  doc.text('GR No:', margin, yPosition);
   doc.setFont('helvetica', 'normal');
   doc.text(rollNo, margin + 35, yPosition);
 

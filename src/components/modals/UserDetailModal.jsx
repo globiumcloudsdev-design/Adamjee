@@ -15,19 +15,110 @@ import {
   Clock,
   Globe,
   Droplets,
-  CreditCard
+  CreditCard,
+  GraduationCap,
+  Award,
+  DollarSign,
+  BookOpen,
+  School
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import Skeleton from "@/components/ui/skeleton";
+import apiClient from "@/lib/api-client";
+import { API_ENDPOINTS } from "@/constants/api-endpoints";
+import { useAuth } from "@/hooks/useAuth";
+import { toast } from "sonner";
 
 /**
  * UserDetailModal - A common component to view detailed profile of any user
  * (Staff, Branch Admin, Teacher, etc.)
  */
-export default function UserDetailModal({ open, onClose, user, title = "Profile Overview" }) {
-  if (!user) return null;
+export default function UserDetailModal({ open, onClose, user: initialUser, userId, title = "Profile Overview" }) {
+  const { user: authUser } = useAuth();
+  const [user, setUser] = React.useState(null);
+  const [loading, setLoading] = React.useState(false);
 
-  const isStaff = user.role === "STAFF" || user.role === "TEACHER";
-  const isBranchAdmin = user.role === "BRANCH_ADMIN";
+  React.useEffect(() => {
+    if (open) {
+      const id = userId || initialUser?.id || initialUser?._id;
+      if (id) {
+        fetchUserDetails(id);
+      }
+    } else {
+      setUser(null);
+    }
+  }, [open, userId, initialUser?.id, initialUser?._id]);
+
+  const fetchUserDetails = async (id) => {
+    try {
+      setLoading(true);
+      const isSuperAdmin = authUser?.role === 'SUPER_ADMIN';
+      
+      // Determine endpoint based on role and auth status
+      // For now, we use a generic fetch or role-based if possible
+      // Let's check the role from initialUser if available
+      const role = initialUser?.role || authUser?.role;
+      
+      let endpoint = '';
+      if (role === 'TEACHER') {
+        endpoint = isSuperAdmin 
+          ? API_ENDPOINTS.SUPER_ADMIN.TEACHERS.GET.replace(':id', id)
+          : API_ENDPOINTS.BRANCH_ADMIN.TEACHERS.GET.replace(':id', id);
+      } else if (role === 'STAFF') {
+        endpoint = isSuperAdmin
+          ? API_ENDPOINTS.SUPER_ADMIN.STAFF.GET.replace(':id', id)
+          : API_ENDPOINTS.BRANCH_ADMIN.STAFF.GET.replace(':id', id);
+      } else {
+        // Fallback for admins or others
+        endpoint = isSuperAdmin
+          ? API_ENDPOINTS.SUPER_ADMIN.ADMINS?.GET?.replace(':id', id) || `/api/super-admin/admins/${id}`
+          : `/api/branch-admin/profile/${id}`;
+      }
+
+      const response = await apiClient.get(endpoint);
+      if (response.success) {
+        setUser(response.data);
+      } else {
+        // If specific endpoint fails, try to use the initialUser data
+        if (initialUser) setUser(initialUser);
+      }
+    } catch (error) {
+      console.error('Fetch user details error:', error);
+      if (initialUser) setUser(initialUser);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const isStaff = user?.role === "STAFF" || user?.role === "TEACHER";
+  const isBranchAdmin = user?.role === "BRANCH_ADMIN";
+  const isTeacher = user?.role === "TEACHER";
+
+  const SkeletonLoading = () => (
+    <div className="space-y-6">
+      {/* Header Skeleton */}
+      <div className="h-48 rounded-xl bg-gray-100 animate-pulse flex items-center p-6 gap-6">
+        <Skeleton className="w-28 h-28 rounded-2xl" />
+        <div className="flex-1 space-y-4">
+          <Skeleton className="h-10 w-3/4" />
+          <div className="flex gap-3">
+            <Skeleton className="h-6 w-24 rounded-full" />
+            <Skeleton className="h-6 w-24 rounded-full" />
+          </div>
+        </div>
+      </div>
+      {/* Grid Skeleton */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
+          <Skeleton className="h-48 w-full rounded-2xl" />
+          <Skeleton className="h-48 w-full rounded-2xl" />
+        </div>
+        <div className="space-y-6">
+          <Skeleton className="h-64 w-full rounded-2xl" />
+        </div>
+      </div>
+    </div>
+  );
 
   return (
     <Modal
@@ -43,8 +134,16 @@ export default function UserDetailModal({ open, onClose, user, title = "Profile 
         </div>
       }
     >
-      <div className="space-y-6 max-h-[80vh] overflow-y-auto pr-2 custom-scrollbar">
-        {/* Header Section with Profile Banner */}
+      <div className="space-y-6 max-h-[80vh] overflow-y-auto pr-2 custom-scrollbar px-1">
+        {loading ? (
+          <SkeletonLoading />
+        ) : !user ? (
+          <div className="p-12 text-center text-gray-500">
+            User details not found.
+          </div>
+        ) : (
+          <>
+            {/* Header Section with Profile Banner */}
         <div className="relative rounded-xl bg-gradient-to-r from-blue-400 to-indigo-400 p-6 text-black overflow-hidden shadow-lg mb-4">
           <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16 blur-2xl" />
           <div className="absolute bottom-0 left-0 w-24 h-24 bg-blue-400/20 rounded-full -ml-12 -mb-12 blur-xl" />
@@ -204,14 +303,14 @@ export default function UserDetailModal({ open, onClose, user, title = "Profile 
                 <Eye className="w-4 h-4 text-purple-500" />
                 Verification Documents
               </h3>
-              {(user.documents || []).length === 0 ? (
+              {(user.documents || user.teacherProfile?.documents || user.details?.documents || []).length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-10 bg-gray-50 dark:bg-gray-900/30 rounded-2xl border border-dashed border-gray-200 dark:border-gray-800">
                   <Eye className="w-10 h-10 text-gray-300 mb-3" />
                   <p className="text-xs text-gray-500 font-bold uppercase tracking-widest">No documents uploaded</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {user.documents.map((doc, idx) => (
+                  {(user.documents || user.teacherProfile?.documents || user.details?.documents || []).map((doc, idx) => (
                     <div
                       key={doc.id || idx}
                       className="flex items-center justify-between p-4 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-700 group hover:border-blue-200 dark:hover:border-blue-900 transition-all hover:shadow-md"
@@ -244,6 +343,107 @@ export default function UserDetailModal({ open, onClose, user, title = "Profile 
                 </div>
               )}
             </div>
+
+            {/* Teacher Specific: Qualifications */}
+            {isTeacher && user.teacherProfile?.qualifications?.length > 0 && (
+              <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5 shadow-sm hover:shadow-md transition-all">
+                <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 mb-5 flex items-center gap-2">
+                  <GraduationCap className="w-4 h-4 text-blue-500" />
+                  Academic Qualifications
+                </h3>
+                <div className="space-y-3">
+                  {user.teacherProfile.qualifications.map((qual, idx) => (
+                    <div key={idx} className="p-4 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-700">
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <DetailItem label="Degree" value={qual.degree} />
+                        <DetailItem label="Institution" value={qual.institution} />
+                        <DetailItem label="Year" value={qual.yearOfCompletion} />
+                        <DetailItem label="Grade" value={qual.grade || 'N/A'} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Teacher Specific: Class Assignments */}
+            {isTeacher && user.teacherProfile?.classes?.length > 0 && (
+              <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5 shadow-sm hover:shadow-md transition-all">
+                <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 mb-5 flex items-center gap-2">
+                  <BookOpen className="w-4 h-4 text-emerald-500" />
+                  Class Assignments
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {user.teacherProfile.classes.map((cls, idx) => (
+                    <div key={idx} className="flex items-center gap-3 p-3 rounded-xl bg-gray-50 dark:bg-gray-900/50 border border-gray-100 dark:border-gray-700">
+                      <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/20 flex items-center justify-center text-emerald-600">
+                        <School className="w-4 h-4" />
+                      </div>
+                      <div>
+                        <p className="text-sm font-bold text-gray-900 dark:text-white">
+                          {cls.classId?.name || cls.className}
+                        </p>
+                        <p className="text-[10px] text-gray-500 font-bold uppercase tracking-tight">
+                          {cls.subjectId?.name || cls.subjectName}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Teacher Specific: Salary Information */}
+            {isTeacher && user.teacherProfile?.salaryDetails && (
+              <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5 shadow-sm hover:shadow-md transition-all">
+                <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 mb-5 flex items-center gap-2">
+                  <DollarSign className="w-4 h-4 text-green-500" />
+                  Salary Information
+                </h3>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                  <div className="bg-green-50 dark:bg-green-900/10 p-4 rounded-xl border border-green-100 dark:border-green-900/20 text-center">
+                    <p className="text-[10px] text-green-600 dark:text-green-400 font-bold uppercase tracking-widest mb-1">Basic</p>
+                    <p className="text-lg font-black text-green-900 dark:text-green-100">
+                      Rs. {(user.teacherProfile.salaryDetails.basicSalary || 0).toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="bg-blue-50 dark:bg-blue-900/10 p-4 rounded-xl border border-blue-100 dark:border-blue-900/20 text-center">
+                    <p className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase tracking-widest mb-1">Allowances</p>
+                    <p className="text-lg font-black text-blue-900 dark:text-blue-100">
+                      Rs. {Object.values(user.teacherProfile.salaryDetails.allowances || {})
+                        .reduce((sum, val) => sum + (val || 0), 0).toLocaleString()}
+                    </p>
+                  </div>
+                  <div className="bg-purple-50 dark:bg-purple-900/10 p-4 rounded-xl border border-purple-100 dark:border-purple-900/20 text-center">
+                    <p className="text-[10px] text-purple-600 dark:text-purple-400 font-bold uppercase tracking-widest mb-1">Net Payable</p>
+                    <p className="text-lg font-black text-purple-900 dark:text-purple-100">
+                      Rs. {(
+                        (user.teacherProfile.salaryDetails.basicSalary || 0) +
+                        Object.values(user.teacherProfile.salaryDetails.allowances || {})
+                          .reduce((sum, val) => sum + (val || 0), 0) -
+                        Object.values(user.teacherProfile.salaryDetails.deductions || {})
+                          .reduce((sum, val) => sum + (val || 0), 0)
+                      ).toLocaleString()}
+                    </p>
+                  </div>
+                </div>
+                {/* Bank Account */}
+                {user.teacherProfile?.bankAccount?.bankName && (
+                  <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
+                    <div className="flex items-center gap-4">
+                      <div className="w-10 h-10 rounded-xl bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+                        <CreditCard className="w-5 h-5 text-gray-400" />
+                      </div>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-6 flex-1">
+                        <DetailItem label="Bank Name" value={user.teacherProfile.bankAccount.bankName} />
+                        <DetailItem label="Account No" value={user.teacherProfile.bankAccount.accountNumber} />
+                        <DetailItem label="IBAN" value={user.teacherProfile.bankAccount.iban} />
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Sidebar Info Column */}
@@ -262,8 +462,8 @@ export default function UserDetailModal({ open, onClose, user, title = "Profile 
               </div>
             </div>
 
-            {/* Work Schedule (Only for Staff/Teachers) */}
-            {(isStaff || user.details?.working_hours || user.details?.workingHours) && (
+            {/* Work Schedule (Only for non-teacher Staff) */}
+            {(!isTeacher && (isStaff || user.details?.working_hours || user.details?.workingHours)) && (
               <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 p-5 shadow-sm hover:shadow-md transition-all">
                 <h3 className="text-sm font-bold text-gray-900 dark:text-gray-100 mb-5 flex items-center gap-2">
                   <Clock className="w-4 h-4 text-cyan-500" />
@@ -317,6 +517,8 @@ export default function UserDetailModal({ open, onClose, user, title = "Profile 
             )}
           </div>
         </div>
+        </>
+        )}
       </div>
     </Modal>
   );

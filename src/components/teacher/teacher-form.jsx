@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Plus, X, Eye, Trash2, User, Upload, Mail, Phone, Calendar, MapPin, FileText, BookOpen, GraduationCap, Award, DollarSign, Briefcase } from 'lucide-react';
+import { Plus, X, Eye, Trash2, User, Upload, Mail, Phone, Calendar, MapPin, FileText, BookOpen, GraduationCap, Award, DollarSign, Briefcase, Shield } from 'lucide-react';
 import { toast } from 'sonner';
 import apiClient from '@/lib/api-client';
 import { API_ENDPOINTS } from '@/constants/api-endpoints';
@@ -88,7 +88,7 @@ export default function TeacherForm({
       department: '',
       qualifications: [],
       experience: {
-        totalYears: 0,
+        totalYears: '',
         previousInstitutions: [],
       },
       subjects: [],
@@ -127,46 +127,70 @@ export default function TeacherForm({
 
   // Initialize form with editing teacher data
   useEffect(() => {
-    if (editingTeacher) {
-      const details = editingTeacher.details?.teacher || editingTeacher.teacherProfile || {};
-      const existingDocs = editingTeacher.details?.documents || editingTeacher.documents || [];
+    const loadTeacherData = async () => {
+      if (!editingTeacher) return;
+
+      let fullTeacher = editingTeacher;
+      
+      // If we only have basic info (common in list views), fetch full details
+      const needsFullFetch = !editingTeacher.teacherProfile && !editingTeacher.details?.teacher;
+      
+      if (needsFullFetch) {
+        try {
+          const id = editingTeacher.id || editingTeacher._id;
+          const isSuperAdmin = userRole?.toUpperCase() === 'SUPER_ADMIN';
+          const endpoint = isSuperAdmin 
+            ? API_ENDPOINTS.SUPER_ADMIN.TEACHERS.GET.replace(':id', id)
+            : API_ENDPOINTS.BRANCH_ADMIN.TEACHERS.GET.replace(':id', id);
+            
+          const response = await apiClient.get(endpoint);
+          if (response.success) {
+            fullTeacher = response.data;
+          }
+        } catch (error) {
+          console.error('Error fetching full teacher details:', error);
+        }
+      }
+
+      const details = fullTeacher.details?.teacher || fullTeacher.teacherProfile || {};
+      const existingDocs = fullTeacher.details?.documents || fullTeacher.documents || [];
       
       setFormData({
-        firstName: editingTeacher.first_name || editingTeacher.firstName || '',
-        lastName: editingTeacher.last_name || editingTeacher.lastName || '',
-        email: editingTeacher.email || '',
-        phone: editingTeacher.phone || '',
-        alternatePhone: editingTeacher.alternate_phone || editingTeacher.alternatePhone || '',
-        dateOfBirth: (editingTeacher.details?.date_of_birth || editingTeacher.dateOfBirth) 
-          ? new Date(editingTeacher.details?.date_of_birth || editingTeacher.dateOfBirth).toISOString().split('T')[0] 
+        firstName: fullTeacher.first_name || fullTeacher.firstName || '',
+        lastName: fullTeacher.last_name || fullTeacher.lastName || '',
+        email: fullTeacher.email || '',
+        phone: fullTeacher.phone || '',
+        alternatePhone: fullTeacher.alternate_phone || fullTeacher.alternatePhone || '',
+        dateOfBirth: (fullTeacher.details?.date_of_birth || fullTeacher.dateOfBirth) 
+          ? new Date(fullTeacher.details?.date_of_birth || fullTeacher.dateOfBirth).toISOString().split('T')[0] 
           : '',
-        gender: editingTeacher.details?.gender || editingTeacher.gender || 'male',
-        bloodGroup: editingTeacher.details?.blood_group || editingTeacher.bloodGroup || '',
-        nationality: editingTeacher.details?.nationality || editingTeacher.nationality || 'Pakistani',
-        cnic: editingTeacher.details?.cnic || editingTeacher.cnic || '',
-        religion: editingTeacher.details?.religion || editingTeacher.religion || '',
-        address: editingTeacher.details?.address || editingTeacher.address || {
+        gender: fullTeacher.details?.gender || fullTeacher.gender || 'male',
+        bloodGroup: fullTeacher.details?.blood_group || fullTeacher.bloodGroup || '',
+        nationality: fullTeacher.details?.nationality || fullTeacher.nationality || 'Pakistani',
+        cnic: fullTeacher.details?.cnic || fullTeacher.cnic || '',
+        religion: fullTeacher.details?.religion || fullTeacher.religion || '',
+        address: fullTeacher.details?.address || fullTeacher.address || {
           street: '',
           city: '',
           state: '',
           country: 'Pakistan',
           postalCode: '',
         },
-        branchId: editingTeacher.branch_id || editingTeacher.branchId?._id || (userRole?.toUpperCase() === 'BRANCH_ADMIN' ? currentBranchId : ''),
+        branchId: fullTeacher.branch_id || fullTeacher.branchId?._id || (userRole?.toUpperCase() === 'BRANCH_ADMIN' ? currentBranchId : ''),
         profilePhoto: {
-          url: editingTeacher.avatar_url || editingTeacher.profilePhoto?.url || '',
-          publicId: editingTeacher.details?.avatar_public_id || editingTeacher.profilePhoto?.publicId || ''
+          url: fullTeacher.avatar_url || fullTeacher.profilePhoto?.url || '',
+          publicId: fullTeacher.details?.avatar_public_id || fullTeacher.profilePhoto?.publicId || ''
         },
         teacherProfile: {
           joiningDate: details.joiningDate || details.joining_date 
             ? new Date(details.joiningDate || details.joining_date).toISOString().split('T')[0] 
             : new Date().toISOString().split('T')[0],
           designation: details.designation || 'Teacher',
-          departmentId: details.departmentId?._id || details.department_id || '',
+          departmentId: details.departmentId?._id || details.departmentId || details.department_id || '',
           department: details.department || '',
           qualifications: details.qualifications || [],
           experience: details.experience || { 
-            totalYears: 0, 
+            totalYears: '', 
             previousInstitutions: [] 
           },
           subjects: details.subjects?.map(s => s.id || s._id || s) || [],
@@ -189,11 +213,11 @@ export default function TeacherForm({
           },
           documents: existingDocs,
         },
-        status: editingTeacher.is_active === false ? 'inactive' : 'active',
-        remarks: editingTeacher.remarks || '',
+        status: fullTeacher.is_active === false ? 'inactive' : 'active',
+        remarks: fullTeacher.remarks || '',
       });
 
-      setProfilePhotoPreview(editingTeacher.avatar_url || editingTeacher.profilePhoto?.url || null);
+      setProfilePhotoPreview(fullTeacher.avatar_url || fullTeacher.profilePhoto?.url || null);
       
       if (Array.isArray(existingDocs)) {
         setDocumentFiles(existingDocs.map(doc => ({
@@ -201,7 +225,9 @@ export default function TeacherForm({
           isExisting: true
         })));
       }
-    }
+    };
+
+    loadTeacherData();
   }, [editingTeacher, userRole, currentBranchId]);
 
   // Ensure class assignments belong to the selected branch; remove any assignments that don't
@@ -266,15 +292,24 @@ export default function TeacherForm({
     setLoading(true);
 
     try {
-      // Required field validation
-      if (!formData.firstName || !formData.lastName || !formData.email || !formData.phone || !formData.dateOfBirth) {
-        toast.error('Please fill all required fields (Name, Email, Phone, Date of Birth)');
+      // Comprehensive validation before submission
+      if (!formData.firstName?.trim() || !formData.lastName?.trim() || !formData.phone?.trim() || !formData.email?.trim() || !formData.gender || !formData.dateOfBirth) {
+        setActiveTab('personal');
+        toast.error('Please fill all required personal fields');
+        setLoading(false);
+        return;
+      }
+      
+      if (!formData.teacherProfile?.designation || !formData.teacherProfile?.emergencyContact?.phone?.trim()) {
+        setActiveTab('professional');
+        toast.error('Please fill required professional and emergency contact fields');
         setLoading(false);
         return;
       }
 
-      if (userRole === 'super_admin' && !formData.branchId) {
-        toast.error('Please select a branch');
+      if (!formData.academicYearId || (userRole?.toUpperCase() === 'SUPER_ADMIN' && !formData.branchId)) {
+        setActiveTab('academic');
+        toast.error('Please fill required academic fields');
         setLoading(false);
         return;
       }
@@ -327,13 +362,9 @@ export default function TeacherForm({
         : API_ENDPOINTS[userRole.toUpperCase()]?.TEACHERS?.CREATE;
 
       if (editingTeacher) {
-        response = await apiClient.put(endpoint, finalFormData, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        });
+        response = await apiClient.put(endpoint, finalFormData);
       } else {
-        response = await apiClient.post(endpoint, finalFormData, {
-          headers: { 'Content-Type': 'multipart/form-data' }
-        });
+        response = await apiClient.post(endpoint, finalFormData);
       }
 
       if (response?.success) {
@@ -502,31 +533,97 @@ export default function TeacherForm({
     { id: 'documents', label: 'Documents', icon: FileText },
   ];
 
+  const validateCurrentTab = () => {
+    switch (activeTab) {
+      case 'personal':
+        if (!formData.firstName?.trim() || !formData.lastName?.trim() || !formData.phone?.trim() || !formData.email?.trim() || !formData.gender || !formData.dateOfBirth) {
+          toast.error('Please fill all required personal fields (First Name, Last Name, Phone, Email, Gender, Date of Birth)');
+          return false;
+        }
+        return true;
+      case 'professional':
+        if (!formData.teacherProfile?.designation) {
+          toast.error('Please select a designation');
+          return false;
+        }
+        if (!formData.teacherProfile?.emergencyContact?.phone?.trim()) {
+          toast.error('Emergency contact phone is required');
+          return false;
+        }
+        return true;
+      case 'academic':
+        if (!formData.academicYearId) {
+          toast.error('Please select an Academic Year');
+          return false;
+        }
+        if (userRole?.toUpperCase() === 'SUPER_ADMIN' && !formData.branchId) {
+          toast.error('Please select a Branch');
+          return false;
+        }
+        return true;
+      default:
+        return true;
+    }
+  };
+
+  // Navigation handlers
+  const handleNext = () => {
+    if (!validateCurrentTab()) return;
+
+    const currentIndex = tabs.findIndex(t => t.id === activeTab);
+    if (currentIndex < tabs.length - 1) {
+      setActiveTab(tabs[currentIndex + 1].id);
+    }
+  };
+
+  const handleBack = () => {
+    const currentIndex = tabs.findIndex(t => t.id === activeTab);
+    if (currentIndex > 0) {
+      setActiveTab(tabs[currentIndex - 1].id);
+    }
+  };
+
   return (
-    <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
+    <div className="space-y-6">
       {/* Tabs */}
-      <div className="border-b border-gray-200 mb-6">
-        <nav className="-mb-px flex space-x-8 overflow-x-auto">
+      <div className="border-b border-gray-200">
+        <nav className="-mb-px flex space-x-4 md:space-x-8 overflow-x-auto no-scrollbar">
           {tabs.map((tab) => (
             <button
               key={tab.id}
               type="button"
-              onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors whitespace-nowrap ${
+              onClick={() => {
+                const targetIndex = tabs.findIndex(t => t.id === tab.id);
+                const currentIndex = tabs.findIndex(t => t.id === activeTab);
+                
+                // Only allow clicking forward if current tab is valid
+                if (targetIndex > currentIndex) {
+                  if (validateCurrentTab()) {
+                    setActiveTab(tab.id);
+                  }
+                } else {
+                  // Always allow going back
+                  setActiveTab(tab.id);
+                }
+              }}
+              className={`flex items-center gap-2 py-4 px-1 border-b-2 font-bold text-xs md:text-sm transition-all whitespace-nowrap ${
                 activeTab === tab.id
-                  ? 'border-blue-500 text-blue-600'
-                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                  ? 'border-blue-600 text-blue-600'
+                  : 'border-transparent text-gray-400 hover:text-gray-600 hover:border-gray-300'
               }`}
             >
-              <tab.icon className="h-5 w-5" />
+              <div className={`p-1.5 rounded-lg ${activeTab === tab.id ? 'bg-blue-50' : 'bg-gray-50'}`}>
+                <tab.icon className="h-4 w-4" />
+              </div>
               {tab.label}
             </button>
           ))}
         </nav>
       </div>
 
-      {/* Tab Content */}
-      <div className="max-h-[60vh] overflow-y-auto space-y-4 p-1">
+      {/* Form Content */}
+      <form ref={formRef} onSubmit={handleSubmit} className="space-y-6">
+      <div className="max-h-[65vh] overflow-y-auto space-y-8 p-1 custom-scrollbar">
         
         {/* Personal Info Tab */}
         {activeTab === 'personal' && (
@@ -583,7 +680,7 @@ export default function TeacherForm({
             {/* Basic Info */}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-bold text-gray-700 mb-1.5 uppercase text-[10px] tracking-widest">
                   First Name <span className="text-red-500">*</span>
                 </label>
                 <Input
@@ -597,7 +694,7 @@ export default function TeacherForm({
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-bold text-gray-700 mb-1.5 uppercase text-[10px] tracking-widest">
                   Last Name <span className="text-red-500">*</span>
                 </label>
                 <Input
@@ -611,7 +708,7 @@ export default function TeacherForm({
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+                <label className="block text-sm font-bold text-gray-700 mb-1.5 uppercase text-[10px] tracking-widest">
                   Email <span className="text-red-500">*</span>
                 </label>
                 <Input
@@ -625,18 +722,23 @@ export default function TeacherForm({
                 />
               </div>
 
-              <PhoneInput
-                label="Phone"
-                value={formData.phone}
-                onChange={(val) => setFormData({ ...formData, phone: val })}
-                required
-              />
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1.5 uppercase text-[10px] tracking-widest">Phone <span className="text-red-500 font-bold">*</span></label>
+                <PhoneInput
+                  value={formData.phone}
+                  onChange={(val) => setFormData({ ...formData, phone: val })}
+                  hideDescription
+                />
+              </div>
 
-              <PhoneInput
-                label="Alternate Phone"
-                value={formData.alternatePhone}
-                onChange={(val) => setFormData({ ...formData, alternatePhone: val })}
-              />
+              <div>
+                <label className="block text-sm font-bold text-gray-700 mb-1.5 uppercase text-[10px] tracking-widest">Alternate Phone</label>
+                <PhoneInput
+                  value={formData.alternatePhone}
+                  onChange={(val) => setFormData({ ...formData, alternatePhone: val })}
+                  hideDescription
+                />
+              </div>
 
               <DatePicker
                 label="Date of Birth"
@@ -703,7 +805,7 @@ export default function TeacherForm({
               </h3>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Street Address</label>
+                  <label className="block text-sm font-bold text-gray-700 mb-1.5 uppercase text-[10px] tracking-widest">Street Address</label>
                   <Input
                     type="text"
                     name="address.street"
@@ -713,7 +815,7 @@ export default function TeacherForm({
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+                  <label className="block text-sm font-bold text-gray-700 mb-1.5 uppercase text-[10px] tracking-widest">City</label>
                   <Input
                     type="text"
                     name="address.city"
@@ -723,7 +825,7 @@ export default function TeacherForm({
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">State/Province</label>
+                  <label className="block text-sm font-bold text-gray-700 mb-1.5 uppercase text-[10px] tracking-widest">State/Province</label>
                   <Input
                     type="text"
                     name="address.state"
@@ -733,7 +835,7 @@ export default function TeacherForm({
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Postal Code</label>
+                  <label className="block text-sm font-bold text-gray-700 mb-1.5 uppercase text-[10px] tracking-widest">Postal Code</label>
                   <Input
                     type="text"
                     name="address.postalCode"
@@ -759,7 +861,7 @@ export default function TeacherForm({
               />
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Designation</label>
+                <label className="block text-sm font-bold text-gray-700 mb-1.5 uppercase text-[10px] tracking-widest">Designation</label>
                 <Dropdown
                   name="teacherProfile.designation"
                   value={formData.teacherProfile.designation}
@@ -776,13 +878,13 @@ export default function TeacherForm({
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Experience (Years)</label>
+                <label className="block text-sm font-bold text-gray-700 mb-1.5 uppercase text-[10px] tracking-widest">Experience (Years)</label>
                 <Input
                   type="number"
                   name="teacherProfile.experience.totalYears"
                   value={formData.teacherProfile.experience.totalYears}
                   onChange={handleInputChange}
-                  placeholder="5"
+                  placeholder="e.g. 5"
                   min="0"
                 />
               </div>
@@ -853,12 +955,14 @@ export default function TeacherForm({
               </div>
             </div>
 
-            {/* Emergency Contact */}
-            <div className="border-t pt-4">
-              <h3 className="text-sm font-semibold text-gray-900 mb-3">Emergency Contact</h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="border-t pt-6">
+              <h3 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
+                <Shield className="h-4 w-4 text-red-500" />
+                Emergency Contact Details
+              </h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Contact Name</label>
+                  <label className="block text-sm font-bold text-gray-700 mb-1.5 uppercase text-[10px] tracking-widest">Contact Name</label>
                   <Input
                     type="text"
                     name="teacherProfile.emergencyContact.name"
@@ -868,7 +972,7 @@ export default function TeacherForm({
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Relationship</label>
+                  <label className="block text-sm font-bold text-gray-700 mb-1.5 uppercase text-[10px] tracking-widest">Relationship</label>
                   <Input
                     type="text"
                     name="teacherProfile.emergencyContact.relationship"
@@ -878,14 +982,21 @@ export default function TeacherForm({
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
-                  <Input
-                    type="tel"
-                    name="teacherProfile.emergencyContact.phone"
+                  <label className="block text-sm font-bold text-gray-700 mb-1.5 uppercase text-[10px] tracking-widest">Phone Number</label>
+                  <PhoneInput
                     value={formData.teacherProfile.emergencyContact.phone}
-                    onChange={handleInputChange}
-                    placeholder="+92 300 1234567"
-                    icon={Phone}
+                    onChange={(val) => setFormData({
+                      ...formData,
+                      teacherProfile: {
+                        ...formData.teacherProfile,
+                        emergencyContact: {
+                          ...formData.teacherProfile.emergencyContact,
+                          phone: val
+                        }
+                      }
+                    })}
+                    required
+                    hideDescription
                   />
                 </div>
               </div>
@@ -1037,31 +1148,57 @@ export default function TeacherForm({
         )}
       </div>
 
-      {/* Form Actions */}
-      <div className="flex justify-end gap-3 pt-6 border-t">
-        <button
-          type="button"
-          onClick={onClose}
-          className="px-6 py-2 border rounded-lg hover:bg-gray-50 text-gray-700 font-medium"
-          disabled={loading}
-        >
-          Cancel
-        </button>
-        <button
-          type="submit"
-          className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium disabled:opacity-50 flex items-center gap-2"
-          disabled={loading}
-        >
-          {loading ? (
-            <>
-              <ButtonLoader size={4} />
-              {editingTeacher ? 'Updating...' : 'Creating...'}
-            </>
-          ) : (
-            editingTeacher ? 'Update Teacher' : 'Create Teacher'
+      {/* Form Actions / Navigation */}
+      <div className="flex justify-between items-center pt-6 border-t mt-4">
+        <div className="flex gap-3">
+          {activeTab !== 'personal' && (
+            <button
+              type="button"
+              onClick={handleBack}
+              className="px-6 py-2 border border-gray-300 rounded-xl hover:bg-gray-50 text-gray-700 font-bold text-sm transition-all flex items-center gap-2"
+              disabled={loading}
+            >
+              Back
+            </button>
           )}
-        </button>
+          <button
+            type="button"
+            onClick={onClose}
+            className="px-6 py-2 text-gray-500 hover:text-gray-700 font-bold text-sm"
+            disabled={loading}
+          >
+            Cancel
+          </button>
+        </div>
+
+        <div className="flex gap-3">
+          {activeTab !== 'documents' ? (
+            <button
+              type="button"
+              onClick={handleNext}
+              className="px-8 py-2 bg-blue-600 text-white rounded-xl hover:bg-blue-700 font-bold text-sm shadow-lg shadow-blue-500/20 transition-all"
+            >
+              Next Step
+            </button>
+          ) : (
+            <button
+              type="submit"
+              className="px-8 py-2 bg-green-600 text-white rounded-xl hover:bg-green-700 font-bold text-sm shadow-lg shadow-green-500/20 transition-all flex items-center gap-2"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <ButtonLoader size={4} />
+                  {editingTeacher ? 'Updating...' : 'Creating...'}
+                </>
+              ) : (
+                editingTeacher ? 'Update Teacher' : 'Create Teacher'
+              )}
+            </button>
+          )}
+        </div>
       </div>
     </form>
+  </div>
   );
 }

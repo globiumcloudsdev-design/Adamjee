@@ -1,12 +1,12 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import Modal from "@/components/ui/modal";
-// import AssignmentFormModal from "@/components/forms/AssignmentFormModal";
+import AssignmentFormModal from "@/components/forms/AssignmentFormModal";
 import {
   Eye,
   Edit,
@@ -20,7 +20,17 @@ import {
   XCircle,
   AlertCircle,
   BookOpen,
+  Trash2,
+  MoreVertical,
 } from "lucide-react";
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableRow,
+  TableHead,
+  TableCell,
+} from "@/components/ui/table";
 import DashboardSkeleton from "@/components/teacher/DashboardSkeleton";
 import apiClient from "@/lib/api-client";
 import { API_ENDPOINTS } from "@/constants/api-endpoints";
@@ -32,6 +42,7 @@ export default function TeacherAssignmentsPage() {
   const [filter, setFilter] = useState("all");
   const [showFormModal, setShowFormModal] = useState(false);
   const [showDetailModal, setShowDetailModal] = useState(false);
+  const [showInfoModal, setShowInfoModal] = useState(false);
   const [selectedAssignment, setSelectedAssignment] = useState(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [assignmentDetails, setAssignmentDetails] = useState(null);
@@ -41,20 +52,53 @@ export default function TeacherAssignmentsPage() {
     fetchAssignments();
   }, []);
 
-  const fetchAssignments = async () => {
+  const fetchAssignments = useCallback(async (silent = false) => {
     try {
-      setLoading(true);
+      if (!silent) setLoading(true);
       const response = await apiClient.get(API_ENDPOINTS.TEACHER.ASSIGNMENTS.LIST);
       if (response.success) {
-        setAssignments(response.data);
+        setAssignments(response.data.map(a => ({
+          ...a,
+          id: a.id || a._id,
+          classId: a.class,
+          subjectId: a.subject,
+          dueDate: a.due_date,
+          totalMarks: a.total_marks,
+          isActive: a.is_active,
+          // Explicitly coerce to number — Postgres returns strings for COUNT()
+          submissionCount: Number(a.submission_count ?? 0),
+          totalStudents: Number(a.total_students ?? 0),
+        })));
       }
     } catch (error) {
       console.error("Error fetching assignments:", error);
-      toast.error("Failed to load assignments");
+      if (!silent) toast.error("Failed to load assignments");
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
-  };
+  }, []);
+
+  useEffect(() => {
+    const refreshAssignments = () => {
+      fetchAssignments(true);
+    };
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        refreshAssignments();
+      }
+    };
+
+    window.addEventListener("focus", refreshAssignments);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    const intervalId = window.setInterval(refreshAssignments, 30000);
+
+    return () => {
+      window.removeEventListener("focus", refreshAssignments);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.clearInterval(intervalId);
+    };
+  }, [fetchAssignments]);
 
   const handleCreateOrUpdate = async (formData) => {
     try {
@@ -62,7 +106,7 @@ export default function TeacherAssignmentsPage() {
       let response;
       if (selectedAssignment) {
         response = await apiClient.put(
-          API_ENDPOINTS.TEACHER.ASSIGNMENTS.UPDATE.replace(":id", selectedAssignment._id),
+          API_ENDPOINTS.TEACHER.ASSIGNMENTS.UPDATE(selectedAssignment.id || selectedAssignment._id),
           formData
         );
       } else {
@@ -88,7 +132,7 @@ export default function TeacherAssignmentsPage() {
 
     try {
       const response = await apiClient.delete(
-        API_ENDPOINTS.TEACHER.ASSIGNMENTS.DELETE.replace(":id", id)
+        API_ENDPOINTS.TEACHER.ASSIGNMENTS.DELETE(id)
       );
       if (response.success) {
         toast.success("Assignment deleted");
@@ -104,7 +148,7 @@ export default function TeacherAssignmentsPage() {
     try {
       setLoadingDetails(true);
       const response = await apiClient.get(
-        API_ENDPOINTS.TEACHER.ASSIGNMENTS.GET.replace(":id", id)
+        API_ENDPOINTS.TEACHER.ASSIGNMENTS.GET(id)
       );
       if (response.success) {
         setAssignmentDetails(response.data);
@@ -121,7 +165,18 @@ export default function TeacherAssignmentsPage() {
     setSelectedAssignment(assignment);
     setAssignmentDetails(null);
     setShowDetailModal(true);
-    fetchAssignmentDetails(assignment._id);
+    fetchAssignmentDetails(assignment.id || assignment._id);
+  };
+
+  // When submission modal closes, silently refresh counts
+  const handleCloseDetailModal = () => {
+    setShowDetailModal(false);
+    fetchAssignments(true); // silent refresh to update counts
+  };
+
+  const handleViewInfo = (assignment) => {
+    setSelectedAssignment(assignment);
+    setShowInfoModal(true);
   };
 
   const handleOpenEdit = (assignment) => {
@@ -130,35 +185,32 @@ export default function TeacherAssignmentsPage() {
   };
 
   const getStatusInfo = (assignment) => {
+    if (assignment.isActive === false) {
+      return { label: "Inactive", color: "bg-red-500" };
+    }
+    
     const dueDate = new Date(assignment.dueDate);
     const now = new Date();
-    const diffDays = Math.ceil((dueDate - now) / (1000 * 60 * 60 * 24));
-
-    if (assignment.status === "archived") {
-      return { label: "Archived", color: "bg-gray-500" };
+    now.setHours(0, 0, 0, 0);
+    const due = new Date(dueDate);
+    due.setHours(0, 0, 0, 0);
+    
+    if (due < now) {
+      return { label: "Overdue", color: "bg-orange-500" };
     }
 
-    if (diffDays < 0) {
-      return { label: "Overdue", color: "bg-red-500" };
-    }
-
-    if (diffDays === 0) {
-      return { label: "Due Today", color: "bg-orange-500 animate-pulse" };
-    }
-
-    if (diffDays === 1) {
-      return { label: "Due Tomorrow", color: "bg-yellow-500" };
-    }
-
-    return { label: `${diffDays} days left`, color: "bg-blue-500" };
+    return { label: "Active", color: "bg-green-500" };
   };
 
   const filteredAssignments = assignments.filter((assignment) => {
     if (filter === "all") return true;
-    if (filter === "active") return assignment.status === "active";
+    if (filter === "active") return assignment.isActive === true;
     if (filter === "overdue") {
       const dueDate = new Date(assignment.dueDate);
-      return dueDate < new Date();
+      const now = new Date();
+      now.setHours(0, 0, 0, 0);
+      dueDate.setHours(0, 0, 0, 0);
+      return dueDate < now;
     }
     return true;
   });
@@ -215,109 +267,117 @@ export default function TeacherAssignmentsPage() {
         </Button>
       </div>
 
-      {/* Assignments List */}
-      <div className="grid gap-4">
-        {filteredAssignments.map((assignment, index) => {
-          const statusInfo = getStatusInfo(assignment);
-          const submittedCount = assignment.submissionCount || 0;
-          
-          return (
-            <motion.div
-              key={assignment._id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05 }}
-            >
-              <Card className="p-6 hover:shadow-lg transition-all duration-300">
-                <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4">
-                  {/* Left Section */}
-                  <div className="flex-1">
-                    <div className="flex items-start gap-4 mb-3">
-                      <div className="p-3 bg-primary/10 rounded-lg flex-shrink-0">
-                        <FileText className="w-6 h-6 text-primary" />
+      {/* Assignments Table */}
+      <div className="bg-white rounded-xl shadow-sm border overflow-hidden">
+        <Table>
+          <TableHeader className="bg-muted/50">
+            <TableRow>
+              <TableHead className="font-bold">Assignment Title</TableHead>
+              <TableHead className="font-bold">Class & Subject</TableHead>
+              <TableHead className="font-bold text-center">Due Date</TableHead>
+              <TableHead className="font-bold text-center">Marks</TableHead>
+              <TableHead className="font-bold text-center">Submissions</TableHead>
+              <TableHead className="font-bold text-center">Status</TableHead>
+              <TableHead className="font-bold text-right">Actions</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {filteredAssignments.map((assignment, index) => {
+              const statusInfo = getStatusInfo(assignment);
+              const submittedCount = assignment.submissionCount || 0;
+              const totalStudents = assignment.totalStudents || 0;
+
+              return (
+                <TableRow key={assignment.id || assignment._id} className="hover:bg-muted/30 transition-colors">
+                  <TableCell>
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 bg-primary/10 rounded-lg">
+                        <FileText className="w-5 h-5 text-primary" />
                       </div>
-                      <div className="flex-1">
-                        <div className="flex flex-wrap items-center gap-2 mb-1">
-                          <h3 className="font-bold text-lg">
-                            {assignment.title}
-                          </h3>
-                          <Badge className={statusInfo.color}>
-                            {statusInfo.label}
-                          </Badge>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                          <span className="font-medium text-primary">{assignment.classId?.name}</span>
-                          <span>•</span>
-                          <span>{assignment.subjectId?.name}</span>
-                        </div>
-                        <p className="text-sm text-muted-foreground line-clamp-2">
-                          {assignment.description}
+                      <div>
+                        <p className="font-bold text-sm">{assignment.title}</p>
+                        <p className="text-xs text-muted-foreground line-clamp-1 max-w-[200px]">
+                          {assignment.description || "No description"}
                         </p>
                       </div>
                     </div>
-
-                    {/* Details */}
-                    <div className="flex flex-wrap items-center gap-4 text-sm text-muted-foreground lg:ml-16">
-                      <div className="flex items-center gap-2">
-                        <Calendar className="w-4 h-4" />
-                        <span>
-                          Due:{" "}
-                          {new Date(assignment.dueDate).toLocaleDateString()}
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Clock className="w-4 h-4" />
-                        <span>{assignment.totalMarks} marks</span>
-                      </div>
-                      <div className="flex items-center gap-2">
+                  </TableCell>
+                  <TableCell>
+                    <div className="space-y-0.5">
+                      <p className="text-sm font-medium">{assignment.classId?.name}</p>
+                      <p className="text-xs text-muted-foreground">{assignment.subjectId?.name}</p>
+                    </div>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <p className="text-sm font-medium">
+                      {new Date(assignment.dueDate).toLocaleDateString()}
+                    </p>
+                  </TableCell>
+                  <TableCell className="text-center font-medium">
+                    {assignment.totalMarks}
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <Badge
+                      variant="outline"
+                      className={`font-bold ${
+                        submittedCount > 0
+                          ? "border-green-500 text-green-700 bg-green-50"
+                          : "border-gray-300 text-gray-500"
+                      }`}
+                    >
+                      {submittedCount} / {totalStudents}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-center">
+                    <Badge className={statusInfo.color}>
+                      {statusInfo.label}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex items-center justify-end gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => handleViewInfo(assignment)}
+                        title="View Assignment Info"
+                        className="h-8 w-8 text-indigo-600 hover:text-indigo-700 hover:bg-indigo-50"
+                      >
+                        <FileText className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => handleViewDetails(assignment)}
+                        title="View Submissions"
+                        className="h-8 w-8 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                      >
                         <Users className="w-4 h-4" />
-                        <span>{submittedCount} Submissions</span>
-                      </div>
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => handleOpenEdit(assignment)}
+                        title="Edit Assignment"
+                        className="h-8 w-8 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => handleDelete(assignment.id || assignment._id)}
+                        title="Delete Assignment"
+                        className="h-8 w-8 text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </Button>
                     </div>
-                  </div>
-
-                  {/* Right Section - Stats */}
-                  <div className="text-center lg:text-right flex-shrink-0">
-                    <div className="mb-3">
-                      <p className="text-3xl font-bold text-primary">
-                        {submittedCount}
-                      </p>
-                      <p className="text-xs text-muted-foreground">Submissions</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Actions */}
-                <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleViewDetails(assignment)}
-                  >
-                    <Eye className="w-4 h-4 mr-1" />
-                    View Submissions
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => handleOpenEdit(assignment)}
-                  >
-                    <Edit className="w-4 h-4 mr-1" />
-                    Edit
-                  </Button>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className="text-red-600 hover:text-red-700"
-                    onClick={() => handleDelete(assignment._id)}
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </Button>
-                </div>
-              </Card>
-            </motion.div>
-          );
-        })}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
       </div>
 
       {/* Empty State */}
@@ -336,7 +396,7 @@ export default function TeacherAssignmentsPage() {
       )}
 
       {/* Create/Edit Assignment Modal */}
-      {/* <AssignmentFormModal
+      <AssignmentFormModal
         isOpen={showFormModal}
         onClose={() => {
           setShowFormModal(false);
@@ -345,18 +405,18 @@ export default function TeacherAssignmentsPage() {
         onSubmit={handleCreateOrUpdate}
         editingAssignment={selectedAssignment}
         isSubmitting={isSubmitting}
-      /> */}
+      />
 
-      {/* Assignment Detail Modal */}
+      {/* Assignment Submissions Modal */}
       {selectedAssignment && (
-        <Modal
+      <Modal
           open={showDetailModal}
           onClose={() => {
-            setShowDetailModal(false);
+            handleCloseDetailModal();
             setSelectedAssignment(null);
             setAssignmentDetails(null);
           }}
-          title="Assignment Submissions"
+          title="Student Submissions"
           size="lg"
         >
           {loadingDetails ? (
@@ -366,61 +426,34 @@ export default function TeacherAssignmentsPage() {
             </div>
           ) : assignmentDetails ? (
             <div className="space-y-6">
-              {/* Assignment Info */}
-              <div className="bg-gradient-to-r from-primary/5 to-primary/10 p-5 rounded-lg border border-primary/20">
-                <h3 className="font-bold text-xl mb-2">
-                  {assignmentDetails.title}
-                </h3>
-                <div className="flex items-center gap-2 text-sm text-muted-foreground mb-3">
-                  <span className="font-medium text-primary">{assignmentDetails.classId?.name}</span>
-                  <span>•</span>
-                  <span>{assignmentDetails.subjectId?.name}</span>
-                </div>
-                <p className="text-sm mb-4">{assignmentDetails.description}</p>
-                <div className="flex flex-wrap gap-4 text-sm">
-                  <div className="flex items-center gap-2">
-                    <Calendar className="w-4 h-4" />
-                    <span>
-                      Due:{" "}
-                      {new Date(assignmentDetails.dueDate).toLocaleDateString()}
-                    </span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Clock className="w-4 h-4" />
-                    <span>{assignmentDetails.totalMarks} marks</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Totals / Roster */}
-              <div className="flex items-center justify-between mt-4">
-                <div className="text-sm text-muted-foreground">
-                  <p>
-                    <span className="font-medium">Total Students:</span> {assignmentDetails.totalStudents ?? '—'}
-                  </p>
-                  <p>
-                    <span className="font-medium">Submitted:</span> {assignmentDetails.submissionCount ?? (assignmentDetails.submissions?.length || 0)}
-                  </p>
-                </div>
+              {/* Totals / Roster Info */}
+              <div className="flex items-center justify-between bg-muted/30 p-4 rounded-lg">
                 <div className="text-sm">
-                  <Badge className="bg-blue-100 text-blue-700 border-blue-200">Class: {assignmentDetails.classId?.name}</Badge>
-                  {assignmentDetails.sectionId ? (
-                    <Badge className="ml-2 bg-gray-100 text-gray-700 border-gray-200">Section: {assignmentDetails.sectionId}</Badge>
-                  ) : null}
+                  <p className="text-muted-foreground">Class Statistics</p>
+                  <div className="flex gap-4 mt-1">
+                    <p><span className="font-bold">{assignmentDetails.totalStudents ?? '—'}</span> Total Students</p>
+                    <p><span className="font-bold text-primary">{assignmentDetails.submissionCount ?? 0}</span> Submissions</p>
+                  </div>
+                </div>
+                <div className="flex gap-2">
+                  <Badge className="bg-primary/10 text-primary border-primary/20">{assignmentDetails.classId?.name}</Badge>
+                  {assignmentDetails.subjectId?.name && (
+                    <Badge variant="outline">{assignmentDetails.subjectId?.name}</Badge>
+                  )}
                 </div>
               </div>
 
               {/* Student Roster + Submissions */}
               <div>
-                <h4 className="font-semibold mb-4 flex items-center gap-2">
-                  <Users className="w-5 h-5" />
-                  Student Roster ({assignmentDetails.totalStudents ?? (assignmentDetails.studentStats?.length || 0)})
+                <h4 className="font-semibold mb-4 flex items-center gap-2 px-1">
+                  <Users className="w-5 h-5 text-primary" />
+                  Student Roster
                 </h4>
 
                 {assignmentDetails.studentStats && assignmentDetails.studentStats.length > 0 ? (
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     {assignmentDetails.studentStats.map((stu) => (
-                      <div key={stu._id} className="flex items-center justify-between p-3 border rounded-lg hover:bg-muted/30 transition-colors">
+                      <div key={stu._id} className="flex items-center justify-between p-3 border rounded-xl hover:shadow-sm transition-all bg-white">
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center text-primary font-semibold overflow-hidden">
                             {stu.profilePhoto ? (
@@ -430,45 +463,106 @@ export default function TeacherAssignmentsPage() {
                             )}
                           </div>
                           <div>
-                            <p className="font-medium">{stu.fullName}</p>
+                            <p className="font-bold text-sm">{stu.fullName}</p>
                             <p className="text-xs text-muted-foreground">Roll: {stu.rollNumber || 'N/A'}</p>
                           </div>
                         </div>
-                        <div className="flex items-center gap-3">
+                        <div className="flex flex-col items-end gap-1">
                           {stu.submitted ? (
-                            <div className="text-right mr-4">
-                              <p className="text-xs text-muted-foreground">Submitted on</p>
-                              <p className="text-sm font-medium">{new Date(stu.submission.submittedAt).toLocaleDateString()}</p>
-                            </div>
-                          ) : null}
-                          {stu.submitted ? (
-                            <Badge className="bg-green-100 text-green-700 border-green-300 flex items-center">
-                              <CheckCircle className="w-3 h-3 mr-1" />
+                            <Badge className="bg-green-100 text-green-700 border-green-300">
                               Submitted
                             </Badge>
                           ) : (
-                            <Badge className="bg-red-50 text-red-700 border-red-100 flex items-center">
-                              <XCircle className="w-3 h-3 mr-1" />
-                              Not Submitted
+                            <Badge className="bg-red-50 text-red-700 border-red-100">
+                              Missing
                             </Badge>
+                          )}
+                          {stu.submitted && stu.submission.submittedAt && (
+                            <p className="text-[10px] text-muted-foreground">
+                              {new Date(stu.submission.submittedAt).toLocaleDateString()}
+                            </p>
                           )}
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <div className="text-center py-8 text-muted-foreground border-2 border-dashed rounded-lg">
-                    <FileText className="w-12 h-12 mx-auto mb-3 opacity-40" />
-                    <p className="text-sm">No students found for this class/section</p>
+                  <div className="text-center py-12 text-muted-foreground border-2 border-dashed rounded-xl">
+                    <Users className="w-12 h-12 mx-auto mb-3 opacity-20" />
+                    <p className="text-sm">No students found for this class</p>
                   </div>
                 )}
               </div>
             </div>
           ) : (
             <div className="py-12 text-center">
-              <p className="text-muted-foreground">Failed to load details</p>
+              <p className="text-muted-foreground">Failed to load submissions</p>
             </div>
           )}
+        </Modal>
+      )}
+
+      {/* Assignment Info Modal */}
+      {selectedAssignment && (
+        <Modal
+          open={showInfoModal}
+          onClose={() => {
+            setShowInfoModal(false);
+            setSelectedAssignment(null);
+          }}
+          title="Assignment Details"
+          size="md"
+        >
+          <div className="space-y-6 py-2">
+            <div className="bg-primary/5 p-6 rounded-2xl border border-primary/10">
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <h3 className="text-2xl font-bold text-primary">{selectedAssignment.title}</h3>
+                  <div className="flex items-center gap-2 mt-1 text-muted-foreground">
+                    <span className="font-medium">{selectedAssignment.classId?.name}</span>
+                    <span>•</span>
+                    <span>{selectedAssignment.subjectId?.name}</span>
+                  </div>
+                </div>
+                <Badge className={getStatusInfo(selectedAssignment).color}>
+                  {getStatusInfo(selectedAssignment).label}
+                </Badge>
+              </div>
+              
+              <div className="space-y-4">
+                <div className="flex items-center gap-3 text-sm">
+                  <Calendar className="w-5 h-5 text-primary/60" />
+                  <div>
+                    <p className="text-xs text-muted-foreground">Due Date</p>
+                    <p className="font-semibold">{new Date(selectedAssignment.dueDate).toLocaleDateString()}</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 text-sm">
+                  <Clock className="w-5 h-5 text-primary/60" />
+                  <div>
+                    <p className="text-xs text-muted-foreground">Total Marks</p>
+                    <p className="font-semibold">{selectedAssignment.totalMarks} Points</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <h4 className="text-sm font-bold flex items-center gap-2 px-1">
+                <FileText className="w-4 h-4 text-primary" />
+                Instructions
+              </h4>
+              <div className="bg-muted/30 p-4 rounded-xl text-sm leading-relaxed whitespace-pre-wrap min-h-[100px]">
+                {selectedAssignment.description || "No instructions provided."}
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 border-t">
+              <Button onClick={() => setShowInfoModal(false)} className="w-full sm:w-auto">
+                Close
+              </Button>
+            </div>
+          </div>
         </Modal>
       )}
     </div>

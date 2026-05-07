@@ -409,7 +409,7 @@ const StudentViewModal = ({
               <span className="font-medium">{getSectionName()}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-sm text-gray-500">Roll Number</span>
+              <span className="text-sm text-gray-500">GR No</span>
               <span className="font-medium">{s.studentProfile?.rollNumber || 'N/A'}</span>
             </div>
             <div className="flex justify-between">

@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Search, Save, User, ArrowLeft, ChevronRight, AlertCircle, CheckCircle2 } from "lucide-react";
 import apiClient from "@/lib/api-client";
 import { toast } from "sonner";
-import FullPageLoader from "@/components/ui/full-page-loader";
+import { MarkSheetSkeleton } from "@/components/ui/skeleton";
 
 export default function EnterMarksPage({ params }) {
   const router = useRouter();
@@ -123,7 +123,7 @@ export default function EnterMarksPage({ params }) {
     });
   }, [students, searchTerm]);
 
-  if (loading) return <FullPageLoader message="Loading marks sheet..." />;
+  if (loading) return <MarkSheetSkeleton />;
   if (!exam) return <div className="p-20 text-center text-slate-500 flex flex-col items-center gap-4"><AlertCircle className="w-10 h-10" /> Exam not found.</div>;
 
   return (

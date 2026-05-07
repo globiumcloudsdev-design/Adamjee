@@ -240,7 +240,7 @@ const CardFrontVertical = ({ institute, design, student }) => {
 
         <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 8 }}>
           <div style={{ display: 'flex', alignItems: 'baseline' }}>
-            <div style={{ width: 80, fontSize: 10, fontWeight: 800, color: '#000' }}>Roll No</div>
+            <div style={{ width: 80, fontSize: 10, fontWeight: 800, color: '#000' }}>GR No</div>
             <div style={{ fontSize: 10, fontWeight: 800, color: '#000', marginRight: 8 }}>:</div>
             <div style={{ fontSize: 11, fontWeight: 800, color: '#5a1885' }}>
               {student.roll_number && student.roll_number !== 'N/A' ? student.roll_number : (student.roll_no || student.student_id || 'N/A')}

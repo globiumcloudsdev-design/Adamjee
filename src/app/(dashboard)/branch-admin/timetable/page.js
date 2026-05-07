@@ -25,8 +25,7 @@ import ButtonLoader from "@/components/ui/button-loader";
 import SimpleTimetableViewModal from "@/components/timetable/SimpleTimetableViewModal";
 import TimePicker from "@/components/ui/time-picker";
 import ConfirmDeleteModal from "@/components/modals/ConfirmDeleteModal";
-
-
+import { TimetableGridSkeleton, TimetableSkeleton } from "@/components/ui/skeleton";
 
 const DAYS = [
   "Monday",
@@ -80,15 +79,15 @@ export default function BranchTimetablePage() {
 
   const getTeacherName = (id) => {
     if (!id) return "N/A";
-    const normalizedId = typeof id === "object" ? id.id : id;
-    const t = teachers.find((t) => String(t.id) === String(normalizedId));
+    const normalizedId = typeof id === "object" ? (id.id || id._id || id) : id;
+    const t = teachers.find((t) => String(t.id || t._id) === String(normalizedId));
     return t ? `${t.first_name} ${t.last_name}` : "N/A";
   };
   const [selectedSection, setSelectedSection] = useState("");
   const [selectedTeacher, setSelectedTeacher] = useState("");
   const [selectedSubject, setSelectedSubject] = useState("");
   const [selectedAcademicYear, setSelectedAcademicYear] = useState("");
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [viewingTimetable, setViewingTimetable] = useState(null);
 
   const [showDialog, setShowDialog] = useState(false);
@@ -133,7 +132,7 @@ export default function BranchTimetablePage() {
     fetchTeacherSchedulesForBranch(branchId, selectedAcademicYear);
     fetchTimetables(true); // Fetch all for duplicate checks
     fetchTimetables(false); // Fetch with filters for display
-  }, [user, branchId]);
+  }, [user, branchId, selectedAcademicYear]);
 
   useEffect(() => {
     if (formData.classId) {
@@ -209,7 +208,7 @@ export default function BranchTimetablePage() {
 
   const fetchSections = async (classId) => {
     try {
-      const cls = classes.find((c) => c.id === classId);
+      const cls = classes.find((c) => String(c.id || c._id) === String(classId));
       if (cls && cls.sections) setSections(cls.sections);
       else setSections([]);
     } catch (e) {
@@ -229,13 +228,13 @@ export default function BranchTimetablePage() {
       const response = await apiClient.get(url);
       if (
         response.success &&
-        Array.isArray(response.data) &&
-        response.data.length > 0
+        (Array.isArray(response.data) || Array.isArray(response.timetable))
       ) {
-        const existing = response.data.find(
+        const list = response.data || response.timetable || [];
+        const existing = list.find(
           (t) =>
-            (t.classId?.id || t.classId) === classId &&
-            (t.section?.id || t.section) === section,
+            String(t.classId?.id || t.classId?._id || t.classId || t.class_id) === String(classId) &&
+            String(t.section?.id || t.section?._id || t.section || t.section_id) === String(section),
         );
         return existing || null;
       }
@@ -275,8 +274,8 @@ export default function BranchTimetablePage() {
           name: existing.name,
           academicYear: existing.academicYear,
           branchId: branchId,
-          classId: existing.classId?.id || existing.classId,
-          section: existing.section?.id || existing.section,
+          classId: existing.classId?.id || existing.classId?._id || existing.classId || existing.class_id,
+          section: existing.section?.id || existing.section?._id || existing.section || existing.section_id,
           effectiveFrom:
             existing.effectiveFrom?.split("T")[0] || prev.effectiveFrom,
           effectiveTo: existing.effectiveTo?.split("T")[0] || prev.effectiveTo,
@@ -364,10 +363,10 @@ export default function BranchTimetablePage() {
     const section = getSectionByName(sectionName);
     return (periods || []).map((p) => ({
       ...p,
-      subjectId: p.subjectId?.id || p.subjectId || "",
-      teacherId: p.teacherId?.id || p.teacherId || "",
-      roomNumber: p.roomNumber || section?.roomNumber || "",
-      section: p.section || sectionName || "",
+      subjectId: p.subjectId?.id || p.subjectId?._id || p.subjectId || p.subject_id || "",
+      teacherId: p.teacherId?.id || p.teacherId?._id || p.teacherId || p.teacher_id || "",
+      roomNumber: p.roomNumber || p.room_no || section?.roomNumber || "",
+      section: p.section || p.section_id || sectionName || "",
     }));
   };
 
@@ -407,201 +406,40 @@ export default function BranchTimetablePage() {
       return;
     }
 
-    const coachingStartTime =
-      formData.timeSettings.coachingStartTime || "08:00";
-    const coachingEndTime = formData.timeSettings.coachingEndTime || "14:00";
+    const defaultStartTime = "14:00"; // 2:00 PM as requested
     const periodDuration = formData.timeSettings.periodDuration || 40;
-    const firstPeriodDuration =
-      formData.timeSettings.firstPeriodDuration || periodDuration;
-    const breakDuration = formData.timeSettings.breakDuration || 10;
-
-    let day = DAYS[0];
+    const days = DAYS;
+    
+    // Find the last period across any day to determine the next time slot
+    let nextStart = defaultStartTime;
     if (formData.periods && formData.periods.length > 0) {
-      const last = formData.periods[formData.periods.length - 1];
-      const lastDayPeriods = formData.periods.filter((p) => p.day === last.day);
-      const lastPeriod = lastDayPeriods[lastDayPeriods.length - 1];
-      const nextStartIfLecture = addMinutes(lastPeriod.endTime, breakDuration);
-      const nextEndIfLecture = addMinutes(nextStartIfLecture, periodDuration);
-      if (getMinutesDifference(nextEndIfLecture, coachingEndTime) < 0) {
-        const currentDayIndex = DAYS.indexOf(last.day);
-        const nextDayIndex = currentDayIndex + 1;
-        if (nextDayIndex >= DAYS.length) {
-          toast.error("All days are filled. Cannot add more periods.");
-          return;
-        }
-        day = DAYS[nextDayIndex];
-      } else {
-        day = last.day;
-      }
+      // Find the maximum end time across all periods
+      const maxMinutes = Math.max(...formData.periods.map(p => timeToMinutes(p.endTime)));
+      const hours = Math.floor(maxMinutes / 60);
+      const mins = maxMinutes % 60;
+      nextStart = `${String(hours).padStart(2, "0")}:${String(mins).padStart(2, "0")}`;
     }
 
-    const sameDayPeriods = formData.periods.filter((p) => p.day === day);
-    if (sameDayPeriods.length > 0) {
-      const lastOfDay = sameDayPeriods[sameDayPeriods.length - 1];
-      const breakExists = sameDayPeriods.some((p) => p.periodType === "break");
-      const lecturesCount = sameDayPeriods.filter(
-        (p) => p.periodType === "lecture",
-      ).length;
-      const nextStart = lastOfDay.endTime;
-      const minutesRemainingFromNextStart = getMinutesDifference(
-        nextStart,
-        coachingEndTime,
-      );
+    const nextEnd = addMinutes(nextStart, periodDuration);
+    const newPeriods = [];
 
-      if (
-        !breakExists &&
-        lecturesCount >= 4 &&
-        minutesRemainingFromNextStart >= breakDuration + periodDuration
-      ) {
-        const startTime = nextStart;
-        const endTime = addMinutes(startTime, breakDuration);
-        const periodNumber = sameDayPeriods.length + 1;
-        const breakPeriod = {
-          periodNumber,
-          day,
-          startTime,
-          endTime,
-          subjectId: "",
-          teacherId: "",
-          periodType: "break",
-          roomNumber: getSectionByName(formData.section)?.roomNumber || "",
-          section: formData.section,
-        };
-        if (isDuplicatePeriod(breakPeriod)) {
-          toast.error(
-            "This time slot is already occupied on this day for this section!",
-          );
-          return;
-        }
-        setFormData({
-          ...formData,
-          periods: [...formData.periods, breakPeriod],
-        });
-        toast.success(`Added break for ${day} (${startTime} - ${endTime})`);
-        return;
-      }
-
-      let startTime = lastOfDay.endTime;
-      let endTime = addMinutes(startTime, periodDuration);
-      if (getMinutesDifference(endTime, coachingEndTime) < 0) {
-        const remainingMinutes = minutesRemainingFromNextStart;
-        if (remainingMinutes >= 15) {
-          endTime = coachingEndTime;
-          const periodNumber = sameDayPeriods.length + 1;
-          const newPeriod = {
-            periodNumber,
-            day,
-            startTime,
-            endTime,
-            subjectId: "",
-            teacherId: "",
-            periodType: "lecture",
-            roomNumber: getSectionByName(formData.section)?.roomNumber || "",
-            section: formData.section,
-          };
-          if (isDuplicatePeriod(newPeriod)) {
-            toast.error(
-              "This time slot is already occupied on this day for this section!",
-            );
-            return;
-          }
-          setFormData({
-            ...formData,
-            periods: [...formData.periods, newPeriod],
-          });
-          toast.success(
-            `Added period ${periodNumber} for ${day} (${startTime} - ${endTime}) - ${remainingMinutes} min`,
-          );
-          return;
-        }
-
-        const currentDayIndex = DAYS.indexOf(day);
-        const nextDayIndex = currentDayIndex + 1;
-        if (nextDayIndex >= DAYS.length) {
-          toast.error("All days are filled. Cannot add more periods.");
-          return;
-        }
-        day = DAYS[nextDayIndex];
-        const startTime2 = coachingStartTime;
-        const endTime2 = addMinutes(
-          startTime2,
-          firstPeriodDuration || periodDuration,
-        );
-        const periodNumber2 =
-          formData.periods.filter((p) => p.day === day).length + 1;
-        const newPeriod = {
-          periodNumber: periodNumber2,
-          day,
-          startTime: startTime2,
-          endTime: endTime2,
-          teacherId: "",
-          roomNumber: getSectionByName(formData.section)?.roomNumber || "",
-          section: formData.section,
-        };
-        if (isDuplicatePeriod(newPeriod)) {
-          toast.error(
-            "This time slot is already occupied on this day for this section!",
-          );
-          return;
-        }
-        setFormData({ ...formData, periods: [...formData.periods, newPeriod] });
-        toast.success(
-          `Added period ${periodNumber2} for ${day} (${startTime2} - ${endTime2})`,
-        );
-        return;
-      }
-
-      const periodNumber = sameDayPeriods.length + 1;
-      const newPeriod = {
-        periodNumber,
+    days.forEach(day => {
+      const sameDayCount = formData.periods.filter(p => String(p.day).toLowerCase() === day.toLowerCase()).length;
+      newPeriods.push({
+        periodNumber: sameDayCount + 1,
         day,
-        startTime,
-        endTime,
+        startTime: nextStart,
+        endTime: nextEnd,
         subjectId: "",
         teacherId: "",
         periodType: "lecture",
         roomNumber: getSectionByName(formData.section)?.roomNumber || "",
         section: formData.section,
-      };
-      if (isDuplicatePeriod(newPeriod)) {
-        toast.error(
-          "This time slot is already occupied on this day for this section!",
-        );
-        return;
-      }
-      setFormData({ ...formData, periods: [...formData.periods, newPeriod] });
-      toast.success(
-        `Added period ${periodNumber} for ${day} (${startTime} - ${endTime})`,
-      );
-      return;
-    }
+      });
+    });
 
-    const firstStartTime = coachingStartTime;
-    const firstEndTime = addMinutes(
-      firstStartTime,
-      firstPeriodDuration || periodDuration,
-    );
-    const newPeriod = {
-      periodNumber: 1,
-      day,
-      startTime: firstStartTime,
-      endTime: firstEndTime,
-      subjectId: "",
-      teacherId: "",
-      periodType: "lecture",
-      roomNumber: getSectionByName(formData.section)?.roomNumber || "",
-      section: formData.section,
-    };
-    if (isDuplicatePeriod(newPeriod)) {
-      toast.error(
-        "This time slot is already occupied on this day for this section!",
-      );
-      return;
-    }
-    setFormData({ ...formData, periods: [...formData.periods, newPeriod] });
-    toast.success(
-      `Added first period for ${day} (${firstStartTime} - ${firstEndTime})`,
-    );
+    setFormData({ ...formData, periods: [...formData.periods, ...newPeriods] });
+    toast.success(`Added periods for all days (${nextStart} - ${nextEnd})`);
   };
 
   const updatePeriod = (index, field, value) => {
@@ -653,6 +491,29 @@ export default function BranchTimetablePage() {
     setFormData({ ...formData, periods: updated });
   };
 
+  const timeToMinutes = (timeStr) => {
+    if (!timeStr) return 0;
+    try {
+      // Handle cases like "08:00 AM" or just "08:00"
+      const parts = timeStr.trim().split(/\s+/);
+      const timePart = parts[0];
+      const modifier = parts[1]; // AM/PM
+
+      let [hours, minutes] = timePart.split(":").map(Number);
+      if (isNaN(hours)) return 0;
+      if (isNaN(minutes)) minutes = 0;
+
+      if (modifier) {
+        if (modifier.toUpperCase() === "PM" && hours < 12) hours += 12;
+        if (modifier.toUpperCase() === "AM" && hours === 12) hours = 0;
+      }
+      return hours * 60 + minutes;
+    } catch (e) {
+      console.error("Error parsing time:", timeStr, e);
+      return 0;
+    }
+  };
+
   const isTeacherAvailable = (
     teacherId,
     day,
@@ -662,25 +523,50 @@ export default function BranchTimetablePage() {
     currentPeriodIndex = -1,
   ) => {
     if (!teacherId || !day || !startTime || !endTime) return null;
-    const normalizedTeacherId =
-      typeof teacherId === "object" ? teacherId.id || teacherId : teacherId;
+    
+    const normalizedTeacherId = typeof teacherId === "object" ? teacherId.id || teacherId._id || teacherId : teacherId;
     if (!normalizedTeacherId) return null;
 
+    const cleanTid = String(normalizedTeacherId).trim();
+    const teacherObj = teachers.find(t => String(t.id || t._id).trim() === cleanTid);
+    const teacherName = teacherObj ? `${teacherObj.first_name} ${teacherObj.last_name}` : cleanTid;
+
+    console.log(`🔍 Checking conflict for [${teacherName}] on ${day} at ${startTime}-${endTime}`);
+
+    const nStart = timeToMinutes(startTime);
+    const nEnd = timeToMinutes(endTime);
+    const nDay = String(day || "").trim().toLowerCase();
+
+    console.log(`🔎 Comparing [${nDay} ${nStart}-${nEnd}] for Teacher [${teacherName}]`);
+
     // 1. Check existing timetables in database
-    const teacherSchedule = teacherSchedules[normalizedTeacherId] || [];
+    const teacherSchedule = teacherSchedules[cleanTid] || [];
+    if (teacherSchedule.length === 0) {
+       // console.log(`📭 No schedule found for teacher [${teacherName}] in map.`);
+    }
     const dbConflict = teacherSchedule.find((s) => {
-      if (currentTimetableId && s.timetableId === currentTimetableId)
+      // Ignore if it's the same timetable we are currently editing
+      if (currentTimetableId && (String(s.timetableId) === String(currentTimetableId) || String(s.timetable_id) === String(currentTimetableId)))
         return false;
-      if (s.day !== day) return false;
-      const pStart = s.startTime;
-      const pEnd = s.endTime;
-      if (
-        (startTime >= pStart && startTime < pEnd) ||
-        (endTime > pStart && endTime <= pEnd) ||
-        (startTime <= pStart && endTime >= pEnd)
-      )
-        return true;
-      return false;
+      
+      const sDay = String(s.day || s.day_of_week || "").trim().toLowerCase();
+      // console.log(`   - Comparing with DB Entry: ${sDay} ${pStart}-${pEnd}`);
+      if (sDay !== nDay) return false;
+
+      const pStart = timeToMinutes(s.startTime || s.start_time);
+      const pEnd = timeToMinutes(s.endTime || s.end_time);
+
+      // Overlap: (StartA < EndB) AND (EndA > StartB)
+      const isOverlap = (nStart < pEnd && nEnd > pStart);
+      
+      if (isOverlap) {
+        console.log(`✅ [DB Conflict] [${teacherName}] is ALREADY busy in ${s.className} (${s.startTime}-${s.endTime})`);
+      } else {
+        if (nDay === sDay) {
+          console.log(`ℹ️ [No Overlap] [${teacherName}] vs ${s.className}: ${nStart}-${nEnd} vs ${pStart}-${pEnd}`);
+        }
+      }
+      return isOverlap;
     });
 
     if (dbConflict) return dbConflict;
@@ -688,30 +574,25 @@ export default function BranchTimetablePage() {
     // 2. Check current form periods (internal conflicts)
     const formConflict = formData.periods.find((p, idx) => {
       if (idx === currentPeriodIndex) return false;
-      const pTid =
-        typeof p.teacherId === "object"
-          ? p.teacherId.id || p.teacherId
-          : p.teacherId;
-      if (
-        !pTid ||
-        String(pTid) !== String(normalizedTeacherId) ||
-        p.day !== day
-      )
-        return false;
+      
+      const pTid = typeof p.teacherId === "object" ? p.teacherId.id || p.teacherId._id || p.teacherId : p.teacherId;
+      if (!pTid || String(pTid).trim() !== cleanTid) return false;
 
-      const pStart = p.startTime;
-      const pEnd = p.endTime;
-      if (
-        (startTime >= pStart && startTime < pEnd) ||
-        (endTime > pStart && endTime <= pEnd) ||
-        (startTime <= pStart && endTime >= pEnd)
-      )
-        return true;
-      return false;
+      const pDay = String(p.day || "").trim().toLowerCase();
+      if (pDay !== nDay) return false;
+
+      const pStart = timeToMinutes(p.startTime);
+      const pEnd = timeToMinutes(p.endTime);
+
+      const isOverlap = (nStart < pEnd && nEnd > pStart);
+      if (isOverlap) {
+        console.log(`✅ [Form Conflict] [${teacherName}] already has period at index ${idx}`);
+      }
+      return isOverlap;
     });
 
     return formConflict
-      ? { ...formConflict, className: "Current Form", sectionName: "Selection" }
+      ? { ...formConflict, className: "Current", sectionName: "Draft", day: formConflict.day || day }
       : null;
   };
 
@@ -724,15 +605,17 @@ export default function BranchTimetablePage() {
   ) => {
     if (!day || !startTime || !endTime) {
       return teachers.map((t) => ({
-        value: t.id,
+        value: t.id || t._id,
         label: `${t.first_name} ${t.last_name}`,
       }));
     }
 
-    const currentTimetableId = editingTimetable ? editingTimetable.id : null;
+    const currentTimetableId = editingTimetable?.id || editingTimetable?._id || null;
+    
     return teachers.map((teacher) => {
+      const teacherId = teacher.id || teacher._id;
       const conflict = isTeacherAvailable(
-        teacher.id,
+        teacherId,
         day,
         startTime,
         endTime,
@@ -740,19 +623,19 @@ export default function BranchTimetablePage() {
         currentPeriodIndex,
       );
 
-      const isCurrent =
-        currentTeacherId &&
-        (typeof currentTeacherId === "object"
-          ? currentTeacherId.id === teacher.id
-          : currentTeacherId === teacher.id);
+      const isCurrent = currentTeacherId && (
+        typeof currentTeacherId === "object" 
+          ? (currentTeacherId.id || currentTeacherId._id) === teacherId 
+          : String(currentTeacherId) === String(teacherId)
+      );
 
       let label = `${teacher.first_name} ${teacher.last_name}`;
       if (conflict && !isCurrent) {
-        label += ` (BUZY in ${conflict.className}${conflict.sectionName ? ` - ${conflict.sectionName}` : ""})`;
+        label += ` (Busy in ${conflict.className}${conflict.sectionName ? ` - ${conflict.sectionName}` : ""})`;
       }
 
       return {
-        value: teacher.id,
+        value: teacherId,
         label: label,
         disabled: !!conflict && !isCurrent,
       };
@@ -763,7 +646,11 @@ export default function BranchTimetablePage() {
     branchIdParam,
     academicYear,
   ) => {
-    if (!branchIdParam || !academicYear) return;
+    console.log("🚀 fetchTeacherSchedulesForBranch called with:", { branchIdParam, academicYear });
+    if (!branchIdParam || !academicYear) {
+      console.log("⚠️ Skipping fetchTeacherSchedulesForBranch due to missing params");
+      return;
+    }
     try {
       // Teacher API uses branchId (camelCase)
       const res = await apiClient.get(
@@ -776,29 +663,46 @@ export default function BranchTimetablePage() {
       setTeachers(teachersList);
 
       // Timetable API uses branch_id (snake_case)
-      const ttUrl = `${API_ENDPOINTS.BRANCH_ADMIN.TIMETABLES.LIST}?branch_id=${encodeURIComponent(branchIdParam)}&academic_year_id=${encodeURIComponent(academicYear)}`;
+      const ttUrl = `${API_ENDPOINTS.BRANCH_ADMIN.TIMETABLES.LIST}?branch_id=${encodeURIComponent(branchIdParam)}&academic_year_id=${encodeURIComponent(academicYear)}&limit=1000`;
       const ttRes = await apiClient.get(ttUrl);
-      const ttList =
-        ttRes.timetable || (Array.isArray(ttRes) ? ttRes : ttRes.data || []);
+      console.log("📡 Timetable API Response:", ttRes);
+      
+      let ttList = [];
+      if (ttRes.success) {
+        ttList = ttRes.data || ttRes.timetable || [];
+      } else if (Array.isArray(ttRes)) {
+        ttList = ttRes;
+      } else if (ttRes.data) {
+        ttList = ttRes.data;
+      } else if (ttRes.timetable) {
+        ttList = ttRes.timetable;
+      }
+
+      console.log(`📋 Processing ${ttList.length} timetables for conflicts...`);
 
       const map = {};
       ttList.forEach((tt) => {
-        const ttId = tt.id;
+        const ttId = tt.id || tt._id;
         (tt.periods || []).forEach((p) => {
           const tId = p.teacherId || p.teacher_id;
           if (!tId) return;
-          const normalizedTid = typeof tId === "object" ? tId.id || tId : tId;
+          const normalizedTid = typeof tId === "object" ? tId.id || tId._id || tId : tId;
           if (!map[normalizedTid]) map[normalizedTid] = [];
-          map[normalizedTid].push({
+          
+          const entry = {
             day: p.day || p.day_of_week,
             startTime: p.startTime || p.start_time,
             endTime: p.endTime || p.end_time,
             timetableId: ttId,
-            className: tt.class?.name || tt.classId?.name || "N/A",
-            sectionName: tt.section?.name || tt.sectionId?.name || "N/A",
-          });
+            className: tt.class?.name || tt.classId?.name || tt.class_id?.name || "N/A",
+            sectionName: tt.section?.name || tt.sectionId?.name || tt.section_id?.name || "N/A",
+          };
+          
+          map[normalizedTid].push(entry);
         });
       });
+      console.log("🛠️ Generated Teacher Schedule Map:", map);
+      console.log(`📅 Mapped schedules for ${Object.keys(map).length} teachers.`);
       setTeacherSchedules(map);
     } catch (e) {
       console.error("Failed to fetch teacher schedules:", e);
@@ -823,11 +727,22 @@ export default function BranchTimetablePage() {
         API_ENDPOINTS.BRANCH_ADMIN.TIMETABLES.LIST,
         params,
       );
+      console.log("📡 Timetable API Response Data:", res);
       if (res.success) {
+        const data = res.data || [];
         if (fetchAll) {
-          setBranchTimetables(res.data || []);
+          setBranchTimetables(data);
         } else {
-          setTimetables(res.data || []);
+          setTimetables(data);
+          // Show toast for non-initial loads or loads with specific filters
+          const hasFilters = selectedClass || selectedSection || selectedTeacher || selectedSubject || selectedAcademicYear;
+          if (hasFilters) {
+            if (data.length === 0) {
+              toast.info("No timetables found matching your search criteria");
+            } else {
+              toast.success(`Found ${data.length} timetables`);
+            }
+          }
         }
       }
     } catch (e) {
@@ -914,7 +829,7 @@ export default function BranchTimetablePage() {
 
       if (conflict) {
         toast.error(
-          `Conflict: Teacher is already assigned to ${conflict.className} (${conflict.sectionName}) on ${p.day} at ${p.startTime}`,
+          `Conflict: Teacher is already assigned to ${conflict.className} (${conflict.sectionName}) on ${conflict.day} at ${conflict.startTime}`,
         );
         return;
       }
@@ -953,6 +868,7 @@ export default function BranchTimetablePage() {
         toast.success("Timetable saved");
         setShowDialog(false);
         fetchTimetables();
+        fetchTeacherSchedulesForBranch(branchId, formData.academicYear);
       } else {
         toast.error(res?.error || res?.message || "Failed to save timetable");
       }
@@ -978,6 +894,7 @@ export default function BranchTimetablePage() {
       if (res?.success) {
         toast.success(res.message || "Deleted");
         fetchTimetables();
+        fetchTeacherSchedulesForBranch(branchId, selectedAcademicYear);
       } else {
         toast.error(res?.message || "Failed to delete");
       }
@@ -1023,20 +940,24 @@ export default function BranchTimetablePage() {
 
   return (
     <div className="container mx-auto p-6">
-      <div className="flex justify-between items-center mb-4">
-        <div>
-          <h1 className="text-2xl font-bold">Branch Timetables</h1>
-          <p className="text-sm text-muted-foreground mt-1">
-            View and manage campus class schedules.
-          </p>
-        </div>
-        <div className="flex gap-2">
-          <Button onClick={handleCreateNew} disabled={loading} className="font-bold shadow-lg shadow-indigo-500/10">
-            <Plus className="mr-2 h-4 w-4" />
-            Create Timetable
-          </Button>
-        </div>
-      </div>
+      {loading && timetables.length === 0 ? (
+        <TimetableSkeleton />
+      ) : (
+        <>
+          <div className="flex justify-between items-center mb-4">
+            <div>
+              <h1 className="text-2xl font-bold">Branch Timetables</h1>
+              <p className="text-sm text-muted-foreground mt-1">
+                View and manage campus class schedules.
+              </p>
+            </div>
+            <div className="flex gap-2">
+              <Button onClick={handleCreateNew} disabled={loading} className="font-bold shadow-lg shadow-indigo-500/10">
+                <Plus className="mr-2 h-4 w-4" />
+                Create Timetable
+              </Button>
+            </div>
+          </div>
 
       <Card className="border-none shadow-sm bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm border border-slate-200 dark:border-slate-800 mb-6">
         <CardHeader className="pb-4">
@@ -1212,11 +1133,8 @@ export default function BranchTimetablePage() {
         </CardHeader>
         <CardContent className="p-0">
           {loading ? (
-            <div className="flex flex-col items-center justify-center p-12 gap-4">
-              <div className="h-10 w-10 animate-spin rounded-full border-4 border-blue-600 border-t-transparent"></div>
-              <p className="text-sm text-gray-500 font-medium">
-                Loading schedules...
-              </p>
+            <div className="p-6">
+               <TimetableGridSkeleton />
             </div>
           ) : (
             <div className="overflow-x-auto">
@@ -1252,6 +1170,24 @@ export default function BranchTimetablePage() {
                           <p className="text-xs text-gray-400">
                             Try adjusting your filters or create a new one.
                           </p>
+                          {(selectedClass || selectedSection || selectedTeacher || selectedSubject || selectedAcademicYear) && (
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="mt-4"
+                              onClick={() => {
+                                setSelectedGroup("");
+                                setSelectedClass("");
+                                setSelectedSection("");
+                                setSelectedTeacher("");
+                                setSelectedSubject("");
+                                setSelectedAcademicYear("");
+                                fetchTimetables();
+                              }}
+                            >
+                              Clear Filters
+                            </Button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -1501,7 +1437,7 @@ export default function BranchTimetablePage() {
               </Button>
             </div>
 
-            <div className="space-y-4 max-h-96 overflow-y-auto">
+            <div className="space-y-4">
               {formData.periods.map((period, index) => (
                 <Card key={index}>
                   <CardContent className="pt-6">
@@ -1639,7 +1575,8 @@ export default function BranchTimetablePage() {
           }}
         />
       )}
-
+        </>
+      )}
     </div>
   );
 }

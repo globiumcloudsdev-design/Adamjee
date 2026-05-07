@@ -1,22 +1,10 @@
-# Student ID Card Redesign TODO
+# TODO
 
-## Plan Steps (Approved)
-- [x] Create TODO.md with steps
-- [x] Update src/lib/idCardGenerator.js (DEFAULT_POLICY_CONFIG with new colors)
-- [x] Update src/components/common/IDCard.jsx (inline styles for new gradient/variables)
-- [x] Update src/components/cards/StudentIDCard.jsx (brand bar gradient)
-- [ ] Test preview in StudentViewModal
-- [ ] Test PDF download
-- [ ] attempt_completion
-
-**Status:** ✅ All file updates complete. ID cards now use #edb42d/#bd7c37 gradient theme via variables. Test via StudentViewModal and PDF download.
-
-## Plan Steps (Approved)
-- [x] Create TODO.md with steps
-- [x] Update src/lib/idCardGenerator.js (DEFAULT_POLICY_CONFIG with new colors)
-- [x] Update src/components/common/IDCard.jsx (inline styles for new gradient/variables)
-- [x] Update src/components/cards/StudentIDCard.jsx (brand bar gradient)
-- [x] Test preview in StudentViewModal
-- [x] Test PDF download
-- [x] attempt_completion
+## Timetable: Student timetable API
+- [ ] Fix `src/app/api/student/timetable/route.js` to use `TimeTable.periods` JSONB (instead of nonexistent `day/start_time/end_time/subject/teacher` columns)
+- [ ] Parse periods, join subjectId -> Subject.name and teacherId -> User name/email
+- [ ] Keep response shape `{ day, start_time, end_time, subject, teacher, class, section }`
+- [ ] Validate `class_id` and `section_id` as UUID
+- [ ] Sort by day order (Mon-Sat) then start_time
+- [ ] Quick runtime check by calling endpoint (manual/terminal) if project has a test harness
 

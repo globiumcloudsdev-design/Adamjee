@@ -1167,7 +1167,7 @@ export default function SuperAdminFeeVouchersPage() {
                 <p className="font-semibold">{formatStudent(viewingVoucher.studentId).name}</p>
               </div>
               <div>
-                <Label className="text-gray-500">Registration No / Roll No</Label>
+                <Label className="text-gray-500">Registration No / GR No</Label>
                 <p className="font-semibold">{formatStudent(viewingVoucher.studentId).registrationNumber} / {formatStudent(viewingVoucher.studentId).rollNumber}</p>
               </div>
               <div>

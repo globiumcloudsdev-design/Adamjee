@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import apiClient from "@/lib/api-client";
 import { toast } from "sonner";
-import FullPageLoader from "@/components/ui/full-page-loader";
+import { MarkSheetSkeleton } from "@/components/ui/skeleton";
 
 export default function TeacherEnterMarksPage({ params }) {
   const router = useRouter();
@@ -125,7 +125,7 @@ export default function TeacherEnterMarksPage({ params }) {
     }
   };
 
-  if (loading) return <FullPageLoader message="Loading examination data..." />;
+  if (loading) return <MarkSheetSkeleton />;
   if (!exam) return <div className="p-10 text-center">Exam not found</div>;
 
   const currentSubject = exam.subjects.find(s => (s.subject_id || s.subject?.id) === selectedSubjectId);

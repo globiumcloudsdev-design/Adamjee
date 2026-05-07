@@ -114,24 +114,27 @@ export async function PUT(req, { params }) {
     // 2. Handle Documents Upload
     const docFiles = formData.getAll('documents');
     const docMetaStr = formData.get('documentMetadata');
-    const docMeta = docMetaStr ? JSON.parse(docMetaStr) : [];
+    const allDocMeta = docMetaStr ? JSON.parse(docMetaStr) : [];
+    
+    // Filter out metadata for new files only to match docFiles array order
+    const newDocMeta = allDocMeta.filter(m => !m.isExisting);
     
     const existingDocuments = teacher.details?.documents || [];
     const updatedDocuments = [...existingDocuments];
 
     for (let i = 0; i < docFiles.length; i++) {
       const file = docFiles[i];
-      const meta = docMeta[i];
+      const meta = newDocMeta[i];
       
-      if (meta && !meta.isExisting) {
+      if (file && file instanceof File) {
         const buffer = Buffer.from(await file.arrayBuffer());
         const base64 = `data:${file.type};base64,${buffer.toString('base64')}`;
-        const uploadRes = await uploadTeacherDocument(base64, teacher.id, meta.type);
+        const uploadRes = await uploadTeacherDocument(base64, teacher.id, meta?.type || 'other');
         
         updatedDocuments.push({
           id: crypto.randomUUID(),
-          type: meta.type,
-          name: meta.name || file.name,
+          type: meta?.type || 'other',
+          name: meta?.name || file.name,
           url: uploadRes.url,
           publicId: uploadRes.publicId,
           uploaded_at: new Date().toISOString()
@@ -140,9 +143,9 @@ export async function PUT(req, { params }) {
       }
     }
 
-    // Handle document deletions if any (provided in meta)
+    // Handle document deletions if any (provided in allDocMeta)
     const finalDocuments = updatedDocuments.filter(doc => {
-      const isDeleted = docMeta.some(m => m.isExisting && m.publicId === doc.publicId && m.isDeleted);
+      const isDeleted = allDocMeta.some(m => m.isExisting && m.publicId === doc.publicId && m.isDeleted);
       if (isDeleted && doc.publicId) {
         deleteFromCloudinary(doc.publicId).catch(console.error);
         return false;
@@ -152,6 +155,7 @@ export async function PUT(req, { params }) {
 
     const currentDetails = teacher.details || {};
     updateData.avatar_url = avatarUrl;
+    updateData.documents = finalDocuments;
     updateData.details = {
       ...currentDetails,
       gender: data.gender || currentDetails.gender,

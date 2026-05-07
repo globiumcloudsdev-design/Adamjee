@@ -8,18 +8,18 @@ import apiClient from '@/lib/api-client';
 import { API_ENDPOINTS } from '@/constants/api-endpoints';
 import { toast } from 'sonner';
 import {
-  Users, Plus, Search, Edit, Trash2, Phone, Mail,
-  Calendar, GraduationCap, Award, FileText, Eye
+  Users, Plus, Search
 } from 'lucide-react';
 import Modal from '@/components/ui/modal';
-import Table, { TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import Input from '@/components/ui/input';
 import Dropdown from '@/components/ui/dropdown';
 import FullPageLoader from '@/components/ui/full-page-loader';
 import TeacherForm from '@/components/teacher/teacher-form';
-import TeacherViewModal from '@/components/teacher/teacher-view-modal';
+import UserDetailModal from '@/components/modals/UserDetailModal';
 import ConfirmDeleteModal from '@/components/modals/ConfirmDeleteModal';
+import UserManagementTable from '@/components/common/UserManagementTable';
+import Skeleton from '@/components/ui/skeleton';
 
 export default function TeachersPage() {
   const router = useRouter();
@@ -36,12 +36,19 @@ export default function TeachersPage() {
   const [fullPageLoading, setFullPageLoading] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [teacherToDelete, setTeacherToDelete] = useState(null);
+  const [stats, setStats] = useState({
+    total: 0,
+    active: 0,
+    onLeave: 0,
+    terminated: 0,
+  });
 
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
   const [selectedDepartment, setSelectedDepartment] = useState('');
   const [academicYears, setAcademicYears] = useState([]);
+  const [pagination, setPagination] = useState({ page: 1, limit: 10 });
 
   useEffect(() => {
     const branchId = user?.branch_id || user?.branchId?._id;
@@ -82,7 +89,15 @@ export default function TeachersPage() {
 
       const response = await apiClient.get(`${API_ENDPOINTS.BRANCH_ADMIN.TEACHERS.LIST}?${params}`);
       if (response?.success) {
-        setTeachers(response.data || []);
+        const list = response.data || [];
+        setTeachers(list);
+
+        const total = list.length;
+        const active = list.filter(t => t.status === 'active' || t.is_active).length;
+        const onLeave = list.filter(t => t.status === 'on_leave').length;
+        const terminated = list.filter(t => t.status === 'terminated').length;
+
+        setStats({ total, active, onLeave, terminated });
       }
     } catch (error) {
       toast.error('Failed to fetch teachers');
@@ -187,6 +202,20 @@ export default function TeachersPage() {
     handleCloseModal();
   };
 
+  const handleToggleStatus = async (teacher) => {
+    try {
+      const response = await apiClient.put(API_ENDPOINTS.BRANCH_ADMIN.TEACHERS.UPDATE.replace(':id', teacher.id), {
+        is_active: !teacher.is_active
+      });
+      if (response.success) {
+        toast.success(`Teacher ${!teacher.is_active ? 'activated' : 'deactivated'} successfully`);
+        fetchTeachers();
+      }
+    } catch (error) {
+      toast.error('Failed to update status');
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 p-6">
       {fullPageLoading && <FullPageLoader message="Processing..." />}
@@ -198,6 +227,70 @@ export default function TeachersPage() {
           Teacher Management
         </h1>
         <p className="text-gray-600 mt-1">Manage teachers for {user?.branchId?.name || 'your branch'}</p>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+        {loading ? (
+          <>
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                <Skeleton className="h-4 w-24 mb-2" />
+                <Skeleton className="h-8 w-16" />
+              </div>
+            ))}
+          </>
+        ) : (
+          <>
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Total Teachers</p>
+                  <h3 className="text-2xl font-bold text-gray-900 mt-1">{stats.total}</h3>
+                </div>
+                <div className="h-12 w-12 bg-blue-50 rounded-xl flex items-center justify-center">
+                  <Users className="h-6 w-6 text-blue-600" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Active</p>
+                  <h3 className="text-2xl font-bold text-green-600 mt-1">{stats.active}</h3>
+                </div>
+                <div className="h-12 w-12 bg-green-50 rounded-xl flex items-center justify-center">
+                  <Users className="h-6 w-6 text-green-600" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-500">On Leave</p>
+                  <h3 className="text-2xl font-bold text-orange-600 mt-1">{stats.onLeave}</h3>
+                </div>
+                <div className="h-12 w-12 bg-orange-50 rounded-xl flex items-center justify-center">
+                  <Users className="h-6 w-6 text-orange-600" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Terminated</p>
+                  <h3 className="text-2xl font-bold text-red-600 mt-1">{stats.terminated}</h3>
+                </div>
+                <div className="h-12 w-12 bg-red-50 rounded-xl flex items-center justify-center">
+                  <Users className="h-6 w-6 text-red-600" />
+                </div>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Filters and Actions */}
@@ -238,93 +331,54 @@ export default function TeachersPage() {
       </div>
 
       {/* Teachers Table */}
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        {loading ? (
-          <div className="p-8 text-center text-gray-500">Loading teachers...</div>
-        ) : teachers.length === 0 ? (
-          <div className="p-12 text-center">
-            <Users className="h-16 w-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500 text-lg">No teachers found</p>
+      <UserManagementTable
+        data={teachers.slice((pagination.page - 1) * pagination.limit, pagination.page * pagination.limit)}
+        loading={loading}
+        onView={handleView}
+        onEdit={handleEdit}
+        onDelete={handleDelete}
+        onToggleStatus={handleToggleStatus}
+      />
+
+      {/* Pagination Controls */}
+      {Math.ceil(teachers.length / pagination.limit) > 1 && (
+        <div className="flex items-center justify-between mt-6 bg-white p-4 rounded-xl shadow-sm border border-gray-200">
+          <div className="text-sm text-gray-600 font-medium">
+            Showing <span className="font-bold text-blue-600">{((pagination.page - 1) * pagination.limit) + 1}</span> to <span className="font-bold text-blue-600">{Math.min(pagination.page * pagination.limit, teachers.length)}</span> of {teachers.length} teachers
           </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <Table>
-              <TableHeader className="bg-gray-50">
-                <TableRow>
-                  <TableHead>Teacher</TableHead>
-                  <TableHead>Contact</TableHead>
-                  {/* <TableHead>Department</TableHead> */}
-                  <TableHead>Designation</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-
-              <TableBody>
-                {teachers.map((teacher) => (
-                  <TableRow key={teacher.id} className="hover:bg-gray-50">
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">
-                          {teacher.fullName || `${teacher.first_name} ${teacher.last_name}`}
-                        </div>
-                        <div className="text-sm text-gray-500">{teacher.registration_no}</div>
-                      </div>
-                    </TableCell>
-
-                    <TableCell>
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-1 text-sm text-gray-600">
-                          <Mail className="h-3 w-3" />
-                          {teacher.email}
-                        </div>
-                        <div className="flex items-center gap-1 text-sm text-gray-600">
-                          <Phone className="h-3 w-3" />
-                          {teacher.phone}
-                        </div>
-                      </div>
-                    </TableCell>
-
-                    <TableCell>
-                      <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full bg-purple-100 text-purple-800">
-                        <Award className="h-3 w-3" />
-                        {teacher.details?.teacher?.designation || 'Teacher'}
-                      </span>
-                    </TableCell>
-
-                    <TableCell>
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                        teacher.is_active ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
-                      }`}>
-                        {teacher.is_active ? 'Active' : 'Inactive'}
-                      </span>
-                    </TableCell>
-
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <Button 
-                          onClick={() => handleView(teacher)} 
-                          variant="ghost" 
-                          size="icon-sm"
-                          title="View Details"
-                        >
-                          <Eye className="h-4 w-4 text-blue-600" />
-                        </Button>
-                        <Button onClick={() => handleEdit(teacher)} variant="ghost" size="icon-sm" title="Edit">
-                          <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button onClick={() => handleDelete(teacher)} variant="ghost" size="icon-sm" title="Delete">
-                          <Trash2 className="h-4 w-4 text-red-600" />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPagination(prev => ({ ...prev, page: prev.page - 1 }))}
+              disabled={pagination.page === 1}
+            >
+              Previous
+            </Button>
+            <div className="flex items-center gap-1">
+              {[...Array(Math.ceil(teachers.length / pagination.limit))].map((_, i) => (
+                <Button
+                  key={i + 1}
+                  variant={pagination.page === i + 1 ? "default" : "outline"}
+                  size="sm"
+                  className="w-8 h-8 p-0"
+                  onClick={() => setPagination(prev => ({ ...prev, page: i + 1 }))}
+                >
+                  {i + 1}
+                </Button>
+              ))}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPagination(prev => ({ ...prev, page: prev.page + 1 }))}
+              disabled={pagination.page >= Math.ceil(teachers.length / pagination.limit)}
+            >
+              Next
+            </Button>
           </div>
-        )}
-      </div>
+        </div>
+      )}
 
       {/* Teacher Form Modal */}
       <Modal
@@ -348,8 +402,8 @@ export default function TeachersPage() {
       </Modal>
 
       {/* Teacher View Modal */}
-      <TeacherViewModal
-        teacher={viewingTeacher}
+      <UserDetailModal
+        user={viewingTeacher}
         open={showViewModal}
         onClose={() => {
           setShowViewModal(false);

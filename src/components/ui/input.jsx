@@ -29,7 +29,7 @@ export default function Input({
       <div className="relative">
         <input
           type={type}
-          value={value ?? ''}
+          {...(value !== undefined ? { value } : {})}
           onChange={onChange}
           placeholder={placeholder}
           className={[

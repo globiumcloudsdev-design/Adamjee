@@ -30,6 +30,7 @@ export const authenticate = async (request) => {
   }
 
   const user = await User.findByPk(decoded.userId, {
+    paranoid: false,
     attributes: {
       exclude: [
         "password_hash",

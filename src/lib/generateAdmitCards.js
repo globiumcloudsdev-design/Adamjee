@@ -135,7 +135,7 @@ export async function generateAdmitCards({ exam, students }) {
     );
     drawRow(
       'CLASS / GRADE:',   `${cls}${sec && sec !== '—' ? ' (' + sec + ')' : ''}`.toUpperCase(),
-      'ROLL NO:',         String(student.roll_no || '—'),
+      'GR NO:',         String(student.roll_no || '—'),
       Y + 9
     );
     drawRow(
@@ -244,7 +244,7 @@ export async function generateAdmitCards({ exam, students }) {
       'Report to the examination centre at least 15 minutes before the commencement of the exam.',
       'Mobile phones, smart watches, and electronic devices are strictly prohibited in the hall.',
       'Any use of unfair means will lead to immediate disqualification from the examination.',
-      'Ensure your Registration No. and Roll No. are correctly written on the answer script.',
+      'Ensure your Registration No. and GR No. are correctly written on the answer script.',
     ];
 
     doc.setFont('helvetica', 'normal');

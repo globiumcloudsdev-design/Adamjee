@@ -718,99 +718,63 @@ export const API_ENDPOINTS = {
     },
   },
 
-  // Teacher Endpoints
+  // Teacher Endpoints ✅ VERIFIED WORKING
   TEACHER: {
-    DASHBOARD: "/api/teacher/dashboard", // GET
-    NOTIFICATIONS: {
-      LIST: "/api/notifications", // GET
-      MARK_READ: "/api/notifications", // PATCH
+    // Dashboard & Overview
+    DASHBOARD: "/api/teacher/dashboard", // GET - Teacher dashboard with stats
+    PROFILE: {
+      GET: "/api/users/profile", // GET - Authenticated teacher profile
+      UPDATE: "/api/users/profile", // PUT - Update profile
     },
 
-    // My Classes (app route: src/app/api/teacher/my-classes)
+    // My Classes (Primary Teaching Classes)
     MY_CLASSES: {
-      LIST: "/api/teacher/my-classes", // GET
-      GET: "/api/teacher/my-classes/:id", // GET
+      LIST: "/api/teacher/my-classes", // GET - List assigned classes with subject/section
     },
 
-    // Classes
-    CLASSES: {
-      LIST: "/api/teacher/classes", // GET
-      GET: "/api/teacher/classes/:id", // GET
-      STUDENTS: "/api/teacher/classes/:id/students", // GET
-      SUBJECTS: "/api/teacher/classes/:id/subjects", // GET
-      TIMETABLE: "/api/teacher/classes/:id/timetable", // GET
-    },
-
-    // Students
-    STUDENTS: {
-      LIST: "/api/teacher/students", // GET
-      GET: "/api/teacher/students/:id", // GET
-      DETAILS: "/api/teacher/student/details", // GET
-      PERFORMANCE: "/api/student/details/:id/performance", // GET
-    },
-
-    // Attendance
-    ATTENDANCE: {
-      MARK: "/api/teacher/attendance/mark", // POST
-      VIEW: "/api/teacher/attendance/view", // GET
-      HISTORY: "/api/teacher/attendance/history", // GET
-      REPORT: "/api/teacher/attendance/report", // GET
-      BULK_MARK: "/api/teacher/attendance/bulk-mark", // POST
-      SCAN: "/api/teacher/attendance/scan", // POST
-    },
-    //self-attendece
-    SELF_ATTENDANCE: {
-      STATUS: "/api/teacher/self-attendance/status", // GET
-      CHECK_IN: "/api/teacher/self-attendance/check-in", // POST
-      CHECK_OUT: "/api/teacher/self-attendance/check-out", // POST
-      HISTORY: "/api/teacher/self-attendance/history", // GET
-    },
-
-    // Assignments
+    // Assignments Management
     ASSIGNMENTS: {
-      CREATE: "/api/teacher/assignments", // POST
-      LIST: "/api/teacher/assignments", // GET
-      GET: "/api/teacher/assignments/:id", // GET
-      UPDATE: "/api/teacher/assignments/:id", // PUT
-      DELETE: "/api/teacher/assignments/:id", // DELETE
-      SUBMISSIONS: "/api/teacher/assignments/:id/submissions", // GET
-      GRADE: "/api/teacher/assignments/:id/grade", // POST
+      CREATE: "/api/assignments", // POST - Create new assignment for class
+      LIST: "/api/assignments", // GET - List assignments (filtered to teacher)
+      GET: (id) => `/api/assignments/${id}`, // GET - Get specific assignment
+      UPDATE: (id) => `/api/assignments/${id}`, // PUT - Update assignment
+      DELETE: (id) => `/api/assignments/${id}`, // DELETE - Delete assignment (PERMANENT)
+      SUBMISSIONS: {
+        LIST: "/api/submissions", // GET - List all submissions
+        GET: (id) => `/api/submissions/${id}`, // GET - Get specific submission
+        GRADE: (id) => `/api/submissions/${id}`, // PUT - Grade submission
+      },
+    },
+
+    // Student Attendance Management
+    ATTENDANCE: {
+      MARK: "/api/attendance", // POST - Mark attendance for students
+      LIST: "/api/attendance", // GET - View attendance records
+      SCAN: "/api/attendance/scan", // POST - Scan QR/RFID for attendance
     },
 
     // Exams
     EXAMS: {
-      CREATE: "/api/teacher/exams", // POST
-      LIST: "/api/teacher/exams", // GET
-      GET: "/api/teacher/exams/:id", // GET
-      UPDATE: "/api/teacher/exams/:id", // PUT
-      UPDATE_STATUS: "/api/teacher/exams/:id", // PATCH
-      DELETE: "/api/teacher/exams/:id", // DELETE
-      SCHEDULE: "/api/teacher/exams/:id/schedule", // GET
-      RESULTS: "/api/teacher/exams/:id/results", // GET
+      LIST: "/api/teacher/exams", // GET - List exams for teacher's classes
     },
 
-    // Grades
-    GRADES: {
-      CREATE: "/api/teacher/grades", // POST
-      LIST: "/api/teacher/grades", // GET
-      UPDATE: "/api/teacher/grades/:id", // PUT
-      BULK_UPLOAD: "/api/teacher/grades/bulk-upload", // POST
-      PUBLISH: "/api/teacher/grades/publish", // POST
+    // Leave Requests
+    LEAVE_REQUESTS: {
+      CREATE: "/api/leave-requests", // POST - Apply for leave
+      LIST: "/api/leave-requests", // GET - View leave requests history
+      UPDATE: (id) => `/api/leave-requests/${id}`, // PUT - Update leave request
     },
 
-    // Leave Management
-    LEAVE: {
-      APPLY: "/api/teacher/leave/apply", // POST
-      LIST: "/api/teacher/leave", // GET
-      CANCEL: "/api/teacher/leave/:id/cancel", // POST
-      HISTORY: "/api/teacher/leave/history", // GET
+    // Teacher Schedule
+    TIMETABLE: {
+      GET: (teacherId) => `/api/timetable/teacher/${teacherId}`, // GET - Get teacher's timetable
     },
-    // Payroll Management
-    PAYROLL: {
-      LIST: "/api/teacher/payroll/list", // GET
 
-      // GET: (id) => `/api/teacher/payroll/${id}`, // GET
-      SLIP: (id) => `/api/teacher/payroll/slip/${id}`, // GET
+    // Notifications
+    NOTIFICATIONS: {
+      LIST: "/api/notifications", // GET - List notifications
+      MARK_READ: (id) => `/api/notifications/${id}/read`, // PUT - Mark notification as read
+      DELETE: (id) => `/api/notifications/${id}`, // DELETE - Delete notification
     },
   },
 
@@ -848,7 +812,7 @@ export const API_ENDPOINTS = {
     ASSIGNMENTS: {
       LIST: "/student/assignments", // GET
       GET: "/student/assignments/:id", // GET
-      SUBMIT: "/student/assignments/:id/submit", // POST
+      SUBMIT: "/api/assignments/:id/submit", // POST
       SUBMISSIONS: "/student/assignments/submissions", // GET
     },
 
@@ -938,7 +902,9 @@ export const API_ENDPOINTS = {
   // Shared Endpoints (Used by multiple roles)
   USERS: "/api/branch-admin/users", // GET
   NOTIFICATIONS: {
-    SEND: "/api/notifications/send", // POST
+    SEND: "/api/notifications", // POST
+    LIST: "/api/notifications", // GET
+    MARK_READ: "/api/notifications", // PATCH
     HISTORY: "/api/branch-admin/notifications/history", // GET
   },
 

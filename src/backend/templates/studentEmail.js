@@ -62,7 +62,7 @@ export const getStudentEmailTemplate = (type, student, coachingName = 'Adamjee C
           <td style="padding: 8px 0;">${student.studentProfile?.registrationNumber || 'N/A'}</td>
         </tr>
         <tr>
-          <td style="padding: 8px 0; font-weight: bold;">Roll Number:</td>
+          <td style="padding: 8px 0; font-weight: bold;">GR No:</td>
           <td style="padding: 8px 0;">${student.studentProfile?.rollNumber || 'N/A'}</td>
         </tr>
         <tr>

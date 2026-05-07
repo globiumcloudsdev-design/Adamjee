@@ -22,6 +22,7 @@ import {
 } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import Skeleton from "@/components/ui/skeleton";
+import Tooltip from "@/components/ui/tooltip";
 
 /**
  * UserManagementTable - A standardized table component for Students, Teachers, Staff, and Admins.
@@ -212,26 +213,34 @@ export default function UserManagementTable({
 
                 {/* Actions Cell */}
                 <TableCell className="text-right">
-                  <div className="flex items-center justify-end gap-1 transition-opacity">
+                   <div className="flex items-center justify-end gap-1 transition-opacity">
                     {onView && (
-                      <Button onClick={() => onView(user)} variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:bg-blue-50">
-                        <Eye className="h-4 w-4" />
-                      </Button>
+                      <Tooltip content="View Profile">
+                        <Button onClick={() => onView(user)} variant="ghost" size="icon" className="h-8 w-8 text-blue-600 hover:bg-blue-50">
+                          <Eye className="h-4 w-4" />
+                        </Button>
+                      </Tooltip>
                     )}
                     {onEdit && (
-                      <Button onClick={() => onEdit(user)} variant="ghost" size="icon" className="h-8 w-8 text-yellow-600 hover:bg-yellow-50">
-                        <Edit className="h-4 w-4" />
-                      </Button>
+                      <Tooltip content="Edit Details">
+                        <Button onClick={() => onEdit(user)} variant="ghost" size="icon" className="h-8 w-8 text-yellow-600 hover:bg-yellow-50">
+                          <Edit className="h-4 w-4" />
+                        </Button>
+                      </Tooltip>
                     )}
                     {onDownloadQR && (
-                      <Button onClick={() => onDownloadQR(user)} variant="ghost" size="icon" className="h-8 w-8 text-green-600 hover:bg-green-50">
-                        <Download className="h-4 w-4" />
-                      </Button>
+                      <Tooltip content="Download ID Card / QR">
+                        <Button onClick={() => onDownloadQR(user)} variant="ghost" size="icon" className="h-8 w-8 text-green-600 hover:bg-green-50">
+                          <Download className="h-4 w-4" />
+                        </Button>
+                      </Tooltip>
                     )}
                     {onDelete && (
-                      <Button onClick={() => onDelete(user.id)} variant="ghost" size="icon" className="h-8 w-8 text-red-600 hover:bg-red-50">
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
+                      <Tooltip content="Delete User">
+                        <Button onClick={() => onDelete(user)} variant="ghost" size="icon" className="h-8 w-8 text-red-600 hover:bg-red-50">
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      </Tooltip>
                     )}
                   </div>
                 </TableCell>

@@ -27,6 +27,8 @@ import {
   GraduationCap
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { ExamTableSkeleton } from '@/components/ui/skeleton';
+import Tooltip from '@/components/ui/tooltip';
 
 const ExamTable = ({ 
   exams = [], 
@@ -64,15 +66,7 @@ const ExamTable = ({
   };
 
   if (loading && exams.length === 0) {
-    return (
-      <div className="py-24 flex flex-col items-center justify-center">
-        <div className="relative w-16 h-16 mb-4">
-          <div className="absolute inset-0 border-4 border-indigo-100 rounded-full"></div>
-          <div className="absolute inset-0 border-4 border-indigo-600 rounded-full border-t-transparent animate-spin"></div>
-        </div>
-        <p className="text-slate-500 font-medium animate-pulse">Loading examinations...</p>
-      </div>
-    );
+    return <ExamTableSkeleton />;
   }
 
   return (
@@ -201,77 +195,83 @@ const ExamTable = ({
                       <div className="flex items-center justify-end gap-2 opacity-80 group-hover:opacity-100 transition-opacity">
                         
                         {onResults && (
-                          <Button 
-                            variant="outline" 
-                            size="icon" 
-                            className="h-8 w-8 text-emerald-600 border-emerald-200 bg-emerald-50/50 hover:bg-emerald-100 hover:border-emerald-300 shadow-sm"
-                            onClick={() => onResults(exam)}
-                            title="Enter Marks"
-                          >
-                            <ClipboardCheck className="w-4 h-4" />
-                          </Button>
+                          <Tooltip content="Enter Marks">
+                            <Button 
+                              variant="outline" 
+                              size="icon" 
+                              className="h-8 w-8 text-emerald-600 border-emerald-200 bg-emerald-50/50 hover:bg-emerald-100 hover:border-emerald-300 shadow-sm"
+                              onClick={() => onResults(exam)}
+                            >
+                              <ClipboardCheck className="w-4 h-4" />
+                            </Button>
+                          </Tooltip>
                         )}
 
                         {onView && (
-                          <Button 
-                            variant="outline" 
-                            size="icon" 
-                            className="h-8 w-8 text-indigo-600 border-indigo-200 bg-indigo-50/50 hover:bg-indigo-100 hover:border-indigo-300 shadow-sm"
-                            onClick={() => onView(exam)}
-                            title="View Details"
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
+                          <Tooltip content="View Details">
+                            <Button 
+                              variant="outline" 
+                              size="icon" 
+                              className="h-8 w-8 text-indigo-600 border-indigo-200 bg-indigo-50/50 hover:bg-indigo-100 hover:border-indigo-300 shadow-sm"
+                              onClick={() => onView(exam)}
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                          </Tooltip>
                         )}
 
                         {onAdmitCard && (
-                          <Button 
-                            variant="outline" 
-                            size="icon" 
-                            className="h-8 w-8 text-violet-600 border-violet-200 bg-violet-50/50 hover:bg-violet-100 hover:border-violet-300 shadow-sm"
-                            onClick={() => onAdmitCard(exam)}
-                            title="Download Admit Cards"
-                          >
-                            <IdCard className="w-4 h-4" />
-                          </Button>
+                          <Tooltip content="Admit Cards">
+                            <Button 
+                              variant="outline" 
+                              size="icon" 
+                              className="h-8 w-8 text-violet-600 border-violet-200 bg-violet-50/50 hover:bg-violet-100 hover:border-violet-300 shadow-sm"
+                              onClick={() => onAdmitCard(exam)}
+                            >
+                              <IdCard className="w-4 h-4" />
+                            </Button>
+                          </Tooltip>
                         )}
 
                         {onReports && (
-                          <Button 
-                            variant="outline" 
-                            size="icon" 
-                            className="h-8 w-8 text-cyan-600 border-cyan-200 bg-cyan-50/50 hover:bg-cyan-100 hover:border-cyan-300 shadow-sm"
-                            onClick={() => onReports(exam)}
-                            title="View Results / Generate Report Cards"
-                          >
-                            <BarChart2 className="w-4 h-4" />
-                          </Button>
+                          <Tooltip content="Results / Report Cards">
+                            <Button 
+                              variant="outline" 
+                              size="icon" 
+                              className="h-8 w-8 text-cyan-600 border-cyan-200 bg-cyan-50/50 hover:bg-cyan-100 hover:border-cyan-300 shadow-sm"
+                              onClick={() => onReports(exam)}
+                            >
+                              <BarChart2 className="w-4 h-4" />
+                            </Button>
+                          </Tooltip>
                         )}
                         
                         <div className="w-px h-6 bg-slate-200 mx-1 hidden sm:block"></div>
 
                         {onEdit && (
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            onClick={() => onEdit(exam)} 
-                            className="h-8 w-8 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50"
-                            title="Edit Exam"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
+                          <Tooltip content="Edit Exam">
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              onClick={() => onEdit(exam)} 
+                              className="h-8 w-8 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50"
+                            >
+                              <Edit className="w-4 h-4" />
+                            </Button>
+                          </Tooltip>
                         )}
                         
                         {onDelete && (
-                          <Button 
-                            variant="ghost" 
-                            size="icon" 
-                            onClick={() => onDelete(exam._id || exam.id)} 
-                            className="h-8 w-8 text-slate-400 hover:text-rose-600 hover:bg-rose-50"
-                            title="Delete Exam"
-                          >
-                            <Trash2 className="w-4 h-4" />
-                          </Button>
+                          <Tooltip content="Delete Exam">
+                            <Button 
+                              variant="ghost" 
+                              size="icon" 
+                              onClick={() => onDelete(exam._id || exam.id)} 
+                              className="h-8 w-8 text-slate-400 hover:text-rose-600 hover:bg-rose-50"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </Button>
+                          </Tooltip>
                         )}
                       </div>
                     </TableCell>

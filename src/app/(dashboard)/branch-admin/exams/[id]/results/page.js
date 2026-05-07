@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import apiClient from "@/lib/api-client";
 import { toast } from "sonner";
-import FullPageLoader from "@/components/ui/full-page-loader";
+import { ExamResultsSkeleton } from "@/components/ui/skeleton";
 import { generateResultCards } from "@/lib/generateResultCard";
 
 export default function ExamResultsPage({ params }) {
@@ -151,7 +151,7 @@ export default function ExamResultsPage({ params }) {
     }
   };
 
-  if (loading) return <FullPageLoader message="Loading exam results..." />;
+  if (loading) return <ExamResultsSkeleton />;
   if (!exam)   return (
     <div className="p-20 text-center flex flex-col items-center gap-3 text-muted-foreground">
       <AlertCircle className="w-10 h-10" /> Exam not found.

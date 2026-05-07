@@ -34,6 +34,7 @@ const Notification = sequelize.define(
         "general",
         "alert",
         "reminder",
+        "announcement",
       ),
       allowNull: false,
       defaultValue: "general",
@@ -118,5 +119,14 @@ Notification.associate = (models) => {
   });
   Notification.belongsTo(models.User, { foreignKey: "sent_by", as: "sender" });
 };
+
+// Temporary patch: Ensure 'announcement' value exists in the database ENUM type.
+// This runs when the model is loaded by the application.
+sequelize
+  .query("ALTER TYPE \"enum_notifications_type\" ADD VALUE IF NOT EXISTS 'announcement';")
+  .catch((err) => {
+    // Ignore errors if the value already exists or if there are permission issues
+    // logger.debug("Notification model enum update skipped: " + err.message);
+  });
 
 export default Notification;

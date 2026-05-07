@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { withAuth } from "@/backend/middleware/auth.middleware.js";
 import { Exam, ExamMark, sequelize } from "@/backend/models/postgres";
+import NotificationService from "@/backend/services/NotificationService";
 
 // Ensure table exists
 let tableSynced = false;
@@ -80,6 +81,25 @@ async function saveExamMarks(req, { params }) {
         }
       }
     });
+
+    // Send notifications asynchronously
+    (async () => {
+      try {
+        // Collect unique student IDs to avoid duplicate notifications
+        const uniqueStudentIds = [...new Set(marks.map(m => m.student_id))];
+        for (const studentId of uniqueStudentIds) {
+          await NotificationService.sendToUsers([studentId], {
+            title: "Exam Results Published",
+            message: `Marks for the exam "${exam.title}" have been updated. Please check your dashboard for details.`,
+            type: "exam_result",
+            branchId: exam.branch_id,
+            sentBy: currentUser.id,
+          });
+        }
+      } catch (err) {
+        console.error("Exam Marks Notification Error:", err);
+      }
+    })();
 
     return NextResponse.json({
       success: true,

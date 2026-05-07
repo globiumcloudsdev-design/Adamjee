@@ -64,6 +64,7 @@ const Assignment = sequelize.define(
     tableName: "assignments",
     timestamps: true,
     underscored: true,
+    paranoid: false,
     indexes: [
       { fields: ["branch_id"] },
       { fields: ["class_id", "section_id"] },

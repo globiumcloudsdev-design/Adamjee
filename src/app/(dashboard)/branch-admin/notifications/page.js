@@ -120,8 +120,12 @@ export default function BranchAdminNotification() {
 
     try {
       const payload = {
-        ...formData,
+        title: formData.title,
+        message: formData.message,
+        type: formData.type,
+        targetRoles: formData.targetRole ? [formData.targetRole] : [],
         targetUserIds: isSpecificTargeting ? selectedUserIds : undefined,
+        sendToAll: !isSpecificTargeting && !formData.targetRole, // Only true if neither role nor specific users are selected
       };
 
       if (isSpecificTargeting && selectedUserIds.length === 0) {
@@ -310,6 +314,11 @@ export default function BranchAdminNotification() {
                         <Clock className="w-3 h-3" />
                         {new Date(item.createdAt).toLocaleString()}
                       </span>
+                      {item.senderName && (
+                        <span className="text-xs font-medium px-2 py-0.5 bg-gray-100 dark:bg-gray-800 rounded-full text-gray-600 dark:text-gray-400">
+                          By: {item.senderName}
+                        </span>
+                      )}
                     </div>
                     <h4 className="font-semibold text-gray-900 dark:text-white uppercase text-sm tracking-tight">{item.title}</h4>
                     <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-1">{item.message}</p>

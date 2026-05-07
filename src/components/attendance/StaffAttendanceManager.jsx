@@ -11,6 +11,7 @@ import {
 import { format } from 'date-fns';
 import { useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
+import Tooltip from '@/components/ui/tooltip';
 
 import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -500,20 +501,22 @@ export default function StaffAttendanceManager({ isBranchAdmin = false, defaultB
                                             </td>
                                             <td className="px-6 py-4 text-right">
                                                 <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    <button
-                                                        onClick={() => handleOpenEditModal(record)}
-                                                        className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
-                                                        title="Edit"
-                                                    >
-                                                        <Edit className="h-4 w-4" />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDelete(record.id)}
-                                                        className="p-1.5 text-red-600 hover:bg-red-50 rounded-md transition-colors"
-                                                        title="Delete"
-                                                    >
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </button>
+                                                    <Tooltip content="Edit Attendance">
+                                                        <button
+                                                            onClick={() => handleOpenEditModal(record)}
+                                                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                                                        >
+                                                            <Edit className="h-4 w-4" />
+                                                        </button>
+                                                    </Tooltip>
+                                                    <Tooltip content="Delete Record">
+                                                        <button
+                                                            onClick={() => handleDelete(record.id)}
+                                                            className="p-1.5 text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </button>
+                                                    </Tooltip>
                                                 </div>
                                             </td>
                                         </tr>

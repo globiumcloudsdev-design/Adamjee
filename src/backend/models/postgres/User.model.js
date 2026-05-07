@@ -107,6 +107,17 @@ const User = sequelize.define(
 
     password_reset_token: { type: DataTypes.STRING },
     password_reset_expires: { type: DataTypes.DATE },
+
+    // Push Notifications
+    push_token: {
+      type: DataTypes.STRING,
+      comment: "Primary Expo/FCM push token",
+    },
+    fcm_tokens: {
+      type: DataTypes.JSONB,
+      defaultValue: [],
+      comment: "Array of tokens for multiple devices",
+    },
   },
   {
     tableName: "users",
@@ -209,5 +220,20 @@ User.associate = (models) => {
   User.belongsTo(models.User, { foreignKey: "updated_by", as: "updater" });
   // other associations...
 };
+
+// Self-healing: Ensure push_token and fcm_tokens columns exist
+(async () => {
+  try {
+    await sequelize.query(`
+      ALTER TABLE "users" 
+      ADD COLUMN IF NOT EXISTS "push_token" VARCHAR(255),
+      ADD COLUMN IF NOT EXISTS "fcm_tokens" JSONB DEFAULT '[]'::jsonb;
+    `);
+    console.log("✅ Successfully checked/added push notification columns to 'users' table");
+  } catch (err) {
+    // Ignore errors if columns already exist or if there's a connection issue during load
+    console.error("⚠️ Failed to patch 'users' table columns:", err.message);
+  }
+})();
 
 export default User;

@@ -38,6 +38,7 @@ import ButtonLoader from "@/components/ui/button-loader";
 import FullPageLoader from "@/components/ui/full-page-loader";
 import SimpleTimetableViewModal from "@/components/timetable/SimpleTimetableViewModal";
 import TimePicker from "@/components/ui/time-picker";
+import { TimetableGridSkeleton, TimetableSkeleton } from "@/components/ui/skeleton";
 
 const DAYS = [
   "Monday",
@@ -82,7 +83,7 @@ export default function TimetablePage() {
   const [selectedAcademicYear, setSelectedAcademicYear] = useState("");
   const [viewMode, setViewMode] = useState("grouped"); // 'list' or 'grouped'
 
-  const [fetchingTimetables, setFetchingTimetables] = useState(false);
+  const [fetchingTimetables, setFetchingTimetables] = useState(true);
 
   const [showDialog, setShowDialog] = useState(false);
   const [editingTimetable, setEditingTimetable] = useState(null);
@@ -514,6 +515,11 @@ export default function TimetablePage() {
       if (response.success) {
         const data = response.timetable || response.data || [];
         setTimetables(data);
+        if (data.length === 0) {
+          toast.info("No timetables found matching your search criteria");
+        } else if (queryParams.branch_id || queryParams.class_id || queryParams.teacher_id) {
+          toast.success(`Found ${data.length} timetables`);
+        }
         console.log("[SuperAdmin] Timetables set:", data.length);
       }
     } catch (error) {
@@ -1133,16 +1139,20 @@ export default function TimetablePage() {
 
   return (
     <div className="container mx-auto p-6 space-y-6">
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 pt-6 sm:pt-8">
-        <div className="space-y-1">
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight">
-            Timetable Management
-          </h1>
-          <p className="text-muted-foreground text-sm sm:text-base">
-            Manage class timetables and periods
-          </p>
-        </div>
-      </div>
+      {fetchingTimetables && timetables.length === 0 ? (
+        <TimetableSkeleton />
+      ) : (
+        <>
+          <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 pt-6 sm:pt-8">
+            <div className="space-y-1">
+              <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold tracking-tight">
+                Timetable Management
+              </h1>
+              <p className="text-muted-foreground text-sm sm:text-base">
+                Manage class timetables and periods
+              </p>
+            </div>
+          </div>
 
       {/* Filters */}
       <Card className="border-none shadow-sm bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm border border-slate-200 dark:border-slate-800">
@@ -1325,9 +1335,14 @@ export default function TimetablePage() {
           </div>
         </CardHeader>
         <CardContent className="p-0">
-          <div className="overflow-x-auto">
-            {viewMode === "grouped" ? (
-              <div className="space-y-8 p-6">
+          {fetchingTimetables ? (
+            <div className="p-6">
+              <TimetableGridSkeleton />
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              {viewMode === "grouped" ? (
+                <div className="space-y-8 p-6">
                 {Object.entries(groupedTimetables).map(
                   ([branchId, branchData]) => (
                     <div key={branchId} className="space-y-4">
@@ -1396,6 +1411,32 @@ export default function TimetablePage() {
                     </div>
                   ),
                 )}
+                {Object.keys(groupedTimetables).length === 0 && (
+                  <div className="flex flex-col items-center justify-center py-20 bg-gray-50/50 rounded-3xl border-2 border-dashed border-gray-200">
+                    <div className="h-16 w-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
+                      <Calendar className="h-8 w-8 text-gray-400" />
+                    </div>
+                    <h3 className="text-lg font-bold text-gray-900">No Timetables Found</h3>
+                    <p className="text-gray-500 max-w-xs text-center mt-2">
+                      We couldn't find any class schedules matching your current filters. 
+                      Try adjusting your branch, class, or teacher selection.
+                    </p>
+                    <Button 
+                      variant="outline" 
+                      className="mt-6"
+                      onClick={() => {
+                        setSelectedBranch("");
+                        setSelectedClass("");
+                        setSelectedSection("");
+                        setSelectedTeacher("");
+                        setSelectedAcademicYear("");
+                        fetchTimetables();
+                      }}
+                    >
+                      Clear All Filters
+                    </Button>
+                  </div>
+                )}
               </div>
             ) : (
               <table className="w-full text-left border-collapse">
@@ -1436,6 +1477,23 @@ export default function TimetablePage() {
                           <p className="text-xs text-gray-400">
                             Try adjusting your filters or create a new one.
                           </p>
+                          {(selectedBranch || selectedClass || selectedTeacher || selectedAcademicYear) && (
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              className="mt-4"
+                              onClick={() => {
+                                setSelectedBranch("");
+                                setSelectedClass("");
+                                setSelectedSection("");
+                                setSelectedTeacher("");
+                                setSelectedAcademicYear("");
+                                fetchTimetables();
+                              }}
+                            >
+                              Clear Filters
+                            </Button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -1515,7 +1573,8 @@ export default function TimetablePage() {
               </table>
             )}
           </div>
-        </CardContent>
+        )}
+      </CardContent>
       </Card>
 
       {/* Create/Edit Modal */}
@@ -1858,7 +1917,7 @@ export default function TimetablePage() {
               </Button>
             </div>
 
-            <div className="space-y-4 max-h-96 overflow-y-auto">
+            <div className="space-y-4">
               {formData.periods.map((period, index) => (
                 <Card key={index}>
                   <CardContent className="pt-6">
@@ -2015,8 +2074,8 @@ export default function TimetablePage() {
         subjects={allSubjects}
       />
 
-      {/* Loading Overlay */}
-      {fetchingTimetables && <FullPageLoader message="Loading timetables..." />}
+        </>
+      )}
     </div>
   );
 }

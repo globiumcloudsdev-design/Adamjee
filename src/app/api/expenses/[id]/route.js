@@ -74,8 +74,8 @@ async function updateExpense(req, { params }) {
       if (body[field] !== undefined) updateData[field] = body[field];
     }
 
-    // Handle status transitions (optional approvals)
-    if (body.status && user.role === 'SUPER_ADMIN') {
+    // Handle status transitions
+    if (body.status) {
       updateData.status = body.status;
       if (body.status === 'approved') {
         updateData.approved_by = user.id;

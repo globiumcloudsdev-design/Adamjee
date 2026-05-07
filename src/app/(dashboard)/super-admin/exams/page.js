@@ -15,6 +15,7 @@ import {
   RefreshCw, Eye
 } from "lucide-react";
 import ExamDetailsModal from "@/components/modals/ExamDetailsModal";
+import { ExamSkeleton } from "@/components/ui/skeleton";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 const fd = (d) => {
@@ -191,7 +192,7 @@ export default function SuperAdminExamsPage() {
     ongoing:   exams.filter(e => e.status === "ongoing" || e.status === "active").length,
   }), [exams, branches]);
 
-  if (loading) return <FullPageLoader message="Loading exam overview..." />;
+  if (loading) return <ExamSkeleton />;
 
   return (
     <div className="p-4 sm:p-6 space-y-6">

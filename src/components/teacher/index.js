@@ -13,4 +13,4 @@ export { default as AttendanceHistoryCard } from "./AttendanceHistoryCard";
 
 // Existing Components
 export { default as TeacherForm } from "./teacher-form";
-export { default as TeacherViewModal } from "./teacher-view-modal";
+

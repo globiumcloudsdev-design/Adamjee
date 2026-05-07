@@ -194,7 +194,7 @@ export async function generateResultCards({ exam, students, marks, single = null
     );
     drawRow(
       'CLASS / GRADE:',   `${cls}${sec && sec !== '—' ? ' (' + sec + ')' : ''}`.toUpperCase(),
-      'ROLL NO:',         String(student.roll_no || '—'),
+      'GR NO:',         String(student.roll_no || '—'),
       Y + 9
     );
     drawRow(

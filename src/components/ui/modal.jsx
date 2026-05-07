@@ -24,7 +24,7 @@ export default function Modal({ open, onClose, title, children, headerClassName 
   }[size] || 'max-w-3xl';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center px-4 py-4">
+    <div className="fixed inset-0 z-50 flex items-start justify-center px-4 py-6 sm:py-12 overflow-y-auto">
       {/* Backdrop */}
       <div
         className="fixed inset-0 bg-black/40"
@@ -46,7 +46,7 @@ export default function Modal({ open, onClose, title, children, headerClassName 
           </div>
 
           {/* Content: scrollable when tall */}
-          <div className="p-6 overflow-y-auto">
+          <div className="p-6 overflow-y-auto" style={{ scrollbarGutter: 'stable' }}>
             {children}
           </div>
 

@@ -1,5 +1,5 @@
 import dotenv from 'dotenv';
-dotenv.config({ path: '.env.local' });
+dotenv.config({ path: '.env' });
 
 import { Sequelize } from 'sequelize';
 import pg from 'pg';
@@ -25,9 +25,10 @@ import Expense from './src/backend/models/postgres/Expense.model.js';
 import Policy from './src/backend/models/postgres/Policy.model.js';
 import StaffAttendance from './src/backend/models/postgres/StaffAttendance.model.js';
 import Attendance from './src/backend/models/postgres/Attendance.model.js';
-import Timetable from './src/backend/models/postgres/TimeTable.model.js';
+// import Timetable from './src/backend/models/postgres/TimeTable.model.js';
 import LeaveRequest from './src/backend/models/postgres/LeaveRequest.model.js';
 import FeeVoucher from './src/backend/models/postgres/FeeVoucher.model.js';
+// import Roster from './src/backend/models/postgres/Roster.model.js';
 
 const triggerSync = async () => {
   try {

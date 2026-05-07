@@ -24,15 +24,15 @@ export default function NotificationBell() {
     try {
       setLoading(true);
       const res = await fetch(
-        `/api/notifications/web-notifications?userId=${userId}`,
+        `/api/notifications?limit=50`,
         {
           headers: { Authorization: `Bearer ${token}` },
         },
       );
       const data = await res.json();
       if (data.success) {
-        setNotifications(data.data.notifications);
-        setUnreadCount(data.data.unreadCount);
+        setNotifications(data.notifications);
+        setUnreadCount(data.unreadCount);
       }
     } catch (err) {
       console.error("Notification Fetch Error:", err);
@@ -54,16 +54,13 @@ export default function NotificationBell() {
       );
       setUnreadCount((c) => Math.max(0, c - 1));
 
-      await fetch("/api/notifications", {
+      await fetch(`/api/notifications/${notifId}`, {
         method: "PATCH",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          notificationId: notifId,
-          isEvent: notification.isEvent || false,
-        }),
+        body: JSON.stringify({ action: "read" }),
       });
     } catch (err) {
       console.error("Mark read failed", err);
@@ -113,16 +110,12 @@ export default function NotificationBell() {
         setUnreadCount((c) => Math.max(0, c - 1));
       }
 
-      await fetch("/api/notifications", {
+      await fetch(`/api/notifications/${notifId}`, {
         method: "DELETE",
         headers: {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          notificationId: notifId,
-          isEvent: notification.isEvent || false,
-        }),
       });
     } catch (err) {
       console.error("Delete failed", err);
@@ -214,7 +207,7 @@ export default function NotificationBell() {
             ) : (
               notifications.map((n) => (
                 <div
-                  key={n._id}
+                  key={n.id || n._id}
                   onClick={async () => {
                     if (n.link) {
                       if (!n.isRead) await markAsRead(n);

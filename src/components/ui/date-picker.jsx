@@ -31,6 +31,7 @@ export default function DatePicker({
   min,
   max,
   disableFuture = true,
+  disablePast = false,
   ...props
 }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -58,7 +59,11 @@ export default function DatePicker({
 
   const handleDateClick = (day) => {
     // Check if future dates are disabled
-    if (disableFuture && day > new Date()) return;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    if (disableFuture && day > today) return;
+    if (disablePast && day < today) return;
     
     // Check if day is beyond max date
     if (max && day > (typeof max === 'string' ? parseISO(max) : max)) return;
@@ -168,8 +173,14 @@ export default function DatePicker({
           const isSelected = selectedDate && isSameDay(day, selectedDate);
           const isCurrentMonth = isSameMonth(day, monthStart);
           const isTodayDate = isToday(day);
-          const isFuture = isSameDay(day, new Date()) ? false : day > new Date();
-          const isDisabled = disableFuture && isFuture;
+          
+          const today = new Date();
+          today.setHours(0, 0, 0, 0);
+          
+          const isFuture = day > today;
+          const isPast = day < today;
+          
+          const isDisabled = (disableFuture && isFuture) || (disablePast && isPast);
 
           return (
             <button

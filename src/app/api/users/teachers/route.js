@@ -140,6 +140,7 @@ async function createTeacher(req) {
     await teacher.update({
       avatar_url: avatarUrl,
       qr_code_url: qrUrl,
+      documents: uploadedDocuments,
       details: {
         ...teacher.details,
         avatar_public_id: avatarPublicId,

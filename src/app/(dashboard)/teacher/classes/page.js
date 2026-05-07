@@ -483,7 +483,7 @@ export default function TeacherClassesPage() {
                               {selectedStudent.name}
                             </h4>
                             <p className="text-sm text-muted-foreground mt-1">
-                              Roll No:{" "}
+                              GR No:{" "}
                               {selectedStudent.rollNumber ||
                                 selectedStudent.registrationNumber}
                             </p>
@@ -1359,7 +1359,7 @@ export default function TeacherClassesPage() {
                                   Student
                                 </th>
                                 <th className="px-4 py-3 text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
-                                  Roll No
+                                  GR No
                                 </th>
                                 <th className="px-4 py-3 text-center text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">
                                   Attendance

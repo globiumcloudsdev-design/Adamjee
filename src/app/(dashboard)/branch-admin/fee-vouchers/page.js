@@ -449,7 +449,8 @@ export default function FeeVouchersPage() {
 
   const handleOpenManualPayment = (voucher) => {
     setSelectedVoucherForPayment(voucher);
-    setPaymentAmount(voucher.remainingAmount?.toString() || voucher.totalAmount?.toString() || '');
+    const rem = voucher.remainingAmount ?? voucher.totalAmount ?? '';
+    setPaymentAmount(rem.toString());
     setPaymentRemarks('');
     setIsManualPaymentModalOpen(true);
   };
@@ -460,7 +461,7 @@ export default function FeeVouchersPage() {
       return;
     }
 
-    const outstanding = Number(selectedVoucherForPayment.remainingAmount || selectedVoucherForPayment.totalAmount || 0);
+    const outstanding = Number(selectedVoucherForPayment.remainingAmount ?? selectedVoucherForPayment.totalAmount ?? 0);
     if (parseFloat(paymentAmount) > outstanding) {
       toast.error(`Payment amount exceeds outstanding balance (PKR ${outstanding})`);
       return;
@@ -535,9 +536,8 @@ export default function FeeVouchersPage() {
                 <TableHead>Month/Year</TableHead>
                 <TableHead>Due Date</TableHead>
                 <TableHead className="text-right">Total Amount</TableHead>
-                {tabKey === 'partial' && <TableHead className="text-right">Paid</TableHead>}
-                {tabKey === 'partial' && <TableHead className="text-right">Remaining</TableHead>}
-                {tabKey === 'overdue' && <TableHead className="text-right">Remaining</TableHead>}
+                <TableHead className="text-right">Paid Amount</TableHead>
+                <TableHead className="text-right">Remaining</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
@@ -579,21 +579,12 @@ export default function FeeVouchersPage() {
                     <TableCell className="text-right font-semibold">
                       PKR {(voucher.totalAmount || 0).toLocaleString()}
                     </TableCell>
-                    {tabKey === 'partial' && (
-                      <TableCell className="text-right font-semibold text-green-600">
-                        PKR {(voucher.paidAmount || 0).toLocaleString()}
-                      </TableCell>
-                    )}
-                    {tabKey === 'partial' && (
-                      <TableCell className="text-right font-semibold text-blue-600">
-                        PKR {(voucher.remainingAmount || voucher.totalAmount || 0).toLocaleString()}
-                      </TableCell>
-                    )}
-                    {tabKey === 'overdue' && (
-                      <TableCell className="text-right font-semibold text-orange-600">
-                        PKR {(voucher.remainingAmount || voucher.totalAmount || 0).toLocaleString()}
-                      </TableCell>
-                    )}
+                    <TableCell className="text-right font-semibold text-green-600">
+                      PKR {(voucher.paidAmount ?? voucher.paid_amount ?? 0).toLocaleString()}
+                    </TableCell>
+                    <TableCell className="text-right font-semibold text-blue-600">
+                      PKR {(voucher.remainingAmount ?? (Number(voucher.totalAmount ?? voucher.amount_due ?? 0) + Number(voucher.fineAmount ?? voucher.fine_amount ?? 0) - Number(voucher.paidAmount ?? voucher.paid_amount ?? 0))).toLocaleString()}
+                    </TableCell>
                     <TableCell>
                       <span className={`px-2 py-1 rounded-full text-xs ${getStatusBadge(voucher.status)}`}>
                         {voucher.status.charAt(0).toUpperCase() + voucher.status.slice(1)}
@@ -1092,7 +1083,7 @@ export default function FeeVouchersPage() {
                 <p className="font-semibold">{formatStudent(viewingVoucher.studentId).name}</p>
               </div>
               <div>
-                <Label className="text-gray-500">Registration No / Roll No</Label>
+                <Label className="text-gray-500">Registration No / GR No</Label>
                 <p className="font-semibold">{formatStudent(viewingVoucher.studentId).registrationNumber} / {formatStudent(viewingVoucher.studentId).rollNumber}</p>
               </div>
               <div>
@@ -1127,11 +1118,11 @@ export default function FeeVouchersPage() {
               </div>
               <div>
                 <Label className="text-gray-500">Paid Amount</Label>
-                <p className="font-semibold text-green-600">PKR {(viewingVoucher.paidAmount || 0).toLocaleString()}</p>
+                <p className="font-semibold text-green-600">PKR {(viewingVoucher.paidAmount ?? viewingVoucher.paid_amount ?? 0).toLocaleString()}</p>
               </div>
               <div>
                 <Label className="text-gray-500">Remaining Amount</Label>
-                <p className="font-semibold text-blue-600">PKR {(viewingVoucher.remainingAmount || viewingVoucher.totalAmount || 0).toLocaleString()}</p>
+                <p className="font-semibold text-blue-600">PKR {(viewingVoucher.remainingAmount ?? (Number(viewingVoucher.totalAmount ?? viewingVoucher.amount_due ?? 0) + Number(viewingVoucher.fineAmount ?? viewingVoucher.fine_amount ?? 0) - Number(viewingVoucher.paidAmount ?? viewingVoucher.paid_amount ?? 0))).toLocaleString()}</p>
               </div>
               <div>
                 <Label className="text-gray-500">Due Date</Label>
@@ -1192,11 +1183,11 @@ export default function FeeVouchersPage() {
                 </div>
                 <div>
                   <span className="text-gray-500">Total Amount:</span>
-                  <span className="font-semibold ml-2">PKR {selectedVoucherForPayment.totalAmount?.toLocaleString()}</span>
+                  <span className="font-semibold ml-2">PKR {(selectedVoucherForPayment.totalAmount ?? selectedVoucherForPayment.amount_due ?? 0).toLocaleString()}</span>
                 </div>
                 <div>
                   <span className="text-gray-500">Remaining:</span>
-                  <span className="font-semibold ml-2 text-blue-600">PKR {(selectedVoucherForPayment.remainingAmount || selectedVoucherForPayment.totalAmount)?.toLocaleString()}</span>
+                  <span className="font-semibold ml-2 text-blue-600">PKR {(selectedVoucherForPayment.remainingAmount ?? (Number(selectedVoucherForPayment.totalAmount ?? selectedVoucherForPayment.amount_due ?? 0) - Number(selectedVoucherForPayment.paidAmount ?? selectedVoucherForPayment.paid_amount ?? 0)))?.toLocaleString()}</span>
                 </div>
               </div>
             </div>

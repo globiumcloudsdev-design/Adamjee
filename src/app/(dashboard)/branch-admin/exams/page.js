@@ -15,6 +15,7 @@ import { useAuth } from "@/hooks/useAuth";
 import {
   Plus,
   Search,
+  X,
   Edit,
   Trash2,
   Eye,
@@ -30,6 +31,8 @@ import EnterMarksModal from "@/components/modals/EnterMarksModal";
 import ExamDetailsModal from "@/components/modals/ExamDetailsModal";
 import ExamTable from "@/components/exams/ExamTable";
 import { generateAdmitCards } from "@/lib/generateAdmitCards";
+import { BranchExamSkeleton } from "@/components/ui/skeleton";
+import ConfirmDeleteModal from "@/components/modals/ConfirmDeleteModal";
 
 export default function ExamsPage() {
   const router = useRouter();
@@ -48,19 +51,27 @@ export default function ExamsPage() {
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
   const [editingExam, setEditingExam] = useState(null);
   const [selectedExam, setSelectedExam] = useState(null);
+  const [examToDelete, setExamToDelete] = useState(null);
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [generatingAdmitCards, setGeneratingAdmitCards] = useState(false);
 
   // Filters
   const [search, setSearch] = useState("");
   const [classFilter, setClassFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState("");
+
+  useEffect(() => {
+    if (user) {
+      fetchInitialData();
+    }
+  }, [user]);
 
   useEffect(() => {
     if (user) {
       fetchExams();
-      fetchInitialData();
     }
-  }, [user, classFilter]);
+  }, [user, classFilter, statusFilter]);
 
   const fetchInitialData = async () => {
     try {
@@ -119,6 +130,7 @@ export default function ExamsPage() {
       setLoading(true);
       const params = {};
       if (classFilter) params.class_id = classFilter;
+      if (statusFilter) params.status = statusFilter;
 
       const response = await apiClient.get(API_ENDPOINTS.BRANCH_ADMIN.EXAMS.LIST, params);
       if (response.success) {
@@ -155,15 +167,23 @@ export default function ExamsPage() {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm("Are you sure you want to delete this exam?")) return;
+    setExamToDelete(id);
+    setIsDeleteModalOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    if (!examToDelete) return;
     try {
-      const response = await apiClient.delete(API_ENDPOINTS.BRANCH_ADMIN.EXAMS.DELETE(id));
+      const response = await apiClient.delete(API_ENDPOINTS.BRANCH_ADMIN.EXAMS.DELETE(examToDelete));
       if (response.success) {
-        toast.success("Exam deleted");
+        toast.success("Exam deleted successfully");
         fetchExams();
       }
     } catch (error) {
       toast.error("Failed to delete exam");
+    } finally {
+      setIsDeleteModalOpen(false);
+      setExamToDelete(null);
     }
   };
 
@@ -188,7 +208,7 @@ export default function ExamsPage() {
     }
   };
 
-  if (loading && exams.length === 0) return <FullPageLoader message="Loading exams..." />;
+  if (loading && exams.length === 0) return <BranchExamSkeleton />;
 
   const filteredExams = exams.filter(e => 
     e.title.toLowerCase().includes(search.toLowerCase())
@@ -211,28 +231,58 @@ export default function ExamsPage() {
       </div>
 
       <Card>
-        <CardHeader className="pb-3 border-b">
-          <div className="flex flex-col md:flex-row gap-4 justify-between items-center">
-            <CardTitle>All Examinations</CardTitle>
-            <div className="flex flex-wrap gap-2 w-full md:w-auto">
-              <div className="relative flex-1 min-w-[200px]">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <Input 
-                  placeholder="Search exams..." 
-                  className="pl-9"
-                  value={search}
-                  onChange={(e) => setSearch(e.target.value)}
+        <CardHeader className="pb-4 border-b border-gray-100 bg-gray-50/30">
+          <div className="flex flex-col lg:flex-row gap-4 justify-between items-start lg:items-center">
+            <div className="flex items-center gap-3">
+              <div className="w-1.5 h-8 bg-indigo-600 rounded-full hidden md:block"></div>
+              <CardTitle className="text-xl font-semibold text-gray-800">All Examinations</CardTitle>
+            </div>
+            
+            <div className="flex flex-col sm:flex-row items-center gap-3 w-full lg:w-auto">
+                <div className="relative w-full sm:w-96 group">
+                  <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4.5 h-4.5 text-gray-400 group-focus-within:text-indigo-500 transition-colors z-10" />
+                  <input 
+                    type="text"
+                    placeholder="Search examinations..." 
+                    className="w-full pl-11 pr-10 h-11 bg-slate-50 border border-gray-200 focus:bg-white focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 outline-none transition-all rounded-xl shadow-sm text-sm"
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                  />
+                  {search && (
+                    <button 
+                      onClick={() => setSearch("")}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-1.5 rounded-full hover:bg-gray-100 text-gray-400 hover:text-gray-600 transition-colors z-10"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  )}
+                </div>
+              <div className="w-full sm:w-48">
+                <Dropdown
+                  value={classFilter}
+                  onChange={(e) => setClassFilter(e.target.value)}
+                  options={[
+                    { value: "", label: "All Classes" },
+                    ...classes.map(c => ({ value: c.id, label: c.name }))
+                  ]}
+                  placeholder="Class"
+                  buttonClassName="h-11"
                 />
               </div>
-              <Dropdown
-                value={classFilter}
-                onChange={(e) => setClassFilter(e.target.value)}
-                options={[
-                  { value: "", label: "All Classes" },
-                  ...classes.map(c => ({ value: c.id, label: c.name }))
-                ]}
-                className="w-40"
-              />
+              {/* <div className="w-full sm:w-40">
+                <Dropdown
+                  value={statusFilter}
+                  onChange={(e) => setStatusFilter(e.target.value)}
+                  options={[
+                    { value: "", label: "All Status" },
+                    { value: "Scheduled", label: "Scheduled" },
+                    { value: "Ongoing", label: "Ongoing" },
+                    { value: "Completed", label: "Completed" },
+                  ]}
+                  placeholder="Status"
+                  buttonClassName="h-11"
+                />
+              </div> */}
             </div>
           </div>
         </CardHeader>
@@ -277,6 +327,15 @@ export default function ExamsPage() {
         <ExamDetailsModal
           exam={selectedExam}
           onClose={() => { setIsViewModalOpen(false); setSelectedExam(null); }}
+        />
+      )}
+
+      {isDeleteModalOpen && (
+        <ConfirmDeleteModal
+          title="Delete Exam"
+          message="Are you sure you want to delete this exam? This action cannot be undone and will remove all associated marks and student records for this examination."
+          onConfirm={confirmDelete}
+          onCancel={() => { setIsDeleteModalOpen(false); setExamToDelete(null); }}
         />
       )}
     </div>

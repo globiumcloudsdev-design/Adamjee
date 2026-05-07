@@ -1,6 +1,7 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
+import { AcademicManagementSkeleton } from "@/components/ui/skeleton";
 import { 
   Calendar, 
   Layers, 
@@ -20,6 +21,20 @@ import Tabs, { TabPanel } from "@/components/ui/tabs";
 
 function AcademicUnifiedPage() {
   const [activeTab, setActiveTab] = useState("years");
+  const [pageLoading, setPageLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setPageLoading(false), 600);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (pageLoading) {
+    return (
+      <div className="p-4 md:p-8 space-y-8">
+        <AcademicManagementSkeleton />
+      </div>
+    );
+  }
 
   const tabs = [
     { id: "years", label: "Academic Years", icon: Calendar, component: AcademicYearsContent },

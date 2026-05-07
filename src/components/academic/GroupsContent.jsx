@@ -22,6 +22,8 @@ import ConfirmDeleteModal from "@/components/modals/ConfirmDeleteModal";
 import { useAuth } from "@/hooks/useAuth";
 import { ROLES } from "@/constants/roles";
 import apiClient from "@/lib/api-client";
+import Tooltip from "@/components/ui/tooltip";
+import { AcademicManagementSkeleton } from "@/components/ui/skeleton";
 
 export default function GroupsContent() {
   const { user } = useAuth();
@@ -196,11 +198,7 @@ export default function GroupsContent() {
   };
 
   if (loading && groups.length === 0) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
-      </div>
-    );
+    return <AcademicManagementSkeleton />;
   }
 
   return (
@@ -300,15 +298,19 @@ export default function GroupsContent() {
                 <div className="mt-auto flex flex-col gap-2.5">
                   <div className="flex gap-2.5">
                     {((isBranchAdmin && grp.branch_id) || isSuperAdmin) && (
-                      <Button onClick={() => handleEdit(grp)} className="flex-1 bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-semibold shadow-sm transition-colors">
-                        <Edit className="w-4 h-4 mr-2 text-slate-500" />
-                        Edit details
-                      </Button>
+                      <Tooltip content="Edit Details" className="flex-1">
+                        <Button onClick={() => handleEdit(grp)} className="w-full bg-white hover:bg-slate-50 border border-slate-200 text-slate-700 font-semibold shadow-sm transition-colors">
+                          <Edit className="w-4 h-4 mr-2 text-slate-500" />
+                          Edit details
+                        </Button>
+                      </Tooltip>
                     )}
                     {isSuperAdmin && (
-                      <Button onClick={() => handleDeleteClick(grp.id)} className="w-12 shrink-0 bg-white hover:bg-red-50 border border-slate-200 hover:border-red-200 text-slate-400 hover:text-red-600 shadow-sm transition-colors px-0">
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      <Tooltip content="Delete Group">
+                        <Button onClick={() => handleDeleteClick(grp.id)} className="w-12 shrink-0 bg-white hover:bg-red-50 border border-slate-200 hover:border-red-200 text-slate-400 hover:text-red-600 shadow-sm transition-colors px-0">
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </Tooltip>
                     )}
                   </div>
                   {((isBranchAdmin && grp.branch_id) || isSuperAdmin) && (
@@ -439,3 +441,5 @@ export default function GroupsContent() {
     </div>
   );
 }
+
+GroupsContent.Skeleton = AcademicManagementSkeleton;

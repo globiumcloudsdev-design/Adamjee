@@ -52,6 +52,7 @@ const AssignmentSubmission = sequelize.define(
     tableName: "assignment_submissions",
     timestamps: true,
     underscored: true,
+    paranoid: false,
     indexes: [
       { fields: ["assignment_id"] },
       { fields: ["student_id"] },

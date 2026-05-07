@@ -707,10 +707,16 @@ export default function SuperAdminNotification() {
         title: formData.title.trim(),
         message: formData.message.trim(),
         type: formData.type,
-        targetRole: formData.targetRole,
-        targetBranch: formData.targetBranch,
-        ...(isSpecificTargeting && { targetUserIds: selectedUserIds })
+        branch_id: formData.targetBranch === 'all' ? null : formData.targetBranch,
+        targetRoles: formData.targetRole === 'all' ? [] : [formData.targetRole],
+        targetUserIds: isSpecificTargeting ? selectedUserIds : undefined,
+        sendToAll: !isSpecificTargeting && formData.targetRole === 'all' && formData.targetBranch === 'all',
       };
+
+      // If they selected a specific branch and 'all' roles, they want to send to all users in that branch
+      if (!isSpecificTargeting && formData.targetRole === 'all' && formData.targetBranch !== 'all') {
+        payload.sendToAll = true;
+      }
 
       const response = await apiClient.post(API_ENDPOINTS.NOTIFICATIONS.SEND, payload);
 

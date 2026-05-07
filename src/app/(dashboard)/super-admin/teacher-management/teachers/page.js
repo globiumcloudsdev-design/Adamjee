@@ -18,9 +18,10 @@ import Dropdown from '@/components/ui/dropdown';
 import BranchSelect from '@/components/ui/branch-select';
 import FullPageLoader from '@/components/ui/full-page-loader';
 import TeacherForm from '@/components/teacher/teacher-form';
-import TeacherViewModal from '@/components/teacher/teacher-view-modal';
+import UserDetailModal from '@/components/modals/UserDetailModal';
 import ConfirmDeleteModal from '@/components/modals/ConfirmDeleteModal';
 import UserManagementTable from '@/components/common/UserManagementTable';
+import Skeleton from '@/components/ui/skeleton';
 
 export default function TeachersPage() {
   const router = useRouter();
@@ -185,7 +186,8 @@ export default function TeachersPage() {
   };
 
   const handleView = (teacher) => {
-    router.push(`/super-admin/teacher-management/teachers/${teacher.id}`);
+    setViewingTeacher(teacher);
+    setShowViewModal(true);
   };
 
   const handleAddNew = () => {
@@ -218,7 +220,66 @@ export default function TeachersPage() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        {/* ... Stats cards same as before ... */}
+        {loading ? (
+          <>
+            {[...Array(4)].map((_, i) => (
+              <div key={i} className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                <Skeleton className="h-4 w-24 mb-2" />
+                <Skeleton className="h-8 w-16" />
+              </div>
+            ))}
+          </>
+        ) : (
+          <>
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Total Teachers</p>
+                  <h3 className="text-2xl font-bold text-gray-900 mt-1">{stats.total}</h3>
+                </div>
+                <div className="h-12 w-12 bg-blue-50 rounded-xl flex items-center justify-center">
+                  <Users className="h-6 w-6 text-blue-600" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Active</p>
+                  <h3 className="text-2xl font-bold text-green-600 mt-1">{stats.active}</h3>
+                </div>
+                <div className="h-12 w-12 bg-green-50 rounded-xl flex items-center justify-center">
+                  <Users className="h-6 w-6 text-green-600" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-500">On Leave</p>
+                  <h3 className="text-2xl font-bold text-orange-600 mt-1">{stats.onLeave}</h3>
+                </div>
+                <div className="h-12 w-12 bg-orange-50 rounded-xl flex items-center justify-center">
+                  <Users className="h-6 w-6 text-orange-600" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-gray-500">Terminated</p>
+                  <h3 className="text-2xl font-bold text-red-600 mt-1">{stats.terminated}</h3>
+                </div>
+                <div className="h-12 w-12 bg-red-50 rounded-xl flex items-center justify-center">
+                  <Users className="h-6 w-6 text-red-600" />
+                </div>
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Filters and Actions */}
@@ -367,8 +428,8 @@ export default function TeachersPage() {
       </Modal>
 
       {/* Teacher View Modal */}
-      <TeacherViewModal
-        teacher={viewingTeacher}
+      <UserDetailModal
+        user={viewingTeacher}
         open={showViewModal}
         onClose={() => {
           setShowViewModal(false);

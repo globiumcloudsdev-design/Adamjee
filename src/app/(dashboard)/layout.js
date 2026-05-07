@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/hooks/useAuth";
 import Sidebar from "@/components/Sidebar";
 import Header from "@/components/Header";
+import NotificationHandler from "@/components/NotificationHandler";
 
 export default function DashboardLayout({ children }) {
   const { user, loading } = useAuth();
@@ -39,6 +40,7 @@ export default function DashboardLayout({ children }) {
 
   return (
     <div className="flex h-screen overflow-hidden">
+      <NotificationHandler />
       <Sidebar mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />
       <div className="flex-1 flex flex-col overflow-hidden">
         <Header mobileOpen={mobileOpen} setMobileOpen={setMobileOpen} />

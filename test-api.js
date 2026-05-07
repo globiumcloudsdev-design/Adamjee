@@ -3,7 +3,7 @@ const http = require('http');
 // Simple test to check if classes exist
 const options = {
   hostname: 'localhost',
-  port: 3002,
+  port: 3000,
   path: '/api/branch-admin/classes?limit=5',
   method: 'GET',
   headers: {

@@ -22,10 +22,12 @@ import { Button } from "@/components/ui/button";
 import Input from "@/components/ui/input";
 import Modal from "@/components/ui/modal";
 import Dropdown from "@/components/ui/dropdown";
+import Tooltip from "@/components/ui/tooltip";
 import ConfirmDeleteModal from "@/components/modals/ConfirmDeleteModal";
 import { useAuth } from "@/hooks/useAuth";
 import { ROLES } from "@/constants/roles";
 import apiClient from "@/lib/api-client";
+import { AcademicGridSkeleton } from "@/components/ui/skeleton";
 
 export default function ClassesContent() {
   const { user } = useAuth();
@@ -192,11 +194,7 @@ export default function ClassesContent() {
 
       {/* Classes Grid */}
       {loading && classes.length === 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {[1, 2, 3].map(i => (
-            <div key={i} className="h-48 bg-slate-100 dark:bg-slate-800 animate-pulse rounded-2xl" />
-          ))}
-        </div>
+        <AcademicGridSkeleton />
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {classes.length === 0 ? (
@@ -292,19 +290,23 @@ export default function ClassesContent() {
 
                   <div className="mt-auto flex flex-col gap-2.5">
                     <div className="flex gap-2.5">
-                      <Button
-                        onClick={() => handleEdit(cls)}
-                        className="flex-1 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-semibold shadow-sm transition-colors h-10 px-0"
-                      >
-                        <Edit className="w-4 h-4 mr-2 text-slate-500" />
-                        Edit details
-                      </Button>
-                      <Button
-                        onClick={() => handleDeleteClick(cls.id)}
-                        className="w-12 shrink-0 bg-white dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-900/30 border border-slate-200 dark:border-slate-700 hover:border-red-200 text-slate-400 hover:text-red-600 shadow-sm transition-colors px-0 h-10"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                      <Tooltip content="Edit Details" className="flex-1">
+                        <Button
+                          onClick={() => handleEdit(cls)}
+                          className="w-full bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-semibold shadow-sm transition-colors h-10 px-0"
+                        >
+                          <Edit className="w-4 h-4 mr-2 text-slate-500" />
+                          Edit details
+                        </Button>
+                      </Tooltip>
+                      <Tooltip content="Delete Class">
+                        <Button
+                          onClick={() => handleDeleteClick(cls.id)}
+                          className="w-12 shrink-0 bg-white dark:bg-slate-800 hover:bg-red-50 dark:hover:bg-red-900/30 border border-slate-200 dark:border-slate-700 hover:border-red-200 text-slate-400 hover:text-red-600 shadow-sm transition-colors px-0 h-10"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </Tooltip>
                     </div>
 
                     <Button
@@ -422,3 +424,5 @@ export default function ClassesContent() {
     </div>
   );
 }
+
+ClassesContent.Skeleton = AcademicGridSkeleton;

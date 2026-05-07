@@ -257,7 +257,7 @@ const createCompleteCardHTML = async (student, institute, policyConfig) => {
       }
             </div>
             <div style="margin-top: 15px; text-align: center;">
-              <div class="detail-label" style="color: white; opacity: 0.7;">ROLL NO</div>
+              <div class="detail-label" style="color: white; opacity: 0.7;">GR NO</div>
               <div class="detail-value" style="color: ${accentColor}; font-size: 15px; font-weight: 900;">${student.roll_number}</div>
             </div>
           </div>
@@ -420,7 +420,7 @@ const createCompleteCardHTML = async (student, institute, policyConfig) => {
             <div class="student-name">${student.full_name}</div>
             <div class="info-list">
               <div class="info-row">
-                <div class="info-label">Roll No</div>
+                <div class="info-label">GR No</div>
                 <div class="info-sep">:</div>
                 <div class="info-value" style="font-weight:800; color:#5a1885;">
                   ${student.roll_number && student.roll_number !== 'N/A' ? student.roll_number : (student.roll_no || student.student_id || 'N/A')}

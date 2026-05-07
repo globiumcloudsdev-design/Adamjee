@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
 import { sequelize, FeeVoucher, User, Class, Branch, AcademicYear, Section } from '@/backend/models/postgres';
+import NotificationService from '@/backend/services/NotificationService';
 import { ROLES } from '@/constants/roles';
 
 export async function GET(request) {
@@ -111,8 +112,15 @@ export async function POST(request) {
       remarks,
     } = body;
 
+    const studentsWhere = { role: 'STUDENT', is_active: true };
+    if (user.role === ROLES.BRANCH_ADMIN) {
+      studentsWhere.branch_id = user.branch_id;
+    } else if (branch_id && branch_id !== 'all') {
+      studentsWhere.branch_id = branch_id;
+    }
+
     const students = await User.findAll({
-      where: { role: 'STUDENT', is_active: true }
+      where: studentsWhere
     });
 
     const targetStudents = students.filter(st => {
@@ -129,13 +137,13 @@ export async function POST(request) {
         const matchSection = !body.section_id || stSectionId === body.section_id;
         return matchClass && matchSection;
       }
-      if (generation_type === 'branch') return stBranchId === branch_id;
+      if (generation_type === 'branch') return stBranchId === (branch_id || user.branch_id);
       if (generation_type === 'institute') return true;
       return false;
     });
 
     if (targetStudents.length === 0) {
-      return NextResponse.json({ success: false, error: 'No students found matching the criteria' }, { status: 404 });
+      return NextResponse.json({ success: false, error: 'No students found matching the selected criteria.' }, { status: 400 });
     }
 
     const targetStudentIds = targetStudents.map(st => st.id);
@@ -221,30 +229,66 @@ export async function POST(request) {
         rolledBalance += (totalDue - currentPaid);
       }
 
+      // Validate required fields
+      if (!targetAcademicYearId) {
+        console.warn(`Skipping student ${st.id}: missing academic_year_id`);
+        continue;
+      }
+      if (!stBranchId) {
+        console.warn(`Skipping student ${st.id}: missing branch_id`);
+        continue;
+      }
+      if (!stClassId) {
+        console.warn(`Skipping student ${st.id}: missing class_id`);
+        continue;
+      }
+
       const timestamp = Date.now();
       const random = Math.floor(1000 + Math.random() * 9000);
       const voucher_no = `VCH-${timestamp}-${random}`;
 
-      const voucher = await FeeVoucher.create({
-        voucher_no,
-        student_id: st.id,
-        class_id: stClassId,
-        section_id: stSectionId,
-        academic_year_id: targetAcademicYearId,
-        branch_id: stBranchId,
-        amount_due: Number(amount_due) + Number(rolledBalance),
-        due_date,
-        fee_type,
-        installment_no,
-        total_installments,
-        month,
-        remarks: rolledBalance > 0 ? `Includes previous pending balance of PKR ${rolledBalance}. ${remarks || ''}`.trim() : remarks,
-        created_by: user.id,
-        status: 'UNPAID',
-      });
+      try {
+        const voucher = await FeeVoucher.create({
+          voucher_no,
+          student_id: st.id,
+          class_id: stClassId,
+          section_id: stSectionId,
+          academic_year_id: targetAcademicYearId,
+          branch_id: stBranchId,
+          amount_due: Number(amount_due || 0) + Number(rolledBalance || 0),
+          due_date,
+          fee_type,
+          installment_no,
+          total_installments,
+          month: month.toString(),
+          remarks: (rolledBalance > 0 ? `Includes previous pending balance of PKR ${rolledBalance}. ` : '') + (remarks || ''),
+          created_by: user.id,
+          status: 'UNPAID',
+        });
 
-      createdVouchers.push(voucher);
+        createdVouchers.push(voucher);
+      } catch (createErr) {
+        console.error(`Failed to create voucher for student ${st.id}:`, createErr);
+        // Continue to next student instead of failing whole request
+      }
     }
+
+    // Send notifications asynchronously
+    (async () => {
+      try {
+        for (const voucher of createdVouchers) {
+          await NotificationService.sendToUsers([voucher.student_id], {
+            title: "Fee Voucher Generated",
+            message: `A new fee voucher (${voucher.voucher_no}) for the month of ${voucher.month} has been generated. Due date: ${voucher.due_date}.`,
+            type: "fee_due",
+            branchId: voucher.branch_id,
+            sentBy: user.id,
+          });
+        }
+      } catch (err) {
+        console.error("Fee Voucher Notification Error:", err);
+      }
+    })();
 
     return NextResponse.json({
       success: true,
