@@ -45,37 +45,29 @@ export async function POST(req) {
     const targetBranchId =
       user.role === "SUPER_ADMIN" ? branch_id : user.branch_id;
 
-    // 2. Roll Number Auto-Generation Logic
+    // 2. Roll Number Auto-Generation Logic (GR No) - Branch Wise Sequence
     let finalRollNo = roll_no;
     if (!finalRollNo) {
-      // Find the last student in this class/section/year
+      // Find the last student in this branch
       const lastStudent = await User.findOne({
         where: {
           role: "STUDENT",
           branch_id: targetBranchId,
-          details: {
-            [Op.contains]: {
-              academic_info: {
-                class_id,
-                section_id,
-                academic_year_id,
-              },
-            },
-          },
         },
         order: [
           [
             sequelize.literal(
-              "CAST(details->'academic_info'->>'roll_no' AS INTEGER)",
+              "CAST(details->'academic_info'->>'roll_no' AS INTEGER)"
             ),
             "DESC",
           ],
         ],
       });
 
-      const lastRollNo = lastStudent
-        ? parseInt(lastStudent.details.academic_info.roll_no)
-        : 0;
+      const lastRollNo =
+        lastStudent && lastStudent.details?.academic_info?.roll_no
+          ? parseInt(lastStudent.details.academic_info.roll_no)
+          : 0;
       finalRollNo = (lastRollNo + 1).toString();
     }
 
@@ -91,13 +83,20 @@ export async function POST(req) {
       finalRegNo = `${branchCode}-${year}-${(count + 1).toString().padStart(4, "0")}`;
     }
 
-    // 3. Fee Calculation logic
-    // $TotalFee = \sum SubjectFees - Discount$
-    const total_subject_fee = subjects.reduce(
+    // 3. Fee Calculation logic - Respect manual input if provided
+    const manualTotalFee = data.total_fee || data.academic_info?.fee_estimate || data.academic_info?.total_fee;
+    const manualDiscount = data.discount !== undefined ? data.discount : (data.academic_info?.discount !== undefined ? data.academic_info.discount : 0);
+    
+    const calculated_subject_fee = subjects.reduce(
       (acc, sub) => acc + (sub.fee || 0),
       0,
     );
-    const payable_fee = total_subject_fee - (discount || 0);
+
+    const total_fee = (manualTotalFee !== undefined && manualTotalFee !== null) ? Number(manualTotalFee) : calculated_subject_fee;
+    const final_discount = Number(manualDiscount || 0);
+    const payable_fee = total_fee - final_discount;
+
+    console.log(`[Student API] Fee Calculation: manualTotal=${manualTotalFee}, total=${total_fee}, discount=${final_discount}, payable=${payable_fee}`);
 
     // Lookup subject names from DB using subject ids
     let enrichedSubjects = subjects;
@@ -135,9 +134,13 @@ export async function POST(req) {
           section_id,
           roll_no: finalRollNo,
           subjects: enrichedSubjects,
-          total_fee: total_subject_fee,
-          discount: discount || 0,
+          total_fee: total_fee,
+          fee_estimate: total_fee,
+          discount: final_discount,
+          fee_discount: { type: 'fixed', amount: final_discount, reason: '' },
           payable_fee,
+          payment_date: data.payment_date || data.academic_info?.payment_date || '10',
+          fee_mention: data.fee_mention || data.academic_info?.fee_mention || 'Monthly',
         },
       },
       created_by: user.id,

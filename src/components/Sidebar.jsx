@@ -109,6 +109,7 @@ const ROLE_MENUS = {
         { name: "Academics", path: "/branch-admin/academic", icon: GraduationCap },
         { name: "Timetable", path: "/branch-admin/timetable", icon: Clock },
         { name: "Exams", path: "/branch-admin/exams", icon: FileText },
+        { name: "Assignments", path: "/branch-admin/assignments", icon: FolderOpen },
       ],
     },
     {
@@ -156,9 +157,8 @@ const ROLE_MENUS = {
       isCollapsible: true,
       items: [
         { name: "My Classes", path: "/teacher/classes", icon: School },
-        { name: "Assignments", path: "/teacher/assignments", icon: FileText },
         { name: "Exams", path: "/teacher/exams", icon: Calendar },
-        // { name: "Self Attendance", path: "/teacher/self-attendance", icon: UserCheck },
+        { name: "Self Attendance", path: "/teacher/self-attendance", icon: UserCheck },
       ],
     },
     // {

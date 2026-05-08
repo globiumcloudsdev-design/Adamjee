@@ -8,6 +8,45 @@ import {
   uploadTeacherDocument 
 } from "@/backend/utils/cloudinary";
 
+export async function GET(req, { params }) {
+  try {
+    const currentUser = await getCurrentUser(req);
+    if (!currentUser) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+
+    const resolvedParams = await params;
+    const id = resolvedParams.id;
+
+    const teacher = await User.findByPk(id, {
+      include: [
+        {
+          model: Branch,
+          as: "branch",
+          attributes: ["id", "name", "code"],
+        },
+      ],
+    });
+
+    if (!teacher || teacher.role !== "TEACHER") {
+      return NextResponse.json({ success: false, error: "Teacher not found" }, { status: 404 });
+    }
+
+    const isSuperAdmin = currentUser.role === "SUPER_ADMIN";
+    const userBranchId = currentUser.branch_id || currentUser.branchId;
+
+    if (!isSuperAdmin && teacher.branch_id !== userBranchId) {
+      return NextResponse.json({ success: false, error: "Access Denied" }, { status: 403 });
+    }
+
+    return NextResponse.json({
+      success: true,
+      data: teacher
+    });
+  } catch (error) {
+    console.error("Get Teacher Error:", error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
+
 export async function DELETE(req, { params }) {
   try {
     const currentUser = await getCurrentUser(req);

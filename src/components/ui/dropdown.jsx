@@ -76,7 +76,7 @@ export default function Dropdown({ id, name, value, onChange, options = [], plac
         type="button"
         onClick={() => !disabled && setIsOpen(!isOpen)}
         disabled={disabled}
-        className={`w-full appearance-none px-4 py-2 pr-10 border rounded-xl text-left transition-all duration-200 shadow-sm font-medium
+        className={`w-full appearance-none px-4 py-1.5 pr-10 border rounded-xl text-left transition-all duration-200 shadow-sm font-medium
           ${disabled 
             ? 'bg-gray-50 text-gray-400 cursor-not-allowed border-gray-200 dark:bg-gray-900/50 dark:border-gray-800' 
             : 'bg-white text-gray-900 border-gray-300 hover:border-gray-400 dark:bg-gray-800 dark:text-white dark:border-gray-700 dark:hover:border-gray-600'
@@ -128,7 +128,7 @@ export default function Dropdown({ id, name, value, onChange, options = [], plac
                       }
                     `}
                   >
-                    <span className={isDisabled ? 'line-through decoration-gray-300' : ''}>
+                    <span className={`flex-1 w-full ${isDisabled ? 'line-through decoration-gray-300' : ''}`}>
                       {opt.label}
                     </span>
                     {isSelected && <Check className="w-4 h-4" />}

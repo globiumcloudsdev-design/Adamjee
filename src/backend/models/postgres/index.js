@@ -41,7 +41,6 @@ const models = {
   AssignmentSubmission,
 };
 
-
 // Run associations
 Object.values(models).forEach((model) => {
   if (model.associate) model.associate(models);

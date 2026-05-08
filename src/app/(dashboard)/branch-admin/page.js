@@ -255,7 +255,7 @@ export default function BranchAdminDashboard() {
         actions={[
           { title: "Manage Users", icon: Users, color: "text-blue-600", onClick: () => router.push('/branch-admin/students') },
           { title: "Classes", icon: BookOpen, color: "text-indigo-600", onClick: () => router.push('/branch-admin/classes') },
-          { title: "Reports", icon: FileText, color: "text-purple-600" },
+          { title: "Assignments", icon: FileText, color: "text-violet-600", onClick: () => router.push('/branch-admin/assignments') },
           { title: "Notifications", icon: Bell, color: "text-yellow-600", onClick: () => router.push('/branch-admin/notifications') },
           { title: "Expenses", icon: Receipt, color: "text-red-600" },
           { title: "Calendar", icon: Calendar, color: "text-orange-600", onClick: () => router.push('/branch-admin/academic-years') },

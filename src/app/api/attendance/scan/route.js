@@ -2,22 +2,23 @@ import { NextResponse } from "next/server";
 import { getCurrentUser } from "@/lib/auth";
 import { Attendance, User, Branch, FeeVoucher } from "@/backend/models/postgres";
 import { Op } from "sequelize";
+import NotificationService from "@/backend/services/NotificationService";
 
 export async function POST(req) {
   try {
     const user = await getCurrentUser(req);
     if (!user) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+      return NextResponse.json({ message: "Unauthorized" }, { status: 401 });
     }
 
     if (!["SUPER_ADMIN", "BRANCH_ADMIN"].includes(user.role)) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+      return NextResponse.json({ message: "Forbidden" }, { status: 403 });
     }
 
     const { qr, date, attendanceType, subjectId, eventId, mode } = await req.json();
 
     if (!qr) {
-      return NextResponse.json({ error: "QR Data is required" }, { status: 400 });
+      return NextResponse.json({ message: "GR No or QR Data is required" }, { status: 400 });
     }
 
     let qrData = qr;
@@ -43,7 +44,8 @@ export async function POST(req) {
       }
     }
 
-    // Find student by registration_no or id
+    // Find student by registration_no, id, or roll_no in details
+    const sequelize = User.sequelize;
     const whereClause = {
       role: 'STUDENT',
       [Op.or]: []
@@ -51,6 +53,12 @@ export async function POST(req) {
 
     if (registrationNo) {
       whereClause[Op.or].push({ registration_no: registrationNo });
+      
+      // Search roll_no in details.student or details.academic_info
+      whereClause[Op.or].push(
+        sequelize.where(sequelize.cast(sequelize.json('details.student.roll_no'), 'text'), registrationNo),
+        sequelize.where(sequelize.cast(sequelize.json('details.academic_info.roll_no'), 'text'), registrationNo)
+      );
     }
     
     if (studentId) {
@@ -59,7 +67,7 @@ export async function POST(req) {
 
     // If both are null, we can't find the student
     if (whereClause[Op.or].length === 0) {
-      return NextResponse.json({ error: "Invalid QR data" }, { status: 400 });
+      return NextResponse.json({ message: "Invalid GR No or QR data" }, { status: 400 });
     }
 
     // Find student by registration_no or id
@@ -69,7 +77,7 @@ export async function POST(req) {
     });
 
     if (!student) {
-      return NextResponse.json({ error: "Student not found" }, { status: 404 });
+      return NextResponse.json({ message: "Student not found with this GR No/Roll No" }, { status: 404 });
     }
 
     const todayDate = date || new Date().toISOString().split('T')[0];
@@ -144,6 +152,21 @@ export async function POST(req) {
       marked_by: user.id,
     });
 
+    // Send notification asynchronously
+    (async () => {
+      try {
+        await NotificationService.sendToUsers([student.id], {
+          title: "Attendance Marked",
+          message: `Your child ${student.first_name} has arrived at the coaching center and attendance is marked for ${todayDate}.`,
+          type: "attendance",
+          branchId: student.branch_id,
+          sentBy: user.id
+        });
+      } catch (err) {
+        console.error("Scan Attendance Notification Error:", err);
+      }
+    })();
+
     return NextResponse.json({
       success: true,
       message: "Attendance marked successfully",
@@ -156,7 +179,7 @@ export async function POST(req) {
   } catch (error) {
     console.error("Error in scan attendance:", error);
     return NextResponse.json(
-      { error: error.message || "Internal Server Error" },
+      { message: error.message || "Internal Server Error" },
       { status: 500 }
     );
   }

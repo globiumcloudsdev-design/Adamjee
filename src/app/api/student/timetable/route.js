@@ -66,25 +66,57 @@ async function getStudentTimetable(req) {
       );
     }
 
-    const timetables = await Timetable.findAll({
-      where: {
-        class_id,
-        section_id,
-      },
-      include: [
-        {
-          model: Class,
-          as: "class",
-          attributes: ["id", "name"],
+    let timetables = [];
+    let studentSubjects = [];
+
+    if (currentUser.role === "STUDENT") {
+      // Fetch full student record to get their details
+      const student = await User.findByPk(currentUser.id);
+      if (!student) throw new Error("Student record not found");
+
+      studentSubjects = student.details?.academic_info?.subjects || [];
+      
+      if (studentSubjects.length === 0) {
+        return NextResponse.json({
+          success: true,
+          message: "No subjects selected for this student",
+          data: [],
+        });
+      }
+
+      // Group section IDs
+      const sectionIds = [...new Set(studentSubjects.map(s => s.section_id).filter(isValidUUID))];
+      
+      if (sectionIds.length === 0) {
+         // Fallback to primary section if subjects don't have sections
+         const primarySection = student.details?.academic_info?.section_id;
+         if (isValidUUID(primarySection)) sectionIds.push(primarySection);
+      }
+
+      timetables = await Timetable.findAll({
+        where: {
+          class_id: student.details?.academic_info?.class_id,
+          section_id: sectionIds,
         },
-        {
-          model: Section,
-          as: "section",
-          attributes: ["id", "name"],
-        },
-      ],
-      order: [["created_at", "DESC"]],
-    });
+        include: [
+          { model: Class, as: "class", attributes: ["id", "name"] },
+          { model: Section, as: "section", attributes: ["id", "name"] },
+        ],
+      });
+    } else {
+      // Admin/Teacher view: fallback to query params
+      const where = { class_id };
+      if (section_id) where.section_id = section_id;
+
+      timetables = await Timetable.findAll({
+        where,
+        include: [
+          { model: Class, as: "class", attributes: ["id", "name"] },
+          { model: Section, as: "section", attributes: ["id", "name"] },
+        ],
+        order: [["created_at", "DESC"]],
+      });
+    }
 
     // Build day-wise schedule from JSONB `periods`.
     // Expected element shape:
@@ -119,6 +151,14 @@ async function getStudentTimetable(req) {
     const subjectById = new Map(subjects.map((s) => [s.id, s]));
     const teacherById = new Map(teachers.map((t) => [t.id, t]));
 
+    // For STUDENTS: Create a map of subjectId -> sectionId they are enrolled in
+    const studentEnrollmentMap = new Map();
+    if (currentUser.role === "STUDENT") {
+      studentSubjects.forEach(s => {
+        if (s.id && s.section_id) studentEnrollmentMap.set(String(s.id), String(s.section_id));
+      });
+    }
+
     const data = timetables
       .flatMap((tt) => {
         const classObj = tt.class
@@ -130,51 +170,58 @@ async function getStudentTimetable(req) {
 
         const periods = Array.isArray(tt.periods) ? tt.periods : [];
 
-        return periods.map((p, idx) => {
-          const day = p?.day ?? null;
+        return periods
+          .filter(p => {
+             // If not a student, show all
+             if (currentUser.role !== "STUDENT") return true;
+             
+             // If student, only show if they are enrolled in THIS subject in THIS section
+             const enrolledSectionId = studentEnrollmentMap.get(String(p.subjectId));
+             return enrolledSectionId === String(tt.section_id);
+          })
+          .map((p, idx) => {
+            const day = p?.day ?? null;
+            const startTime = p?.startTime ?? p?.start_time ?? null;
+            const endTime = p?.endTime ?? p?.end_time ?? null;
 
-          const startTime = p?.startTime ?? p?.start_time ?? null;
-          const endTime = p?.endTime ?? p?.end_time ?? null;
+            const formatTime = (val) => {
+              if (!val) return null;
+              const s = String(val);
+              if (s.includes("T")) return s.split("T")[1]?.substring(0, 5) || null;
+              return s.substring(0, 5);
+            };
 
-          const formatTime = (val) => {
-            if (!val) return null;
-            const s = String(val);
-            // If datetime, take time portion
-            if (s.includes("T")) return s.split("T")[1]?.substring(0, 5) || null;
-            return s.substring(0, 5);
-          };
+            const subject = p?.subjectId
+              ? (() => {
+                  const s = subjectById.get(p.subjectId);
+                  return s
+                    ? { id: s.id, name: s.name }
+                    : { id: p.subjectId, name: null };
+                })()
+              : null;
 
-          const subject = p?.subjectId
-            ? (() => {
-                const s = subjectById.get(p.subjectId);
-                return s
-                  ? { id: s.id, name: s.name }
-                  : { id: p.subjectId, name: null };
-              })()
-            : null;
+            const teacher = p?.teacherId
+              ? (() => {
+                  const t = teacherById.get(p.teacherId);
+                  if (!t) return { id: p.teacherId, name: null };
+                  const name = [t.first_name, t.last_name].filter(Boolean).join(" ").trim();
+                  return { id: t.id, name: name || t.email };
+                })()
+              : null;
 
-          const teacher = p?.teacherId
-            ? (() => {
-                const t = teacherById.get(p.teacherId);
-                if (!t) return { id: p.teacherId, name: null };
-                const name = [t.first_name, t.last_name].filter(Boolean).join(" ").trim();
-                return { id: t.id, name: name || t.email };
-              })()
-            : null;
-
-          return {
-            id: `${tt.id}-${idx}`,
-            day,
-            start_time: formatTime(startTime),
-            end_time: formatTime(endTime),
-            subject,
-            teacher,
-            class: classObj,
-            section: sectionObj,
-            roomNumber: p?.roomNumber ?? null,
-            periodType: p?.periodType ?? null,
-          };
-        });
+            return {
+              id: `${tt.id}-${idx}`,
+              day,
+              start_time: formatTime(startTime),
+              end_time: formatTime(endTime),
+              subject,
+              teacher,
+              class: classObj,
+              section: sectionObj,
+              roomNumber: p?.roomNumber ?? null,
+              periodType: p?.periodType ?? null,
+            };
+          });
       })
       .filter(Boolean);
 

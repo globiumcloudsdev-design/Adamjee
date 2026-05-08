@@ -57,7 +57,7 @@ async function listAssignments(req) {
     },
     include: [
       { model: Branch, as: "branch", attributes: ["id", "name"] },
-      { model: Class, as: "class", attributes: ["id", "name"] },
+      { model: Class, as: "class", attributes: ["id", "name", "group_id"] },
       { model: Section, as: "section", attributes: ["id", "name"] },
       { model: Subject, as: "subject", attributes: ["id", "name"] },
       {
@@ -165,5 +165,4 @@ export const GET = withAuth(listAssignments, [
 export const POST = withAuth(createAssignment, [
   "SUPER_ADMIN",
   "BRANCH_ADMIN",
-  "TEACHER",
 ]);

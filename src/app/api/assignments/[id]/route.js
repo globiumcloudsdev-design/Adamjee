@@ -129,18 +129,12 @@ async function getAssignment(req, { params }) {
 async function updateAssignment(req, { params }) {
   const currentUser = req.user;
   const { id } = await params;
-  if (!["SUPER_ADMIN", "BRANCH_ADMIN", "TEACHER"].includes(currentUser.role)) {
+  if (!["SUPER_ADMIN", "BRANCH_ADMIN"].includes(currentUser.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const assignment = await Assignment.findByPk(id);
   if (!assignment)
     return NextResponse.json({ error: "Not found" }, { status: 404 });
-  if (
-    currentUser.role === "TEACHER" &&
-    assignment.teacher_id !== currentUser.id
-  ) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
   if (
     currentUser.role === "BRANCH_ADMIN" &&
     assignment.branch_id !== currentUser.branch_id
@@ -151,6 +145,9 @@ async function updateAssignment(req, { params }) {
   const allowed = [
     "title",
     "description",
+    "class_id",
+    "section_id",
+    "subject_id",
     "attachment_url",
     "attachment_public_id",
     "due_date",
@@ -168,18 +165,12 @@ async function updateAssignment(req, { params }) {
 async function deleteAssignment(req, { params }) {
   const currentUser = req.user;
   const { id } = await params;
-  if (!["SUPER_ADMIN", "BRANCH_ADMIN", "TEACHER"].includes(currentUser.role)) {
+  if (!["SUPER_ADMIN", "BRANCH_ADMIN"].includes(currentUser.role)) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
   const assignment = await Assignment.findByPk(id);
   if (!assignment)
     return NextResponse.json({ error: "Not found" }, { status: 404 });
-  if (
-    currentUser.role === "TEACHER" &&
-    assignment.teacher_id !== currentUser.id
-  ) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-  }
   if (
     currentUser.role === "BRANCH_ADMIN" &&
     assignment.branch_id !== currentUser.branch_id
@@ -199,10 +190,8 @@ export const GET = withAuth(getAssignment, [
 export const PUT = withAuth(updateAssignment, [
   "SUPER_ADMIN",
   "BRANCH_ADMIN",
-  "TEACHER",
 ]);
 export const DELETE = withAuth(deleteAssignment, [
   "SUPER_ADMIN",
   "BRANCH_ADMIN",
-  "TEACHER",
 ]);

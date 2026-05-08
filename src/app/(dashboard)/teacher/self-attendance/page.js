@@ -24,6 +24,10 @@ import { toast } from "sonner";
 import apiClient from "@/lib/api-client";
 import { API_ENDPOINTS } from "@/constants/api-endpoints";
 
+// Teacher self-attendance UI uses staff-attendance endpoints in this codebase.
+const TEACHER_SELF = API_ENDPOINTS.SELF_ATTENDANCE ?? API_ENDPOINTS.SUPER_ADMIN?.SELF_ATTENDANCE ?? API_ENDPOINTS.SUPER_ADMIN?.SELF_ATTENDANCE;
+
+
 export default function TeacherSelfAttendancePage() {
   const [attendanceStatus, setAttendanceStatus] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -41,6 +45,16 @@ export default function TeacherSelfAttendancePage() {
     const startOfWeek = new Date(now.setDate(now.getDate() - now.getDay()));
     return startOfWeek.toISOString().split('T')[0];
   });
+
+  // Total hours not stored in staff_attendances table right now.
+  // Keep UI stable.
+  const computeTodayWorkingHours = (record) => {
+    if (!record?.checkInTime || !record?.checkOutTime) return null;
+    const diffMs = new Date(record.checkOutTime) - new Date(record.checkInTime);
+    if (!Number.isFinite(diffMs) || diffMs < 0) return null;
+    const hours = diffMs / (1000 * 60 * 60);
+    return Math.round(hours * 10) / 10;
+  };
 
   useEffect(() => {
     loadAttendanceStatus();
@@ -77,7 +91,7 @@ export default function TeacherSelfAttendancePage() {
   const loadAttendanceStatus = async () => {
     try {
       setLoading(true);
-      const response = await apiClient.get(API_ENDPOINTS.TEACHER.SELF_ATTENDANCE.STATUS);
+      const response = await apiClient.get(TEACHER_SELF?.STATUS);
 
       if (response.success) {
         setAttendanceStatus(response.data);
@@ -106,7 +120,7 @@ export default function TeacherSelfAttendancePage() {
       console.log('Loading attendance history with params:', queryParams);
 
       const response = await apiClient.get(
-        `${API_ENDPOINTS.TEACHER.SELF_ATTENDANCE.HISTORY}?${queryParams}`
+        `${TEACHER_SELF?.HISTORY}?${queryParams}`
       );
 
       if (response.success) {
@@ -132,7 +146,7 @@ export default function TeacherSelfAttendancePage() {
 
     try {
       setActionLoading(true);
-      const response = await apiClient.post(API_ENDPOINTS.TEACHER.SELF_ATTENDANCE.CHECK_IN, {
+      const response = await apiClient.post(TEACHER_SELF?.CHECK_IN, {
         latitude: currentLocation.latitude,
         longitude: currentLocation.longitude,
       });
@@ -169,7 +183,7 @@ export default function TeacherSelfAttendancePage() {
 
     try {
       setActionLoading(true);
-      const response = await apiClient.post(API_ENDPOINTS.TEACHER.SELF_ATTENDANCE.CHECK_OUT, {
+      const response = await apiClient.post(TEACHER_SELF?.CHECK_OUT, {
         latitude: currentLocation.latitude,
         longitude: currentLocation.longitude,
       });

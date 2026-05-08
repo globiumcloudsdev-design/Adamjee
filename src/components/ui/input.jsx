@@ -33,7 +33,7 @@ export default function Input({
           onChange={onChange}
           placeholder={placeholder}
           className={[
-            'w-full py-2 border border-gray-300 rounded-lg',
+            'w-full py-1.5 border border-gray-300 rounded-lg',
             'focus:ring-2 focus:ring-blue-500 focus:border-transparent',
             'text-gray-900 bg-white',
             // Only add left padding for icon if icon is present

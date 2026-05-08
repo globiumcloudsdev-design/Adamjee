@@ -53,8 +53,10 @@ export const API_ENDPOINTS = {
       ASSIGN_BRANCH: "/api/super-admin/branch-admins/:id/assign-branch", // POST
     },
     SELF_ATTENDANCE: {
-      CHECK_IN: "/api/teacher/self-attendance/check-in", // POST
-      CHECK_OUT: "/api/teacher/self-attendance/check-out", // POST
+      CHECK_IN: "/api/staff-attendance/check-in", // POST
+      CHECK_OUT: "/api/staff-attendance/check-out", // POST
+      STATUS: "/api/staff-attendance/me/status", // GET (compat)
+      HISTORY: "/api/staff-attendance/me/history", // GET (compat)
     },
 
     // Global Settings
@@ -704,6 +706,20 @@ export const API_ENDPOINTS = {
     // Notifications Management
     NOTIFICATIONS: {
       HISTORY: "/api/branch-admin/notifications/history", // GET
+    },
+
+    // Assignments Management
+    ASSIGNMENTS: {
+      CREATE: "/api/assignments", // POST
+      LIST: "/api/assignments", // GET
+      GET: (id) => `/api/assignments/${id}`, // GET
+      UPDATE: (id) => `/api/assignments/${id}`, // PUT
+      DELETE: (id) => `/api/assignments/${id}`, // DELETE
+      SUBMISSIONS: {
+        LIST: "/api/submissions", // GET
+        GET: (id) => `/api/submissions/${id}`, // GET
+        GRADE: (id) => `/api/submissions/${id}`, // PUT
+      },
     },
 
     // Charts and Analytics

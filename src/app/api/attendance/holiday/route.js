@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { sequelize, User, Attendance } from "@/backend/models/postgres";
 import { Op } from "sequelize";
 import { getCurrentUser } from "@/lib/auth";
+import NotificationService from "@/backend/services/NotificationService";
 
 /**
  * POST /api/attendance/holiday
@@ -43,6 +44,7 @@ export async function POST(req) {
         }
 
         const holidayRemarks = reason ? `Holiday: ${reason}${remarks ? ` - ${remarks}` : ''}` : (remarks || "Holiday");
+        const studentIds = students.map(s => s.id);
 
         // 2. Process each student's attendance record
         for (const std of students) {
@@ -72,6 +74,26 @@ export async function POST(req) {
         }
 
         await transaction.commit();
+
+        // 3. Send notifications asynchronously
+        (async () => {
+            try {
+                const studentIds = students.map(s => s.id);
+                console.log(`[Holiday API] Sending holiday notification to ${studentIds.length} students in branch: ${finalBranchId}`);
+                
+                await NotificationService.sendToUsers(studentIds, {
+                    title: "Holiday Notification",
+                    message: `Adamjee Coaching Center has announced a holiday for ${date}.${reason ? ` Reason: ${reason}` : ''}`,
+                    type: "holiday",
+                    branchId: finalBranchId,
+                    sentBy: user.id
+                });
+                console.log(`[Holiday API] Holiday notification sent successfully`);
+            } catch (err) {
+                console.error("Holiday Notification Error:", err);
+            }
+        })();
+
         return NextResponse.json({ 
             success: true, 
             message: `Holiday marked for ${students.length} students successfully`, 

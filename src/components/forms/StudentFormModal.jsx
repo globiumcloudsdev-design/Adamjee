@@ -10,18 +10,22 @@ import CNICInput from '@/components/ui/cnic-input';
 import { Button } from '@/components/ui/button';
 import { toast } from 'sonner';
 import apiClient from '@/lib/api-client';
-import { 
-  User, 
-  GraduationCap, 
-  Users, 
-  CreditCard, 
+import {
+  User,
+  GraduationCap,
+  Users,
+  CreditCard,
   FileText,
   Camera,
   Upload,
   Plus,
   X,
-  FileUp
+  FileUp,
+  Loader2,
+  CheckCircle
 } from 'lucide-react';
+import { API_ENDPOINTS } from '@/constants/api-endpoints';
+import { Label } from '../ui/label';
 
 const StudentFormModal = ({
   isOpen,
@@ -38,7 +42,8 @@ const StudentFormModal = ({
   const [activeTab, setActiveTab] = useState('personal');
   const [sections, setSections] = useState([]);
   const [subjectsList, setSubjectsList] = useState([]);
-  
+  const [fetchingTeachers, setFetchingTeachers] = useState({});
+
   const [formData, setFormData] = useState({
     // Personal Info
     first_name: '',
@@ -49,11 +54,9 @@ const StudentFormModal = ({
     password: '',
     gender: 'male',
     date_of_birth: '',
-    blood_group: '',
     nationality: 'Pakistani',
-    religion: '',
     cnic: '',
-    address: { street: '', city: '', state: '', postalCode: '', country: 'Pakistan' },
+    address: { street: '', city: 'Karachi', state: 'Sindh', postalCode: '', country: 'Pakistan' },
     remarks: '',
     // Academic Info
     branch_id: '',
@@ -65,13 +68,14 @@ const StudentFormModal = ({
     registration_no: '',
     // Parent Info
     guardian_type: 'parent',
-    father: { name: '', occupation: '', phone: '', email: '', cnic: '', income: 0 },
+    father: { name: '', occupation: '', phone: '', email: '', cnic: '' },
     mother: { name: '', occupation: '', phone: '', email: '', cnic: '' },
     guardian: { name: '', relation: '', phone: '', email: '', cnic: '' },
-    emergency_contact: { name: '', relationship: '', phone: '' },
     // Fees & Subjects
+    total_fee: 0,
     discount: 0,
     fee_mention: 'Monthly',
+    payment_date: '10', // Default payment date
     subjects: [], // array of { id, name, fee }
     // Files
     profile_image: null,
@@ -89,7 +93,13 @@ const StudentFormModal = ({
       }
       try {
         const secRes = await apiClient.get(`/api/sections?class_id=${formData.class_id}`);
-        setSections(Array.isArray(secRes) ? secRes : []);
+        const sectionsData = Array.isArray(secRes) ? secRes : [];
+        setSections(sectionsData);
+
+        // Auto-select section if only one exists
+        if (sectionsData.length === 1 && !formData.section_id) {
+          handleFieldChange('section_id', sectionsData[0].id || sectionsData[0]._id);
+        }
 
         const subRes = await apiClient.get(`/api/subjects?class_id=${formData.class_id}`);
         setSubjectsList(Array.isArray(subRes) ? subRes : []);
@@ -105,7 +115,7 @@ const StudentFormModal = ({
     if (editingStudent) {
       const profile = editingStudent.studentProfile || {};
       console.log("Editing Student:", editingStudent);
-      
+
       setFormData({
         first_name: editingStudent.firstName || editingStudent.first_name || '',
         last_name: editingStudent.lastName || editingStudent.last_name || '',
@@ -114,13 +124,11 @@ const StudentFormModal = ({
         alternate_phone: editingStudent.alternatePhone || editingStudent.alternate_phone || '',
         password: '', // do not prefill password
         gender: editingStudent.gender || 'male',
-        date_of_birth: editingStudent.dateOfBirth ? new Date(editingStudent.dateOfBirth).toISOString().split('T')[0] : 
-                       (editingStudent.date_of_birth ? new Date(editingStudent.date_of_birth).toISOString().split('T')[0] : ''),
-        blood_group: editingStudent.bloodGroup || editingStudent.blood_group || '',
+        date_of_birth: editingStudent.dateOfBirth ? new Date(editingStudent.dateOfBirth).toISOString().split('T')[0] :
+          (editingStudent.date_of_birth ? new Date(editingStudent.date_of_birth).toISOString().split('T')[0] : ''),
         nationality: editingStudent.nationality || 'Pakistani',
-        religion: editingStudent.religion || '',
         cnic: editingStudent.cnic || '',
-        address: editingStudent.address || { street: '', city: '', state: '', postalCode: '', country: 'Pakistan' },
+        address: editingStudent.address || { street: '', city: 'Karachi', state: 'Sindh', postalCode: '', country: 'Pakistan' },
         remarks: editingStudent.remarks || '',
         branch_id: editingStudent.branchId || editingStudent.branch_id || '',
         academic_year_id: profile.academicYear || profile.academic_year || profile.academic_year_id || '',
@@ -130,14 +138,15 @@ const StudentFormModal = ({
         roll_no: profile.rollNumber || profile.roll_no || '',
         registration_no: editingStudent.registration_no || editingStudent.registrationNo || '',
         admission_date: profile.admissionDate ? new Date(profile.admissionDate).toISOString().split('T')[0] :
-                        (profile.admission_date ? new Date(profile.admission_date).toISOString().split('T')[0] : ''),
+          (profile.admission_date ? new Date(profile.admission_date).toISOString().split('T')[0] : ''),
         guardian_type: profile.guardianType || profile.guardian_type || 'parent',
-        father: profile.father || { name: '', occupation: '', phone: '', email: '', cnic: '', income: 0 },
+        father: profile.father || { name: '', occupation: '', phone: '', email: '', cnic: '' },
         mother: profile.mother || { name: '', occupation: '', phone: '', email: '', cnic: '' },
         guardian: profile.guardian || { name: '', relation: '', phone: '', email: '', cnic: '' },
-        emergency_contact: editingStudent.emergencyContact || profile.emergency_contact || { name: '', relationship: '', phone: '' },
+        total_fee: profile.feeEstimate || profile.total_fee || 0,
         discount: profile.feeDiscount?.amount || profile.discount || 0,
         fee_mention: profile.feeMention || profile.fee_mention || 'Monthly',
+        payment_date: profile.academic_info?.payment_date || profile.payment_date || '10',
         installment_count: profile.installmentCount || profile.installment_count || profile.installments || 1,
         subjects: profile.selectedSubjects || profile.subjects || editingStudent.selectedSubjects || [],
         profile_image: null,
@@ -154,11 +163,9 @@ const StudentFormModal = ({
         password: '',
         gender: 'male',
         date_of_birth: '',
-        blood_group: '',
         nationality: 'Pakistani',
-        religion: '',
         cnic: '',
-        address: { street: '', city: '', state: '', postalCode: '', country: 'Pakistan' },
+        address: { street: '', city: 'Karachi', state: 'Sindh', postalCode: '', country: 'Pakistan' },
         remarks: '',
         installment_count: 1,
         branch_id: '',
@@ -167,12 +174,13 @@ const StudentFormModal = ({
         section_id: '',
         roll_no: '',
         registration_no: '',
+        admission_date: new Date().toISOString().split('T')[0],
         guardian_type: 'parent',
-        father: { name: '', occupation: '', phone: '', email: '', cnic: '', income: 0 },
+        father: { name: '', occupation: '', phone: '', email: '', cnic: '' },
         mother: { name: '', occupation: '', phone: '', email: '', cnic: '' },
         guardian: { name: '', relation: '', phone: '', email: '', cnic: '' },
-        emergency_contact: { name: '', relationship: '', phone: '' },
         discount: 0,
+        total_fee: 0,
         fee_mention: 'Monthly',
         subjects: [],
         profile_image: null,
@@ -197,6 +205,57 @@ const StudentFormModal = ({
     }));
   };
 
+  const fetchTeacherForSubject = async (subjectId, sectionId) => {
+    if (!subjectId || !sectionId) return;
+    
+    setFetchingTeachers(prev => ({ ...prev, [subjectId]: true }));
+    try {
+      const res = await apiClient.get(API_ENDPOINTS.BRANCH_ADMIN.TIMETABLES.LIST, {
+        section_id: sectionId,
+        class_id: formData.class_id,
+        academic_year_id: formData.academic_year_id
+      });
+
+      if (res.success && (res.data?.length > 0 || res.timetable?.length > 0)) {
+        const timetable = res.data?.[0] || res.timetable?.[0];
+        const period = timetable.periods?.find(p => String(p.subjectId) === String(subjectId));
+
+        if (period && period.teacherId) {
+          const teacherRes = await apiClient.get(`${API_ENDPOINTS.BRANCH_ADMIN.TEACHERS.LIST}/${period.teacherId}`);
+          if (teacherRes.success) {
+            const teacher = teacherRes.data;
+            const teacherName = `${teacher.first_name || ''} ${teacher.last_name || ''}`.trim();
+            setFormData((prev) => ({
+              ...prev,
+              subjects: prev.subjects.map(s => s.id === subjectId ? { ...s, teacher_name: teacherName } : s)
+            }));
+            return;
+          }
+        }
+      }
+
+      setFormData((prev) => ({
+        ...prev,
+        subjects: prev.subjects.map(s => s.id === subjectId ? { ...s, teacher_name: 'Not Assigned' } : s)
+      }));
+    } catch (err) {
+      console.error("Error fetching teacher:", err);
+    } finally {
+      setFetchingTeachers(prev => ({ ...prev, [subjectId]: false }));
+    }
+  };
+
+  const handleSubjectFieldChange = async (subjectId, field, value) => {
+    setFormData((prev) => ({
+      ...prev,
+      subjects: prev.subjects.map(s => s.id === subjectId ? { ...s, [field]: value } : s)
+    }));
+
+    if (field === 'section_id' && value) {
+      fetchTeacherForSubject(subjectId, value);
+    }
+  };
+
   const handleSubjectToggle = (subject) => {
     setFormData((prev) => {
       const alreadySelected = prev.subjects.find(s => s.id === subject.id);
@@ -206,19 +265,31 @@ const StudentFormModal = ({
           subjects: prev.subjects.filter(s => s.id !== subject.id)
         };
       } else {
+        // Auto-select first section if available
+        const defaultSection = sections.length > 0 ? sections[0].id : '';
+        const newSubject = { 
+          id: subject.id, 
+          name: subject.name, 
+          fee: subject.fee || 0,
+          section_id: defaultSection,
+          teacher_name: '' 
+        };
+        
+        // If we auto-selected a section, fetch teacher for it immediately
+        if (defaultSection) {
+          setTimeout(() => fetchTeacherForSubject(subject.id, defaultSection), 0);
+        }
+
         return {
           ...prev,
-          subjects: [...prev.subjects, { id: subject.id, fee: 0 }]
+          subjects: [...prev.subjects, newSubject]
         };
       }
     });
   };
 
   const handleSubjectFeeChange = (subjectId, fee) => {
-    setFormData((prev) => ({
-      ...prev,
-      subjects: prev.subjects.map(s => s.id === subjectId ? { ...s, fee: Number(fee) } : s)
-    }));
+    handleSubjectFieldChange(subjectId, 'fee', Number(fee));
   };
 
   const getAcademicMonths = () => {
@@ -228,12 +299,12 @@ const StudentFormModal = ({
 
     const start = new Date(activeYear.start_date);
     const end = new Date(activeYear.end_date);
-    
+
     let months = (end.getFullYear() - start.getFullYear()) * 12;
     months -= start.getMonth();
     months += end.getMonth();
-    
-    return months <= 0 ? 1 : months + 1; 
+
+    return months <= 0 ? 1 : months + 1;
   };
 
   const getAcademicRangeText = () => {
@@ -285,9 +356,9 @@ const StudentFormModal = ({
     switch (tabId) {
       case 'personal':
         return (
-          formData.first_name && 
-          formData.last_name && 
-          formData.phone && 
+          formData.first_name &&
+          formData.last_name &&
+          formData.phone &&
           (editingStudent || formData.password) &&
           formData.gender &&
           formData.date_of_birth
@@ -299,17 +370,11 @@ const StudentFormModal = ({
           formData.section_id
         );
       case 'parent':
-        const parentValid = formData.guardian_type === 'parent' 
+        const parentValid = formData.guardian_type === 'parent'
           ? (formData.father.name && formData.father.phone)
           : (formData.guardian.name && formData.guardian.relation && formData.guardian.phone);
-        
-        const emergencyValid = (
-          formData.emergency_contact.name && 
-          formData.emergency_contact.relationship && 
-          formData.emergency_contact.phone
-        );
-        
-        return parentValid && emergencyValid;
+
+        return parentValid;
       case 'documents':
         return true;
       default:
@@ -357,19 +422,19 @@ const StudentFormModal = ({
       academic_year_id: formData.academic_year_id,
       class_id: formData.class_id,
       group_id: formData.group_id,
-      section_id: formData.section_id,
+      // Section is now per subject, but we might need a default one
+      section_id: formData.subjects[0]?.section_id || '',
       subjects: formData.subjects,
       discount: Number(formData.discount),
+      total_fee: Number(formData.total_fee),
+      payment_date: formData.payment_date,
       registration_no: formData.registration_no,
       roll_no: formData.roll_no,
       academic_info: {
-        alternate_phone: formData.alternate_phone,
         gender: formData.gender,
         date_of_birth: formData.date_of_birth,
-        blood_group: formData.blood_group,
         admission_date: formData.admission_date,
         nationality: formData.nationality,
-        religion: formData.religion,
         cnic: formData.cnic,
         address: formData.address,
         remarks: formData.remarks,
@@ -377,13 +442,17 @@ const StudentFormModal = ({
         mother: formData.mother,
         guardian: formData.guardian,
         guardian_type: formData.guardian_type,
-        emergency_contact: formData.emergency_contact,
         fee_mention: formData.fee_mention,
         fee_type: formData.fee_mention,
         group_id: formData.group_id,
+        class_id: formData.class_id,
+        section_id: formData.subjects[0]?.section_id || formData.section_id,
         installment_count: formData.installment_count,
-        fee_estimate: calculatedEstimate,
+        fee_estimate: Number(formData.total_fee),
+        total_fee: Number(formData.total_fee),
         discount: Number(formData.discount),
+        payment_date: formData.payment_date,
+        roll_no: formData.roll_no,
       },
       isEditMode: Boolean(editingStudent),
       studentId: editingStudent?.id || editingStudent?._id,
@@ -404,11 +473,11 @@ const StudentFormModal = ({
     }
   };
 
-  const filteredGroups = groups.filter(g => 
+  const filteredGroups = groups.filter(g =>
     (!formData.branch_id || g.branch_id === formData.branch_id)
   );
 
-  const filteredClasses = classes.filter(c => 
+  const filteredClasses = classes.filter(c =>
     (!formData.branch_id || c.branch_id === formData.branch_id) &&
     (!formData.group_id || c.group_id === formData.group_id)
   );
@@ -435,18 +504,17 @@ const StudentFormModal = ({
                 // Prevent jumping to tabs ahead if current isn't valid
                 const targetIndex = tabs.findIndex(t => t.id === tab.id);
                 const currentIndex = tabs.findIndex(t => t.id === activeTab);
-                
+
                 if (targetIndex > currentIndex && !validateTab(activeTab)) {
                   toast.error('Please fill required fields before moving forward');
                   return;
                 }
                 setActiveTab(tab.id);
               }}
-              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${
-                activeTab === tab.id
+              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === tab.id
                   ? 'border-primary text-primary'
                   : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
-              }`}
+                }`}
             >
               <Icon className="w-4 h-4" />
               {tab.label}
@@ -463,23 +531,16 @@ const StudentFormModal = ({
               <Input label="First Name" value={formData.first_name} onChange={(e) => handleFieldChange('first_name', e.target.value)} placeholder="Enter first name" required />
               <Input label="Last Name" value={formData.last_name} onChange={(e) => handleFieldChange('last_name', e.target.value)} placeholder="Enter last name" required />
             </div>
-            
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="md:col-span-1">
-                <Input label="Account Access Email" type="email" value={formData.email} onChange={(e) => handleFieldChange('email', e.target.value)} placeholder="Access@example.com" />
-              </div>
-              <div className="md:col-span-1">
-                <PhoneInput label="Phone" value={formData.phone} onChange={(val) => handleFieldChange('phone', val)} required hideDescription />
-              </div>
-              <div className="md:col-span-1">
-                <PhoneInput label="Alternate Phone" value={formData.alternate_phone} onChange={(val) => handleFieldChange('alternate_phone', val)} hideDescription />
-              </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <Input label="Account Access Email" type="email" value={formData.email} onChange={(e) => handleFieldChange('email', e.target.value)} placeholder="Access@example.com" />
+              <PhoneInput label="Phone" value={formData.phone} onChange={(val) => handleFieldChange('phone', val)} required hideDescription />
             </div>
 
             {!editingStudent && (
               <Input label="Password" type="password" value={formData.password} onChange={(e) => handleFieldChange('password', e.target.value)} placeholder="••••••••" required />
             )}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Dropdown
                 label="Gender"
                 value={formData.gender}
@@ -487,7 +548,6 @@ const StudentFormModal = ({
                 options={[
                   { value: 'male', label: 'Male' },
                   { value: 'female', label: 'Female' },
-                  { value: 'other', label: 'Other' },
                 ]}
                 placeholder="Select Gender"
                 required
@@ -499,11 +559,9 @@ const StudentFormModal = ({
                 placeholder="Select DOB"
                 required
               />
-              <Input label="Blood Group" value={formData.blood_group} onChange={(e) => handleFieldChange('blood_group', e.target.value)} placeholder="e.g. A+" />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Input label="Nationality" value={formData.nationality} onChange={(e) => handleFieldChange('nationality', e.target.value)} placeholder="Pakistani" />
-              <Input label="Religion" value={formData.religion} onChange={(e) => handleFieldChange('religion', e.target.value)} placeholder="e.g. Islam" />
               <CNICInput label="CNIC / B-Form" value={formData.cnic} onChange={(val) => handleFieldChange('cnic', val)} hideDescription placeholder="XXXXX-XXXXXXX-X" />
             </div>
             <div className="border-t pt-4">
@@ -524,8 +582,8 @@ const StudentFormModal = ({
         {/* Academic Tab */}
         {activeTab === 'academic' && (
           <div className="space-y-4">
-            <div className={`grid grid-cols-1 ${userRole !== 'BRANCH_ADMIN' ? 'md:grid-cols-2' : ''} gap-4`}>
-              {userRole !== 'BRANCH_ADMIN' && (
+            <div className={`grid grid-cols-1 md:grid-cols-2 gap-6`}>
+              {userRole !== 'BRANCH_ADMIN' ? (
                 <Dropdown
                   label="Branch"
                   value={formData.branch_id}
@@ -536,19 +594,34 @@ const StudentFormModal = ({
                   ]}
                   disabled={userRole === 'BRANCH_ADMIN'}
                 />
+              ) : (
+                <Dropdown
+                  label="Academic Year"
+                  value={formData.academic_year_id}
+                  onChange={(e) => handleFieldChange('academic_year_id', e.target.value)}
+                  options={[
+                    { value: '', label: 'Select Year' },
+                    ...academicYears.map((y) => ({ value: y.id || y._id, label: y.name })),
+                  ]}
+                />
               )}
-              <Dropdown
-                label="Academic Year"
-                value={formData.academic_year_id}
-                onChange={(e) => handleFieldChange('academic_year_id', e.target.value)}
-                options={[
-                  { value: '', label: 'Select Year' },
-                  ...academicYears.map((y) => ({ value: y.id || y._id, label: y.name })),
-                ]}
-              />
+              {userRole !== 'BRANCH_ADMIN' && (
+                <Dropdown
+                  label="Academic Year"
+                  value={formData.academic_year_id}
+                  onChange={(e) => handleFieldChange('academic_year_id', e.target.value)}
+                  options={[
+                    { value: '', label: 'Select Year' },
+                    ...academicYears.map((y) => ({ value: y.id || y._id, label: y.name })),
+                  ]}
+                />
+              )}
+              {userRole === 'BRANCH_ADMIN' && (
+                <div className="hidden md:block"></div>
+              )}
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Dropdown
                 label="Group"
                 value={formData.group_id}
@@ -570,23 +643,17 @@ const StudentFormModal = ({
                 ]}
                 required
               />
-
-              <Dropdown
-                label="Section"
-                value={formData.section_id}
-                onChange={(e) => handleFieldChange('section_id', e.target.value)}
-                options={[
-                  { value: '', label: sections.length ? 'Select Section' : 'No Sections Found for this Class' },
-                  ...sections.map((s) => ({ value: s.id || s._id, label: s.name })),
-                ]}
-                required
-                disabled={!formData.class_id}
-              />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <Input label="GR No (Auto-generate)" value={formData.roll_no} onChange={(e) => handleFieldChange('roll_no', e.target.value)} placeholder="Enter GR No" />
-              <Input label="Registration No" value={formData.registration_no} onChange={(e) => handleFieldChange('registration_no', e.target.value)} placeholder="Reg-2024-XXX"/>
+            <div className={`grid grid-cols-1 ${editingStudent ? 'md:grid-cols-2' : ''} gap-6`}>
+              {editingStudent && (
+                <Input 
+                  label="GR No" 
+                  value={formData.roll_no} 
+                  onChange={(e) => handleFieldChange('roll_no', e.target.value)} 
+                  placeholder="Enter GR No" 
+                />
+              )}
               <DatePicker
                 label="Admission Date"
                 value={formData.admission_date}
@@ -601,8 +668,8 @@ const StudentFormModal = ({
                 <CreditCard className="w-5 h-5 text-primary" />
                 <h4 className="font-semibold text-gray-800">Fees & Subjects</h4>
               </div>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <Dropdown
                   label="Fee Mention"
                   value={formData.fee_mention}
@@ -613,40 +680,65 @@ const StudentFormModal = ({
                     { value: 'Installment', label: 'Installments' },
                   ]}
                 />
+                <div className="space-y-1">
+                  <Input 
+                    label="Payment Day (Max 25)" 
+                    type="number" 
+                    min="1" 
+                    max="25" 
+                    value={formData.payment_date || ''} 
+                    onChange={(e) => {
+                      const val = parseInt(e.target.value);
+                      if (val > 25) {
+                        toast.warning('Payment day cannot exceed 25 to avoid issues in shorter months (e.g. Feb)');
+                      }
+                      handleFieldChange('payment_date', e.target.value);
+                    }} 
+                    placeholder="e.g. 10"
+                    error={parseInt(formData.payment_date) > 25 ? "Max day is 25" : null}
+                  />
+                  {parseInt(formData.payment_date) > 25 && (
+                    <p className="text-[10px] text-orange-500 font-bold ml-1 italic leading-tight">Max 25 for short months.</p>
+                  )}
+                </div>
                 <Input label="Discount (Amount)" type="number" value={formData.discount || ''} onChange={(e) => handleFieldChange('discount', Number(e.target.value))} />
               </div>
 
-              {formData.fee_mention === 'Installment' && (
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border p-4 rounded-md bg-gray-50">
+              {(formData.fee_mention === 'LumpSum' || formData.fee_mention === 'Installment') && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 border p-5 rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-100 shadow-sm">
                   <Input
-                    label="Installment Count"
+                    label={formData.fee_mention === 'LumpSum' ? "Total Course Fee (Agreement)" : "Total Agreement Amount"}
                     type="number"
-                    value={formData.installment_count || 0}
-                    onChange={(e) => handleFieldChange('installment_count', Number(e.target.value))}
+                    value={formData.total_fee || ''}
+                    onChange={(e) => handleFieldChange('total_fee', Number(e.target.value))}
+                    placeholder="Enter total amount"
+                    className="bg-white"
+                    required
                   />
-                  <div className="flex flex-col justify-center">
-                    <span className="text-xs text-gray-500 font-medium">Per Installment Estimate</span>
-                    <span className="text-xs text-primary/80 font-medium mb-1">{getAcademicRangeText()}</span>
-                    <span className="text-lg font-bold text-primary">
-                      {formData.installment_count > 0
-                        ? Math.round(
-                            ((formData.subjects.reduce((acc, sub) => acc + (sub.fee || 0), 0) * getAcademicMonths()) - formData.discount) /
-                              formData.installment_count
-                          )
-                        : 0}{' '}
-                      PKR
-                    </span>
+                  {formData.fee_mention === 'Installment' && (
+                    <Input
+                      label="Installment Count"
+                      type="number"
+                      value={formData.installment_count || 0}
+                      onChange={(e) => handleFieldChange('installment_count', Number(e.target.value))}
+                      className="bg-white"
+                    />
+                  )}
+                  <div className="md:col-span-2 mt-2 pt-3 border-t border-blue-200/50 flex items-center justify-between">
+                    <div className="flex flex-col">
+                      <span className="text-[10px] uppercase tracking-wider text-blue-500 font-bold">
+                        {formData.fee_mention === 'Installment' ? 'Per Installment' : 'Net Payable'}
+                      </span>
+                      <span className="text-xs text-blue-400">After applying Rs. {formData.discount || 0} discount</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-2xl font-black text-indigo-700 drop-shadow-sm">
+                        Rs. {formData.fee_mention === 'Installment' && formData.installment_count > 0
+                          ? Math.round((formData.total_fee - formData.discount) / formData.installment_count).toLocaleString()
+                          : (formData.total_fee - formData.discount).toLocaleString()}
+                      </span>
+                    </div>
                   </div>
-                </div>
-              )}
-
-              {formData.fee_mention === 'LumpSum' && (
-                <div className="border p-4 rounded-md bg-gray-50">
-                  <span className="text-xs text-gray-500 font-medium">Lump Sum Course Clearance ({getAcademicMonths()} Months)</span>
-                  <span className="text-xs text-primary/80 font-medium block mb-1">{getAcademicRangeText()}</span>
-                  <span className="text-xl font-bold block text-primary">
-                    {(formData.subjects.reduce((acc, sub) => acc + (sub.fee || 0), 0) * getAcademicMonths()) - formData.discount} PKR
-                  </span>
                 </div>
               )}
 
@@ -657,37 +749,93 @@ const StudentFormModal = ({
                 ) : subjectsList.length === 0 ? (
                   <p className="text-sm text-gray-500 italic">No subjects defined for this class.</p>
                 ) : (
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 max-h-[40vh] overflow-y-auto p-2 border rounded-md">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-2 border rounded-md">
                     {subjectsList.map((sub) => {
                       const isChecked = formData.subjects.some(s => s.id === sub.id);
                       const currentSelected = formData.subjects.find(s => s.id === sub.id);
 
                       return (
-                        <div key={sub.id} className="flex flex-col p-3 border rounded-lg bg-gray-50 hover:shadow-sm transition-shadow">
+                        <div 
+                          key={sub.id} 
+                          className={`flex flex-col p-4 border-2 rounded-2xl transition-all duration-300 ${
+                            isChecked 
+                              ? 'border-blue-500 bg-blue-50/30 shadow-md ring-4 ring-blue-500/5' 
+                              : 'border-gray-100 bg-gray-50 hover:border-gray-200 hover:bg-white'
+                          }`}
+                        >
                           <div className="flex items-center justify-between">
-                            <label className="flex items-center space-x-3 cursor-pointer">
-                              <input
-                                type="checkbox"
-                                checked={isChecked}
-                                onChange={() => handleSubjectToggle(sub)}
-                                className="w-4 h-4 rounded border-gray-300 text-primary focus:ring-primary"
-                              />
-                              <div>
-                                <p className="font-medium text-gray-800 text-sm">{sub.name}</p>
-                                {sub.subject_code && <p className="text-xs text-gray-500 font-mono">{sub.subject_code}</p>}
+                            <label className="flex items-center space-x-4 cursor-pointer w-full">
+                              <div className={`relative flex items-center justify-center w-6 h-6 rounded-full border-2 transition-colors ${
+                                isChecked ? 'border-blue-600 bg-blue-600' : 'border-gray-300 bg-white'
+                              }`}>
+                                <input
+                                  type="checkbox"
+                                  checked={isChecked}
+                                  onChange={() => handleSubjectToggle(sub)}
+                                  className="absolute opacity-0 w-full h-full cursor-pointer"
+                                />
+                                {isChecked && <CheckCircle className="w-4 h-4 text-white" />}
                               </div>
+                              <div className="flex-1">
+                                <p className={`font-bold transition-colors ${isChecked ? 'text-blue-700' : 'text-gray-700'}`}>
+                                  {sub.name}
+                                </p>
+                                {sub.subject_code && (
+                                  <p className="text-[10px] uppercase tracking-tighter text-gray-400 font-mono">
+                                    Code: {sub.subject_code}
+                                  </p>
+                                )}
+                              </div>
+                              {sub.fee > 0 && (
+                                <div className="text-right">
+                                  <p className="text-xs text-gray-400 uppercase font-bold">Fee</p>
+                                  <p className="font-black text-gray-700">Rs. {sub.fee}</p>
+                                </div>
+                              )}
                             </label>
                           </div>
+                          
                           {isChecked && (
-                            <div className="mt-2 pt-2 border-t flex items-center gap-2">
-                              <label className="text-xs font-medium text-gray-600 shrink-0">Subject Fee (PKR)</label>
-                              <input
-                                type="number"
-                                placeholder="Fee (PKR)"
-                                value={currentSelected?.fee || ''}
-                                onChange={(e) => handleSubjectFeeChange(sub.id, e.target.value)}
-                                className="w-full px-2 py-1 text-sm border rounded focus:outline-none focus:border-primary"
-                              />
+                            <div className="mt-4 pt-4 border-t border-blue-100/50 space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
+                              <div className="grid grid-cols-2 gap-3">
+                                <div className="space-y-1">
+                                  <Label className="text-[10px] uppercase text-blue-600 font-bold ml-1">Section</Label>
+                                  <Dropdown
+                                    value={currentSelected?.section_id || ''}
+                                    onChange={(e) => handleSubjectFieldChange(sub.id, 'section_id', e.target.value)}
+                                    options={[
+                                      { value: '', label: 'Select' },
+                                      ...sections.map(sec => ({ value: sec.id, label: sec.name }))
+                                    ]}
+                                    buttonClassName="h-9 text-xs rounded-xl border-blue-200"
+                                    hideDescription
+                                  />
+                                </div>
+                                <div className="space-y-1">
+                                  <Label className="text-[10px] uppercase text-blue-600 font-bold ml-1">Manual Fee</Label>
+                                  <Input
+                                    type="number"
+                                    value={currentSelected?.fee || ''}
+                                    onChange={(e) => handleSubjectFeeChange(sub.id, e.target.value)}
+                                    className="h-9 text-xs rounded-xl border-blue-200"
+                                    hideDescription
+                                  />
+                                </div>
+                              </div>
+
+                              {fetchingTeachers[sub.id] ? (
+                                <div className="flex items-center gap-2 px-3 py-2 bg-white/50 border border-blue-100 rounded-xl text-[10px] text-blue-500 font-medium italic animate-pulse">
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                  Looking for teacher...
+                                </div>
+                              ) : currentSelected?.teacher_name && (
+                                <div className="flex items-center gap-2 px-3 py-2 bg-white border border-blue-200 rounded-xl text-[11px] text-blue-700 font-bold shadow-sm">
+                                  <div className="p-1 bg-blue-100 rounded-lg">
+                                    <User className="w-3 h-3" />
+                                  </div>
+                                  <span>Teacher: {currentSelected.teacher_name}</span>
+                                </div>
+                              )}
                             </div>
                           )}
                         </div>
@@ -721,36 +869,25 @@ const StudentFormModal = ({
                     <Input label="Name" value={formData.father.name} onChange={(e) => handleNestedFieldChange('father', 'name', e.target.value)} placeholder="Father's full name" required={formData.guardian_type === 'parent'} />
                     <PhoneInput label="Phone" value={formData.father.phone} onChange={(val) => handleNestedFieldChange('father', 'phone', val)} required={formData.guardian_type === 'parent'} hideDescription placeholder="3XX XXXXXXX" />
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-2">
-                    <CNICInput label="CNIC" value={formData.father.cnic} onChange={(val) => handleNestedFieldChange('father', 'cnic', val)} hideDescription placeholder="XXXXX-XXXXXXX-X" />
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <Input label="CNIC" value={formData.father.cnic} onChange={(val) => handleNestedFieldChange('father', 'cnic', val)} hideDescription placeholder="XXXXX-XXXXXXX-X" />
                     <Input label="Occupation" value={formData.father.occupation} onChange={(e) => handleNestedFieldChange('father', 'occupation', e.target.value)} placeholder="e.g. Businessman" />
-                    <Input label="Income" type="number" value={formData.father.income} onChange={(e) => handleNestedFieldChange('father', 'income', Number(e.target.value))} placeholder="Monthly income" />
                   </div>
                 </div>
               </>
             ) : (
               <div className="border-t pt-4">
                 <h4 className="font-medium text-gray-700 mb-2">Guardian Info</h4>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <Input label="Name" value={formData.guardian.name} onChange={(e) => handleNestedFieldChange('guardian', 'name', e.target.value)} placeholder="Guardian's name" required={formData.guardian_type !== 'parent'} />
                   <Input label="Relation" value={formData.guardian.relation} onChange={(e) => handleNestedFieldChange('guardian', 'relation', e.target.value)} placeholder="e.g. Uncle" required={formData.guardian_type !== 'parent'} />
-                  <PhoneInput label="Phone" value={formData.guardian.phone} onChange={(val) => handleNestedFieldChange('guardian', 'phone', val)} required={formData.guardian_type !== 'parent'} hideDescription placeholder="3XX XXXXXXX" />
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-2">
-                  <Input label="Email" type="email" value={formData.guardian.email} onChange={(e) => handleNestedFieldChange('guardian', 'email', e.target.value)} placeholder="guardian@example.com" />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
+                  <PhoneInput label="Phone" value={formData.guardian.phone} onChange={(val) => handleNestedFieldChange('guardian', 'phone', val)} required={formData.guardian_type !== 'parent'} hideDescription placeholder="3XX XXXXXXX" />
                   <CNICInput label="CNIC" value={formData.guardian.cnic} onChange={(val) => handleNestedFieldChange('guardian', 'cnic', val)} hideDescription placeholder="XXXXX-XXXXXXX-X" />
                 </div>
               </div>
             )}
-
-            <div className="border-t pt-4">
-              <h4 className="font-medium text-gray-700 mb-2">Emergency Contact</h4>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <Input label="Name" value={formData.emergency_contact.name} onChange={(e) => handleNestedFieldChange('emergency_contact', 'name', e.target.value)} placeholder="Contact person name" required />
-                <Input label="Relationship" value={formData.emergency_contact.relationship} onChange={(e) => handleNestedFieldChange('emergency_contact', 'relationship', e.target.value)} placeholder="e.g. Brother" required />
-                <PhoneInput label="Phone" value={formData.emergency_contact.phone} onChange={(val) => handleNestedFieldChange('emergency_contact', 'phone', val)} required hideDescription placeholder="3XX XXXXXXX" />
-              </div>
-            </div>
           </div>
         )}
 
@@ -788,13 +925,13 @@ const StudentFormModal = ({
                 <label className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-xs font-bold cursor-pointer hover:bg-indigo-100 transition-colors">
                   <Plus className="w-3.5 h-3.5" />
                   Add Document
-                  <input 
-                    type="file" 
-                    className="hidden" 
-                    multiple 
+                  <input
+                    type="file"
+                    className="hidden"
+                    multiple
                     onChange={(e) => {
                       Array.from(e.target.files).forEach(file => addDocument(file));
-                    }} 
+                    }}
                   />
                 </label>
               </div>
@@ -811,7 +948,7 @@ const StudentFormModal = ({
                         <p className="text-[10px] text-gray-500 uppercase tracking-wider">{doc.type || 'Other'}</p>
                       </div>
                     </div>
-                    <button 
+                    <button
                       type="button"
                       onClick={() => removeDocument(index)}
                       className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
@@ -846,7 +983,7 @@ const StudentFormModal = ({
                 Previous
               </Button>
             )}
-            
+
             {activeTab !== 'documents' ? (
               <Button type="button" onClick={handleNext} disabled={isSubmitting}>
                 Next Step

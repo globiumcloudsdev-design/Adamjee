@@ -18,7 +18,7 @@ import LiveJsQRScanner from '@/components/LiveJsQRScanner';
 import apiClient from '@/lib/api-client';
 import API_ENDPOINTS from '@/constants/api-endpoints';
 import { toast } from 'sonner';
-import { Camera, Search, Save, CheckCircle, XCircle, Clock, UserSearch, Eye, DollarSign, Calendar, X, Scan, Upload, FileText } from 'lucide-react';
+import { Camera, Search, Save, CheckCircle, XCircle, Clock, UserSearch, Eye, DollarSign, Calendar, X, Scan, Upload, FileText, QrCode } from 'lucide-react';
 import ButtonLoader from '@/components/ui/button-loader';
 import { Checkbox } from '@/components/ui/checkbox';
 
@@ -39,6 +39,7 @@ export default function BranchAdminAttendancePage() {
   const [saving, setSaving] = useState(false);
   const [showScanner, setShowScanner] = useState(false);
   const [isHolidayModalOpen, setIsHolidayModalOpen] = useState(false);
+  const [isManualModalOpen, setIsManualModalOpen] = useState(false);
   const [holidayForm, setHolidayForm] = useState({
     date: new Date().toISOString().split('T')[0],
     reason: '',
@@ -79,6 +80,7 @@ export default function BranchAdminAttendancePage() {
   const [recentScans, setRecentScans] = useState([]);
   const [scanningStatus, setScanningStatus] = useState('idle'); // idle, checking, marking, success, error
   const [studentsCache, setStudentsCache] = useState({});
+  const [isProcessingAutoAbsent, setIsProcessingAutoAbsent] = useState(false);
   const scannerInputRef = useRef(null);
 
   const playBuzzer = (type = 'success') => {
@@ -156,6 +158,7 @@ export default function BranchAdminAttendancePage() {
   const [manualFetchingStudents, setManualFetchingStudents] = useState(false);
   const [manualMarkingAttendance, setManualMarkingAttendance] = useState(false);
   const [manualHasFetched, setManualHasFetched] = useState(false);
+  const [manualGRNo, setManualGRNo] = useState('');
 
   useEffect(() => {
     if (manualAttendanceModalOpen) {
@@ -441,6 +444,55 @@ export default function BranchAdminAttendancePage() {
       setStudentsCache(cache);
     } catch (e) {
       console.error("Student cache load failed:", e);
+    }
+  };
+
+  const handleAutoMarkAbsent = async () => {
+    try {
+      setIsProcessingAutoAbsent(true);
+      const res = await apiClient.post('/api/attendance/auto-absent', {
+        branch_id: user?.branch_id
+      });
+      
+      if (res.success) {
+        toast.success(res.message);
+        if (res.processedCount > 0) {
+          fetchStudents();
+        }
+      } else {
+        toast.error(res.error || "Failed to process auto-absent");
+      }
+    } catch (err) {
+      console.error("Auto-Mark Absent Error:", err);
+      toast.error("An error occurred while processing auto-absent");
+    } finally {
+      setIsProcessingAutoAbsent(false);
+    }
+  };
+
+  const handleManualGRMark = () => {
+    if (!manualGRNo.trim()) return;
+    
+    const query = manualGRNo.trim().toLowerCase();
+    
+    // Search in students list
+    const student = students.find(s => {
+      const rollNo = (s.details?.academic_info?.roll_no || s.rollNumber || s.roll_no || '').toString().toLowerCase();
+      const regNo = (s.registration_no || s.registrationNumber || '').toString().toLowerCase();
+      return rollNo === query || regNo === query;
+    });
+
+    if (student) {
+      const studentId = student.id || student._id;
+      handleStatusChange(studentId, 'present');
+      setManualGRNo('');
+      toast.success(`Marked ${student.first_name || student.firstName} as Present`);
+      
+      // Auto-save if it's a single entry? 
+      // User said "Manual Attendance enter kr skta hai", 
+      // usually this means just flipping the status in the list.
+    } else {
+      toast.error("Student with this GR No/Reg No not found in this class");
     }
   };
 
@@ -1435,41 +1487,56 @@ export default function BranchAdminAttendancePage() {
             <Scan className="h-5 w-5 mr-2" />
             <span className="font-bold">Hand Scanner</span>
           </Button>
+          <Button 
+            onClick={() => setIsManualModalOpen(true)} 
+            variant="outline"
+            className="flex-1 md:flex-none border-2 border-slate-200 hover:border-slate-300 dark:border-slate-700 dark:hover:border-slate-600 transition-all active:scale-95 py-6 px-6 rounded-2xl gap-2 font-bold text-slate-700 dark:text-slate-200"
+          >
+            <UserSearch className="h-5 w-5" />
+            <span className="text-sm">Manual</span>
+          </Button>
           <Button
             onClick={() => setIsBulkUploadModalOpen(true)}
             variant="outline"
-            className="flex-1 md:flex-none border-2 border-emerald-600 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all active:scale-95 py-6 px-6 rounded-2xl"
+            className="flex-1 md:flex-none border-2 border-emerald-600 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all active:scale-95 py-6 px-6 rounded-2xl font-bold"
           >
             <Upload className="h-5 w-5 mr-2" />
-            <span className="font-bold">Bulk Upload</span>
+            <span className="text-sm">Bulk Upload</span>
           </Button>
-          <Button 
-            onClick={() => setManualAttendanceModalOpen(true)} 
-            variant="outline"
-            className="flex-1 md:flex-none border-2 transition-all active:scale-95 py-6 px-6 rounded-2xl"
+
+          <Button
+            onClick={handleAutoMarkAbsent}
+            disabled={isProcessingAutoAbsent}
+            className="flex-1 md:flex-none bg-rose-600 hover:bg-rose-700 text-white shadow-lg shadow-rose-200 dark:shadow-none transition-all active:scale-95 py-6 px-6 rounded-2xl gap-2 font-bold"
           >
-            <UserSearch className="h-5 w-5 mr-2" />
-            <span className="font-bold">Manual</span>
+            {isProcessingAutoAbsent ? (
+              <ButtonLoader color="white" />
+            ) : (
+              <XCircle className="h-5 w-5" />
+            )}
+            <span className="text-sm">Auto-Absent</span>
           </Button>
+
           <Button 
             onClick={() => setIsHolidayModalOpen(true)} 
-            variant="secondary"
-            className="flex-1 md:flex-none bg-amber-600 hover:bg-amber-700 text-white shadow-lg shadow-amber-200 dark:shadow-none transition-all active:scale-95 py-6 px-5 rounded-2xl"
+            className="flex-1 md:flex-none bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-100 dark:shadow-none transition-all active:scale-95 py-6 px-5 rounded-2xl"
             title="Mark Holiday"
           >
             <Calendar className="h-5 w-5" />
           </Button>
         </div>
-
       </div>
-      
-      <Card>
-        <CardHeader>
-          <CardTitle>Attendance Filters</CardTitle>
+
+      <Card className="border-none shadow-sm rounded-3xl mb-8 relative z-20">
+        <CardHeader className="bg-slate-50/50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800">
+          <CardTitle className="text-lg font-semibold flex items-center gap-2">
+            <Search className="h-5 w-5 text-indigo-500" />
+            Attendance Filters
+          </CardTitle>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div className="space-y-2">
+        <CardContent className="p-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="space-y-2 relative z-30">
               <Label>Date</Label>
               <DatePicker
                 value={attendanceDate}
@@ -1499,8 +1566,6 @@ export default function BranchAdminAttendancePage() {
                 placeholder={!selectedClass ? "Select class first" : sections.length === 0 ? `${classes.find(c => c.id === selectedClass || c._id === selectedClass)?.name || 'Class'} Sections Not Found` : "Select section"}
               />
             </div>
-
-
              
             <div className="space-y-2">
               <Label>Attendance Type</Label>
@@ -2125,21 +2190,21 @@ export default function BranchAdminAttendancePage() {
             </div>
             
             <form onSubmit={handleHolidaySubmit} className="space-y-4">
-              <div className="space-y-1">
+              <div className="space-y-1 relative z-50">
                 <Label className="text-xs font-bold text-gray-500 uppercase">Date</Label>
-                <Input
-                  type="date"
-                  required
+                <DatePicker
                   value={holidayForm.date}
                   onChange={(e) => setHolidayForm(prev => ({ ...prev, date: e.target.value }))}
-                  className="w-full px-4 py-2 bg-gray-50 dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-medium text-gray-800 dark:text-white"
+                  disableFuture={false}
+                  required
                 />
               </div>
 
               <div className="space-y-1">
-                <Label className="text-xs font-bold text-gray-500 uppercase">Holiday Reason</Label>
+                <Label className="text-xs font-bold text-gray-500 uppercase">Holiday Reason *</Label>
                 <Input
                   type="text"
+                  required
                   placeholder="e.g. Summer Break, Public Holiday"
                   value={holidayForm.reason}
                   onChange={(e) => setHolidayForm(prev => ({ ...prev, reason: e.target.value }))}
@@ -2176,6 +2241,110 @@ export default function BranchAdminAttendancePage() {
                 </Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Manual GR Attendance Modal */}
+      {isManualModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-[100] p-4 animate-in fade-in zoom-in duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-[2.5rem] shadow-2xl max-w-lg w-full overflow-hidden border border-slate-100 dark:border-slate-800">
+            <div className="p-8">
+              <div className="flex justify-between items-center mb-8">
+                <div>
+                  <h3 className="text-2xl font-bold text-slate-900 dark:text-white flex items-center gap-3">
+                    <div className="p-2 bg-indigo-100 dark:bg-indigo-900/30 rounded-xl">
+                      <UserSearch className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
+                    </div>
+                    Manual Attendance
+                  </h3>
+                  <p className="text-slate-500 dark:text-slate-400 text-sm mt-1">Enter student GR No to mark present</p>
+                </div>
+                <button 
+                  onClick={() => {
+                    setIsManualModalOpen(false);
+                    setScanInput('');
+                    setLastScannedStudent(null);
+                  }}
+                  className="p-2 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
+                >
+                  <X className="h-6 w-6 text-slate-400" />
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                <div className="relative group">
+                  <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none">
+                    <QrCode className="h-6 w-6 text-indigo-500 group-focus-within:text-indigo-600 transition-colors" />
+                  </div>
+                  <Input
+                    autoFocus
+                    placeholder="Type GR No / Registration No..."
+                    value={scanInput}
+                    onChange={(e) => setScanInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleHandScan()}
+                    className="pl-14 h-16 text-xl font-bold bg-slate-50 dark:bg-slate-800/50 border-2 border-slate-100 dark:border-slate-800 rounded-2xl focus:ring-4 focus:ring-indigo-500/10 focus:border-indigo-500 transition-all"
+                  />
+                  {scanningStatus === 'checking' && (
+                    <div className="absolute right-5 top-5">
+                      <ButtonLoader color="indigo" />
+                    </div>
+                  )}
+                </div>
+
+                {/* Last Scanned Result */}
+                <div className="min-h-[160px] flex items-center justify-center border-2 border-dashed border-slate-100 dark:border-slate-800 rounded-3xl p-6 bg-slate-50/30 dark:bg-slate-800/10">
+                  {lastScannedStudent ? (
+                    <div className="w-full animate-in slide-in-from-bottom-2 duration-300">
+                      <div className="flex items-center gap-4">
+                        <div className="h-16 w-16 bg-indigo-100 dark:bg-indigo-900/50 rounded-2xl flex items-center justify-center text-2xl font-bold text-indigo-600 dark:text-indigo-400">
+                          {lastScannedStudent.fullName?.charAt(0)}
+                        </div>
+                        <div className="flex-1">
+                          <h4 className="text-xl font-bold text-slate-900 dark:text-white leading-tight">
+                            {lastScannedStudent.fullName}
+                          </h4>
+                          <div className="flex items-center gap-2 mt-1">
+                            <Badge variant="outline" className="bg-white dark:bg-slate-800 font-mono">
+                              {lastScannedStudent.registrationNumber}
+                            </Badge>
+                            <Badge className={lastScannedStudent.feeInfo?.status === 'unpaid' ? 'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400' : 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400'}>
+                              {lastScannedStudent.feeInfo?.status || 'Paid'}
+                            </Badge>
+                          </div>
+                        </div>
+                        <div className="text-center">
+                          <div className="p-2 bg-emerald-100 dark:bg-emerald-900/30 rounded-full mb-1">
+                            <CheckCircle className="h-6 w-6 text-emerald-600 dark:text-emerald-400" />
+                          </div>
+                          <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider">Present</span>
+                        </div>
+                      </div>
+                      
+                      <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 flex justify-between text-sm">
+                        <span className="text-slate-500">Marked at {lastScannedStudent.scanTime}</span>
+                        <span className="text-indigo-600 font-bold">Successfully Logged</span>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="text-center">
+                      <div className="p-4 bg-white dark:bg-slate-800 rounded-full shadow-sm inline-block mb-3">
+                        <UserSearch className="h-8 w-8 text-slate-300" />
+                      </div>
+                      <p className="text-slate-400 font-medium">Ready to mark attendance</p>
+                    </div>
+                  )}
+                </div>
+
+                <Button 
+                  onClick={handleHandScan}
+                  disabled={!scanInput || scanningStatus === 'checking'}
+                  className="w-full py-7 rounded-2xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-lg shadow-xl shadow-indigo-200 dark:shadow-none transition-all active:scale-[0.98]"
+                >
+                  {scanningStatus === 'checking' ? <ButtonLoader color="white" /> : "Mark Attendance"}
+                </Button>
+              </div>
+            </div>
           </div>
         </div>
       )}

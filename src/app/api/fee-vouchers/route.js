@@ -38,7 +38,7 @@ export async function GET(request) {
 
     const formattedVouchers = vouchers.map(v => {
       const json = v.toJSON();
-      
+
       let status = 'pending';
       if (json.status === 'UNPAID') status = 'pending';
       else if (json.status === 'PAID') status = 'paid';
@@ -101,7 +101,7 @@ export async function POST(request) {
 
     const body = await request.json();
     const {
-      generation_type, 
+      generation_type,
       student_id,
       group_id,
       class_id,
@@ -109,6 +109,7 @@ export async function POST(request) {
       academic_year_id,
       due_date,
       month,
+      year,
       remarks,
     } = body;
 
@@ -194,7 +195,7 @@ export async function POST(request) {
       const subjects = details.subjects || [];
       const subjectsTotal = subjects.reduce((acc, sub) => acc + (sub.fee || 0), 0);
       const discount = Number(st.discount_amount || details.discount_amount || details.discount || 0);
-      
+
       let amount_due = 0;
       let total_installments = null;
       let installment_no = null;
@@ -202,6 +203,7 @@ export async function POST(request) {
       const targetAcademicYearId = details.academic_year_id || academic_year_id;
       const totalMonths = academicYearsMap[targetAcademicYearId] || 12;
 
+      /* --- Old Calculation Logic (Fallback) ---
       if (fee_type === 'LumpSum') {
         if (voucherMap[st.id].LumpSum) continue;
         amount_due = (subjectsTotal * totalMonths) - discount;
@@ -214,14 +216,48 @@ export async function POST(request) {
         if (voucherMap[st.id].Monthly[month]) continue;
         amount_due = subjectsTotal - discount;
       }
+      ----------------------------------------- */
+
+      // --- New Logic: Use Agreement Amount (total_fee) ---
+      const agreementTotal = Number(details.total_fee || 0);
+
+      if (fee_type === 'LumpSum') {
+        if (voucherMap[st.id].LumpSum) continue;
+        // Subtract discount from Agreement Total
+        const baseAmount = agreementTotal > 0 ? (agreementTotal - discount) : ((subjectsTotal * totalMonths) - discount);
+        amount_due = baseAmount;
+      } else if (fee_type === 'Installment') {
+        total_installments = Number(st.installment_count || st.installments || details.installment_count || details.installments || 1);
+        installment_no = voucherMap[st.id].Installment + 1;
+        if (installment_no > total_installments) continue;
+        
+        // Subtract discount from Agreement Total then divide by installments
+        const baseAmount = agreementTotal > 0 ? (agreementTotal - discount) : ((subjectsTotal * totalMonths) - discount);
+        amount_due = Math.round(baseAmount / total_installments);
+      } else { // Monthly
+        if (voucherMap[st.id].Monthly[month]) continue;
+        // Keep monthly subject-based for now as requested
+        amount_due = subjectsTotal - discount;
+      }
+
+      // --- Per-Student Due Date Logic ---
+      // Use student's preferred payment day, default to 8
+      const paymentDay = details.payment_date || '8';
+      
+      // Determine year: use the year from the body if provided, otherwise fallback to current year
+      let targetYear = year || new Date().getFullYear();
+      
+      const monthStr = month.toString().padStart(2, '0');
+      const dayStr = paymentDay.toString().padStart(2, '0');
+      const studentSpecificDueDate = `${targetYear}-${monthStr}-${dayStr}`;
 
       // Calculate previous rolled over pending balance
-      const pendingVouchers = allExistingVouchers.filter(v => 
-        v.student_id === st.id && 
-        v.status !== 'PAID' && 
+      const pendingVouchers = allExistingVouchers.filter(v =>
+        v.student_id === st.id &&
+        v.status !== 'PAID' &&
         v.status !== 'CANCELLED'
       );
-      
+
       let rolledBalance = 0;
       for (const pv of pendingVouchers) {
         const totalDue = Number(pv.amount_due) + Number(pv.fine_amount || 0);
@@ -256,7 +292,7 @@ export async function POST(request) {
           academic_year_id: targetAcademicYearId,
           branch_id: stBranchId,
           amount_due: Number(amount_due || 0) + Number(rolledBalance || 0),
-          due_date,
+          due_date: studentSpecificDueDate,
           fee_type,
           installment_no,
           total_installments,

@@ -54,6 +54,7 @@ export async function GET(req) {
     const user = await getCurrentUser(req);
     const { searchParams } = new URL(req.url);
     const branchIdParam = searchParams.get("branch_id");
+    const groupIdParam = searchParams.get("group_id");
 
     // Role-based + query param filtering
     let where = {};
@@ -65,6 +66,11 @@ export async function GET(req) {
     } else {
       // Branch Admin / Others: locked to their own branch
       where.branch_id = user.branch_id;
+    }
+
+    // Filter by group if provided
+    if (groupIdParam) {
+      where.group_id = groupIdParam;
     }
 
     const classes = await Class.findAll({

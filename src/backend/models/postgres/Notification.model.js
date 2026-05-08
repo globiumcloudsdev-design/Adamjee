@@ -35,6 +35,7 @@ const Notification = sequelize.define(
         "alert",
         "reminder",
         "announcement",
+        "holiday",
       ),
       allowNull: false,
       defaultValue: "general",
@@ -127,6 +128,12 @@ sequelize
   .catch((err) => {
     // Ignore errors if the value already exists or if there are permission issues
     // logger.debug("Notification model enum update skipped: " + err.message);
+  });
+
+sequelize
+  .query("ALTER TYPE \"enum_notifications_type\" ADD VALUE IF NOT EXISTS 'holiday';")
+  .catch((err) => {
+    // Ignore errors
   });
 
 export default Notification;

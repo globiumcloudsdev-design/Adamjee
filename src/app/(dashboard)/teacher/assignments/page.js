@@ -32,6 +32,7 @@ import {
   TableCell,
 } from "@/components/ui/table";
 import DashboardSkeleton from "@/components/teacher/DashboardSkeleton";
+import { SubmissionsSkeleton } from "@/components/ui/skeleton";
 import apiClient from "@/lib/api-client";
 import { API_ENDPOINTS } from "@/constants/api-endpoints";
 import { toast } from "sonner";
@@ -420,10 +421,7 @@ export default function TeacherAssignmentsPage() {
           size="lg"
         >
           {loadingDetails ? (
-            <div className="py-12 text-center">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-              <p className="text-muted-foreground">Loading submissions...</p>
-            </div>
+            <SubmissionsSkeleton />
           ) : assignmentDetails ? (
             <div className="space-y-6">
               {/* Totals / Roster Info */}

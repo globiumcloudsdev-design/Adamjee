@@ -24,15 +24,16 @@ import {
   Building,
   Award,
   CreditCard,
-  Bus,
-  Stethoscope,
+  CheckCircle,
   AlertCircle,
+  Loader2,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import apiClient from '@/lib/api-client';
 import { API_ENDPOINTS } from '@/constants/api-endpoints';
 import { toast } from 'sonner';
 import IDCardViewer from '@/components/common/IDCard';
+import { Badge } from '@/components/ui/badge';
 
 
 const StudentViewModal = ({
@@ -152,11 +153,6 @@ const StudentViewModal = ({
     const branchId = s.branchId?._id || s.branchId;
     return branches.find(b => b.id === branchId || b._id === branchId)?.name || 'N/A';
   };
-
-  const getDepartmentName = () => {
-    const deptId = s.studentProfile?.departmentId?._id || s.studentProfile?.departmentId;
-    return departments.find(d => d.id === deptId || d._id === deptId)?.name || 'N/A';
-  };
   
   const getAcademicYearName = () => {
     const yearId = s.studentProfile?.academicYear;
@@ -256,16 +252,8 @@ const StudentViewModal = ({
               <span className="font-medium">{formatDate(s.dateOfBirth)}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-sm text-gray-500">Blood Group</span>
-              <span className="font-medium">{s.bloodGroup || 'N/A'}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-500">Religion</span>
-              <span className="font-medium">{s.religion || 'N/A'}</span>
-            </div>
-            <div className="flex justify-between">
               <span className="text-sm text-gray-500">Nationality</span>
-              <span className="font-medium">{s.nationality || 'N/A'}</span>
+              <span className="font-medium">{s.nationality || 'Pakistani'}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-sm text-gray-500">CNIC/B-Form</span>
@@ -297,37 +285,27 @@ const StudentViewModal = ({
         </div>
       </div>
 
-      {/* Address Information */}
-      <div className="bg-gray-50 p-4 rounded-lg">
-        <div className="flex items-center gap-2 mb-2">
-          <MapPin className="w-4 h-4 text-gray-500" />
-          <h4 className="font-medium text-gray-700">Address Information</h4>
+      {/* Address & Remarks */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="bg-gray-50 p-4 rounded-lg">
+          <div className="flex items-center gap-2 mb-2">
+            <MapPin className="w-4 h-4 text-gray-500" />
+            <h4 className="font-medium text-gray-700">Address Information</h4>
+          </div>
+          <div className="space-y-2 text-sm">
+            <p className="text-gray-900 font-medium">{s.address?.street || 'N/A'}</p>
+            <p className="text-gray-600">{s.address?.city}, {s.address?.state} {s.address?.postalCode}</p>
+            <p className="text-gray-500">{s.address?.country}</p>
+          </div>
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-500">Street</span>
-              <span className="font-medium">{s.address?.street || 'N/A'}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-500">City</span>
-              <span className="font-medium">{s.address?.city || 'N/A'}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-500">State</span>
-              <span className="font-medium">{s.address?.state || 'N/A'}</span>
-            </div>
+        <div className="bg-gray-50 p-4 rounded-lg">
+          <div className="flex items-center gap-2 mb-2">
+            <FileText className="w-4 h-4 text-gray-500" />
+            <h4 className="font-medium text-gray-700">Remarks / Extra Info</h4>
           </div>
-          <div className="space-y-2">
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-500">Postal Code</span>
-              <span className="font-medium">{s.address?.postalCode || 'N/A'}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-500">Country</span>
-              <span className="font-medium">{s.address?.country || 'N/A'}</span>
-            </div>
-          </div>
+          <p className="text-sm text-gray-600 italic">
+            {s.remarks || 'No additional remarks.'}
+          </p>
         </div>
       </div>
 
@@ -373,13 +351,13 @@ const StudentViewModal = ({
               <span className="font-medium">{getBranchName()}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-sm text-gray-500">Registration No.</span>
+              <span className="text-sm text-gray-500">GR No.</span>
               <span className="font-medium font-mono">
-                {s.registrationNo || 'N/A'}
+                {s.studentProfile?.rollNumber || 'N/A'}
               </span>
             </div>
             <div className="flex justify-between">
-              <span className="text-sm text-gray-500">Enrollment Date</span>
+              <span className="text-sm text-gray-500">Admission Date</span>
               <span className="font-medium">
                 {formatDate(s.studentProfile?.admissionDate)}
               </span>
@@ -397,36 +375,24 @@ const StudentViewModal = ({
         <div className="bg-gray-50 p-4 rounded-lg">
           <div className="flex items-center gap-2 mb-2">
             <GraduationCap className="w-4 h-4 text-gray-500" />
-            <h4 className="font-medium text-gray-700">Current Academic</h4>
+            <h4 className="font-medium text-gray-700">Academic Status</h4>
           </div>
           <div className="space-y-2">
             <div className="flex justify-between">
               <span className="text-sm text-gray-500">Class</span>
-              <span className="font-medium">{getClassName()}</span>
+              <span className="font-bold text-blue-600">{getClassName()}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-sm text-gray-500">Section</span>
-              <span className="font-medium">{getSectionName()}</span>
+              <span className="text-sm text-gray-500">Group</span>
+              <span className="font-medium">{getGroupName()}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-sm text-gray-500">GR No</span>
-              <span className="font-medium">{s.studentProfile?.rollNumber || 'N/A'}</span>
+              <span className="font-bold font-mono px-2 py-0.5 bg-blue-100 text-blue-700 rounded text-xs">{s.studentProfile?.rollNumber || 'N/A'}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-sm text-gray-500">Academic Year</span>
               <span className="font-medium">{getAcademicYearName()}</span>
-            </div>
-          </div>
-        </div>
-        <div className="bg-gray-50 p-4 rounded-lg">
-          <div className="flex items-center gap-2 mb-2">
-            <Building className="w-4 h-4 text-gray-500" />
-            <h4 className="font-medium text-gray-700">Group & Department</h4>
-          </div>
-          <div className="space-y-2">
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-500">Group</span>
-              <span className="font-medium">{getGroupName()}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-sm text-gray-500">Admission Date</span>
@@ -434,68 +400,73 @@ const StudentViewModal = ({
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Fees & Subjects (Merged) */}
-      <div className="border-t pt-6 space-y-6">
+        
         <div className="bg-gray-50 p-4 rounded-lg">
-          <div className="flex items-center gap-2 mb-4">
-            <FileText className="w-4 h-4 text-gray-500" />
-            <h4 className="font-medium text-gray-700">Selected Subjects</h4>
+          <div className="flex items-center gap-2 mb-2">
+            <CreditCard className="w-4 h-4 text-gray-500" />
+            <h4 className="font-medium text-gray-700">Fee Agreement</h4>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {s.studentProfile?.subjects?.map((sub, idx) => (
-              <div key={idx} className="flex justify-between items-center p-3 bg-white border rounded-lg">
-                <div>
-                  <p className="font-medium text-gray-800">{sub.name}</p>
-                  {sub.subject_code && <p className="text-xs text-gray-500">{sub.subject_code}</p>}
-                </div>
-                <span className="font-bold text-primary font-mono">{sub.fee || 0} PKR</span>
-              </div>
-            ))}
+          <div className="space-y-2">
+            <div className="flex justify-between">
+              <span className="text-sm text-gray-500">Fee Mention</span>
+              <span className="font-bold text-indigo-600">{s.studentProfile?.feeMention}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-sm text-gray-500">Payment Day</span>
+              <span className="font-medium">Every {student.details?.academic_info?.payment_date || '10'}th of month</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-sm text-gray-500">Agreement Total</span>
+              <span className="font-medium">{s.studentProfile?.totalFee?.toLocaleString()} PKR</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-sm text-gray-500">Total Discount</span>
+              <span className="font-medium text-red-500">-{s.studentProfile?.discount?.toLocaleString()} PKR</span>
+            </div>
+            <div className="pt-2 mt-2 border-t flex justify-between items-center">
+              <span className="text-xs font-bold uppercase text-gray-400">Net Payable</span>
+              <span className="font-black text-lg text-emerald-600">
+                {((s.studentProfile?.totalFee || 0) - (s.studentProfile?.discount || 0)).toLocaleString()} PKR
+              </span>
+            </div>
           </div>
         </div>
+      </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <div className="flex items-center gap-2 mb-2">
-              <CreditCard className="w-4 h-4 text-gray-500" />
-              <h4 className="font-medium text-gray-700">Payment Plan</h4>
-            </div>
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-500">Fee Mention</span>
-                <span className="font-medium">{s.studentProfile?.feeMention}</span>
-              </div>
-              {s.studentProfile?.feeMention === 'Installment' && (
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-500">Installments</span>
-                  <span className="font-medium">{s.studentProfile?.installmentCount}</span>
+      {/* Selected Subjects Table */}
+      <div className="bg-gray-50 p-4 rounded-xl">
+        <div className="flex items-center gap-2 mb-4">
+          <FileText className="w-4 h-4 text-gray-500" />
+          <h4 className="font-medium text-gray-700">Enrolled Subjects & Teachers</h4>
+        </div>
+        <div className="grid grid-cols-1 gap-3">
+          {s.studentProfile?.subjects?.map((sub, idx) => (
+            <div key={idx} className="flex flex-col md:flex-row md:items-center justify-between p-4 bg-white border border-gray-100 rounded-xl shadow-sm hover:shadow-md transition-shadow">
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <span className="font-bold text-gray-900">{sub.name}</span>
+                  {sub.subject_code && <span className="text-[10px] font-mono bg-gray-100 px-1.5 rounded text-gray-500">{sub.subject_code}</span>}
                 </div>
-              )}
-            </div>
-          </div>
-
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <div className="flex items-center gap-2 mb-2">
-              <Activity className="w-4 h-4 text-gray-500" />
-              <h4 className="font-medium text-gray-700">Fee Summary</h4>
-            </div>
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-500">Total Subject Fee</span>
-                <span className="font-medium">{s.studentProfile?.totalFee} PKR</span>
+                <div className="flex items-center gap-4 mt-1">
+                  <div className="flex items-center gap-1 text-[11px] text-indigo-600 font-bold uppercase">
+                    <Building className="w-3 h-3" />
+                    Section: {sections.find(sec => sec.id === sub.section_id || sec._id === sub.section_id)?.name || 'Not Assigned'}
+                  </div>
+                  <div className="flex items-center gap-1 text-[11px] text-emerald-600 font-bold uppercase">
+                    <User className="w-3 h-3" />
+                    Teacher: {sub.teacher_name || 'Not Assigned'}
+                  </div>
+                </div>
               </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-500">Discount</span>
-                <span className="font-medium text-red-600">-{s.studentProfile?.discount} PKR</span>
-              </div>
-              <div className="pt-2 mt-2 border-t flex justify-between">
-                <span className="font-bold text-gray-700">Final Estimate</span>
-                <span className="font-bold text-lg text-primary">{s.studentProfile?.payableFee} PKR</span>
+              <div className="text-right mt-2 md:mt-0">
+                <span className="text-sm font-bold text-gray-400">Fee:</span>
+                <span className="ml-2 font-black text-gray-700">Rs. {sub.fee?.toLocaleString()}</span>
               </div>
             </div>
-          </div>
+          ))}
+          {(!s.studentProfile?.subjects || s.studentProfile.subjects.length === 0) && (
+            <div className="text-center py-6 text-gray-400 italic text-sm">No subjects selected</div>
+          )}
         </div>
       </div>
     </div>
@@ -506,184 +477,112 @@ const StudentViewModal = ({
     const father = s.studentProfile?.father || {};
     const mother = s.studentProfile?.mother || {};
     const guardian = s.studentProfile?.guardian || {};
-    const emergency = s.emergencyContact || {};
 
     return (
       <div className="space-y-6">
-        {/* Guardian Type */}
-        <div className="bg-gray-50 p-4 rounded-lg">
-          <div className="flex items-center gap-2 mb-4">
-            <Shield className="w-4 h-4 text-gray-500" />
-            <h4 className="font-medium text-gray-700">Guardian Type</h4>
-          </div>
-          <div className="flex justify-center">
-            <span className={`px-4 py-2 rounded-full text-sm font-medium ${
-              guardianType === 'parent' 
-                ? 'bg-blue-100 text-blue-700' 
-                : 'bg-purple-100 text-purple-700'
-            }`}>
-              {guardianType === 'parent' ? 'Parent (Father/Mother)' : 'Guardian'}
-            </span>
-          </div>
+        {/* Guardian Type Indicator */}
+        <div className="flex justify-center mb-2">
+          <Badge className={`px-6 py-2 text-sm uppercase tracking-widest font-black ${guardianType === 'parent' ? 'bg-blue-600' : 'bg-purple-600'}`}>
+            {guardianType === 'parent' ? 'Father & Mother' : 'Guardian Details'}
+          </Badge>
         </div>
 
         {guardianType === 'parent' ? (
-          <>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             {/* Father Information */}
-            <div className="bg-gray-50 p-4 rounded-lg">
-              <div className="flex items-center gap-2 mb-2">
-                <User className="w-4 h-4 text-gray-500" />
-                <h4 className="font-medium text-gray-700">Father Information</h4>
+            <div className="bg-gray-50 p-5 rounded-2xl border border-gray-100 shadow-sm">
+              <div className="flex items-center gap-3 mb-4 border-b pb-3">
+                <div className="p-2 bg-blue-100 rounded-xl">
+                  <User className="w-5 h-5 text-blue-600" />
+                </div>
+                <h4 className="font-bold text-gray-800">Father Details</h4>
               </div>
-              <div className="space-y-2">
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-500">Name</span>
-                  <span className="font-medium">{father.name || 'N/A'}</span>
+              <div className="space-y-3">
+                <div className="flex flex-col">
+                  <span className="text-[10px] uppercase font-bold text-gray-400">Full Name</span>
+                  <span className="font-bold text-gray-900">{father.name || 'N/A'}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-500">CNIC</span>
-                  <span className="font-medium">{father.cnic || 'N/A'}</span>
+                <div className="flex flex-col">
+                  <span className="text-[10px] uppercase font-bold text-gray-400">Occupation</span>
+                  <span className="font-medium text-gray-700">{father.occupation || 'N/A'}</span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-500">Monthly Income</span>
-                  <span className="font-medium">{father.income ? `${father.income} PKR` : 'N/A'}</span>
+                <div className="flex flex-col">
+                  <span className="text-[10px] uppercase font-bold text-gray-400">Phone Number</span>
+                  <span className="font-bold text-blue-600">{father.phone || 'N/A'}</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] uppercase font-bold text-gray-400">CNIC Number</span>
+                  <span className="font-medium text-gray-700">{father.cnic || 'N/A'}</span>
                 </div>
               </div>
             </div>
 
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-500">Phone</span>
-                  <span className="font-medium">{father.phone || 'N/A'}</span>
+            {/* Mother Information */}
+            {/* <div className="bg-gray-50 p-5 rounded-2xl border border-gray-100 shadow-sm">
+              <div className="flex items-center gap-3 mb-4 border-b pb-3">
+                <div className="p-2 bg-pink-100 rounded-xl">
+                  <User className="w-5 h-5 text-pink-600" />
                 </div>
-          </>
+                <h4 className="font-bold text-gray-800">Mother Details</h4>
+              </div>
+              <div className="space-y-3">
+                <div className="flex flex-col">
+                  <span className="text-[10px] uppercase font-bold text-gray-400">Full Name</span>
+                  <span className="font-bold text-gray-900">{mother.name || 'N/A'}</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] uppercase font-bold text-gray-400">Occupation</span>
+                  <span className="font-medium text-gray-700">{mother.occupation || 'N/A'}</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] uppercase font-bold text-gray-400">Phone Number</span>
+                  <span className="font-bold text-pink-600">{mother.phone || 'N/A'}</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] uppercase font-bold text-gray-400">CNIC Number</span>
+                  <span className="font-medium text-gray-700">{mother.cnic || 'N/A'}</span>
+                </div>
+              </div>
+            </div> */}
+          </div>
         ) : (
           /* Guardian Information */
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <div className="flex items-center gap-2 mb-2">
-              <User className="w-4 h-4 text-gray-500" />
-              <h4 className="font-medium text-gray-700">Guardian Information</h4>
-            </div>
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-500">Name</span>
-                <span className="font-medium">{guardian.name || 'N/A'}</span>
+          <div className="bg-gray-50 p-6 rounded-2xl border border-purple-100 shadow-sm max-w-2xl mx-auto">
+            <div className="flex items-center gap-3 mb-6 border-b pb-4">
+              <div className="p-2 bg-purple-100 rounded-xl">
+                <Shield className="w-5 h-5 text-purple-600" />
               </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-500">Relation</span>
-                <span className="font-medium">{guardian.relation || 'N/A'}</span>
+              <h4 className="font-bold text-gray-800">Guardian Information</h4>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="space-y-4">
+                <div className="flex flex-col">
+                  <span className="text-[10px] uppercase font-bold text-gray-400">Guardian Name</span>
+                  <span className="font-bold text-gray-900">{guardian.name || 'N/A'}</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] uppercase font-bold text-gray-400">Relationship</span>
+                  <span className="font-bold text-purple-600 capitalize">{guardian.relation || 'N/A'}</span>
+                </div>
               </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-500">Phone</span>
-                <span className="font-medium">{guardian.phone || 'N/A'}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-500">Email</span>
-                <span className="font-medium">{guardian.email || 'N/A'}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-500">CNIC</span>
-                <span className="font-medium">{guardian.cnic || 'N/A'}</span>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* Emergency Contact */}
-        <div className="bg-gray-50 p-4 rounded-lg">
-          <div className="flex items-center gap-2 mb-2">
-            <AlertCircle className="w-4 h-4 text-gray-500" />
-            <h4 className="font-medium text-gray-700">Emergency Contact</h4>
-          </div>
-          <div className="space-y-2">
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-500">Contact Name</span>
-              <span className="font-medium">{emergency.name || 'N/A'}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-500">Relationship</span>
-              <span className="font-medium">{emergency.relationship || 'N/A'}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-500">Phone</span>
-              <span className="font-medium">{emergency.phone || 'N/A'}</span>
-            </div>
-          </div>
-        </div>
-      </div>
-    );
-  };
-
-  const renderMedicalInfo = () => {
-    const medical = s.medicalInfo || {};
-
-    return (
-      <div className="space-y-6">
-        {/* Medical Details */}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <div className="flex items-center gap-2 mb-2">
-              <Heart className="w-4 h-4 text-gray-500" />
-              <h4 className="font-medium text-gray-700">Medical Details</h4>
-            </div>
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-500">Blood Group</span>
-                <span className="font-medium">{s.bloodGroup || 'N/A'}</span>
+              <div className="space-y-4">
+                <div className="flex flex-col">
+                  <span className="text-[10px] uppercase font-bold text-gray-400">Phone Number</span>
+                  <span className="font-bold text-gray-900">{guardian.phone || 'N/A'}</span>
+                </div>
+                <div className="flex flex-col">
+                  <span className="text-[10px] uppercase font-bold text-gray-400">CNIC / ID Card</span>
+                  <span className="font-medium text-gray-700">{guardian.cnic || 'N/A'}</span>
+                </div>
               </div>
             </div>
-          </div>
-
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <div className="flex items-center gap-2 mb-2">
-              <Stethoscope className="w-4 h-4 text-gray-500" />
-              <h4 className="font-medium text-gray-700">Doctor Information</h4>
-            </div>
-            <div className="space-y-2">
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-500">Doctor Name</span>
-                <span className="font-medium">{medical.doctorName || 'N/A'}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-sm text-gray-500">Doctor Phone</span>
-                <span className="font-medium">{medical.doctorPhone || 'N/A'}</span>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Allergies */}
-        {medical.allergies && (
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <h4 className="font-medium text-gray-700 mb-2">Allergies</h4>
-            <p className="text-sm text-gray-600 whitespace-pre-line">{medical.allergies}</p>
-          </div>
-        )}
-
-        {/* Chronic Conditions */}
-        {medical.chronicConditions && (
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <h4 className="font-medium text-gray-700 mb-2">Chronic Conditions</h4>
-            <p className="text-sm text-gray-600 whitespace-pre-line">{medical.chronicConditions}</p>
-          </div>
-        )}
-
-        {/* Current Medications */}
-        {medical.medications && (
-          <div className="bg-gray-50 p-4 rounded-lg">
-            <h4 className="font-medium text-gray-700 mb-2">Current Medications</h4>
-            <p className="text-sm text-gray-600 whitespace-pre-line">{medical.medications}</p>
-          </div>
-        )}
-
-        {!medical.allergies && !medical.chronicConditions && !medical.medications && (
-          <div className="text-center py-8">
-            <Heart className="w-12 h-12 text-gray-300 mx-auto mb-3" />
-            <p className="text-gray-500">No medical information recorded</p>
           </div>
         )}
       </div>
     );
   };
+
+  const renderMedicalInfo = () => null;
 
   const renderDocuments = () => (
     <div className="space-y-6">

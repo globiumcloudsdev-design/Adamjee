@@ -30,7 +30,7 @@ async function saveExamMarks(req, { params }) {
 
     // Authorization
     if (
-      currentUser.role === "BRANCH_ADMIN" &&
+      (currentUser.role === "BRANCH_ADMIN" || currentUser.role === "TEACHER") &&
       currentUser.branch_id !== exam.branch_id
     ) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });

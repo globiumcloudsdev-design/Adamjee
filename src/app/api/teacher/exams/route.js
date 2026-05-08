@@ -2,6 +2,48 @@ import { NextResponse } from "next/server";
 import { withAuth } from "@/backend/middleware/auth.middleware";
 import { Exam, Timetable, Branch, AcademicYear, Group, Class, Section, Subject } from "@/backend/models/postgres";
 import { Op } from "sequelize";
+import { format } from "date-fns";
+
+// Automatically update exam status based on current date
+async function autoUpdateExamStatuses(exams) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const todayStr = today.toISOString().split('T')[0];
+
+  for (let exam of exams) {
+    // Only update if scheduled or ongoing
+    if (exam.status !== 'scheduled' && exam.status !== 'ongoing') continue;
+
+    const subjects = exam.subjects || [];
+    if (subjects.length === 0) continue;
+
+    // Get all unique dates from subjects
+    const dates = subjects.map(s => s.date).filter(Boolean).sort();
+    if (dates.length === 0) continue;
+
+    const minDate = dates[0];
+    const maxDate = dates[dates.length - 1];
+
+    let targetStatus = exam.status;
+
+    if (maxDate < todayStr) {
+      targetStatus = 'completed';
+    } else if (minDate <= todayStr && maxDate >= todayStr) {
+      targetStatus = 'ongoing';
+    } else if (minDate > todayStr) {
+      targetStatus = 'scheduled';
+    }
+
+    if (targetStatus !== exam.status) {
+      try {
+        await Exam.update({ status: targetStatus }, { where: { id: exam.id } });
+        exam.status = targetStatus; // Update the object for immediate response
+      } catch (err) {
+        console.error(`Failed to auto-update exam ${exam.id} status:`, err);
+      }
+    }
+  }
+}
 
 async function getTeacherExams(req) {
   try {
@@ -55,6 +97,9 @@ async function getTeacherExams(req) {
       ],
       order: [["created_at", "DESC"]]
     });
+
+    // Automatically update statuses based on date before processing
+    await autoUpdateExamStatuses(exams);
 
     // Collect all unique subject_ids from all exams' subjects JSONB
     const allSubjectIds = [

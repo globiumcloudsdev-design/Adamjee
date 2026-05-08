@@ -215,7 +215,7 @@ export default function TeacherDashboard() {
           { title: "My Profile", icon: Users, color: "text-blue-600", onClick: () => router.push('/profile') },
           { title: "Attendance", icon: CheckCircle, color: "text-green-600", onClick: () => router.push('/teacher/attendance') },
           { title: "Syllabus", icon: BookOpen, color: "text-purple-600" },
-          { title: "Exams", icon: Calendar, color: "text-orange-600" },
+          { title: "Exams", icon: Calendar, color: "text-orange-600", onClick: () => router.push('/teacher/exams') },
           { title: "Leaves", icon: Users, color: "text-red-600" },
           { title: "Resources", icon: BookOpen, color: "text-indigo-600" },
         ]}

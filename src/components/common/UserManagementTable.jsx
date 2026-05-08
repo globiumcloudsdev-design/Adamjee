@@ -161,7 +161,8 @@ export default function UserManagementTable({
                         {user.first_name} {user.last_name}
                       </span>
                       <span className="text-[11px] font-bold text-gray-400 uppercase tracking-tighter">
-                        {user.registration_no || user.registrationNo || 'ID: NOT ASSIGNED'}
+                        {user.role === 'STUDENT' ? 'GR NO: ' : 'REG NO: '}
+                        { (user.details?.academic_info?.roll_no || user.details?.student?.roll_no) || 'NOT ASSIGNED'}
                       </span>
                     </div>
                   </div>

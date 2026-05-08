@@ -98,20 +98,30 @@ export async function PUT(req, { params }) {
     };
 
     // --- 4. Recalculate Fees if needed ---
-    if (data.subjects || data.discount !== undefined || data.academic_info) {
+    if (data.subjects || data.discount !== undefined || data.academic_info || data.total_fee !== undefined) {
       const subjects = data.subjects || data.academic_info?.subjects || student.details?.academic_info?.subjects || [];
-      const discount = data.discount !== undefined ? data.discount : (data.academic_info?.discount || student.details?.academic_info?.discount || 0);
+      const manualDiscount = data.discount !== undefined ? data.discount : (data.academic_info?.discount !== undefined ? data.academic_info.discount : (student.details?.academic_info?.discount || 0));
+      
+      const manualTotalFee = data.total_fee || data.academic_info?.total_fee || data.academic_info?.fee_estimate;
+      const calculated_fee = subjects.reduce((acc, sub) => acc + (sub.fee || 0), 0);
+      
+      const total_fee = (manualTotalFee !== undefined && manualTotalFee !== null) ? Number(manualTotalFee) : calculated_fee;
+      const final_discount = Number(manualDiscount || 0);
+      const payable_fee = total_fee - final_discount;
 
-      const total_fee = subjects.reduce((acc, sub) => acc + (sub.fee || 0), 0);
-      const payable_fee = total_fee - discount;
+      console.log(`[Student Update API] Fee Update: id=${student.id}, manualTotal=${manualTotalFee}, total=${total_fee}, discount=${final_discount}`);
 
       data.details.academic_info = {
         ...(student.details?.academic_info || {}),
         ...(data.academic_info || {}),
         subjects,
         total_fee,
-        discount,
+        fee_estimate: total_fee,
+        discount: final_discount,
+        fee_discount: { type: 'fixed', amount: final_discount, reason: '' },
         payable_fee,
+        payment_date: data.payment_date || data.academic_info?.payment_date || student.details?.academic_info?.payment_date || '10',
+        fee_mention: data.fee_mention || data.academic_info?.fee_mention || student.details?.academic_info?.fee_mention || 'Monthly',
       };
     }
 

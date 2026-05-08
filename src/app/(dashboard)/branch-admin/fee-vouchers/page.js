@@ -168,8 +168,8 @@ export default function FeeVouchersPage() {
   }, [studentDropdownOpen]);
 
   useEffect(() => {
-    if (formData.classId) fetchStudents();
-  }, [formData.classId]);
+    if (formData.classId || formData.generation_type === 'single') fetchStudents();
+  }, [formData.classId, formData.generation_type]);
 
   // Fetch all vouchers in one API call
   const fetchAllVouchers = async () => {
@@ -238,6 +238,7 @@ export default function FeeVouchersPage() {
       else if (res?.success) setStudents(res.data.students || res.data || []);
     } catch (err) {
       console.error('Error loading students:', err);
+      toast.error('Failed to load students');
     }
   };
 
@@ -360,8 +361,6 @@ export default function FeeVouchersPage() {
     setSubmitting(true);
 
     try {
-      if (!formData.dueDate) return toast.error('Please select a due date');
-
       const payload = {
         generation_type: formData.generation_type,
         academic_year_id: formData.academic_year_id,
@@ -369,7 +368,6 @@ export default function FeeVouchersPage() {
         class_id: formData.classId,
         section_id: formData.sectionId,
         student_id: formData.studentId,
-        due_date: formData.dueDate,
         month: parseInt(formData.month),
         year: parseInt(formData.year),
         remarks: formData.remarks,
@@ -563,7 +561,7 @@ export default function FeeVouchersPage() {
                       <div>
                         <div className="font-medium">{name}</div>
                         <div className="text-xs text-gray-500">
-                          Reg: {registrationNumber} | Roll: {rollNumber} | Sec: {voucher.section?.name || section}
+                          Reg: {registrationNumber} | GR: {rollNumber} | Sec: {voucher.section?.name || section}
                         </div>
                       </div>
                     </TableCell>
@@ -807,7 +805,7 @@ export default function FeeVouchersPage() {
           <CardContent className="p-4">
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <Input 
-                placeholder="Search by voucher #, student name, reg #..." 
+                placeholder="Search by voucher #, student name, GR #, reg #..." 
                 value={search} 
                 onChange={(e) => setSearch(e.target.value)} 
                 icon={Search} 
@@ -947,14 +945,7 @@ export default function FeeVouchersPage() {
               />
             </div>
 
-            <div>
-              <Label>Due Date *</Label>
-              <Input
-                type="date"
-                value={formData.dueDate}
-                onChange={(e) => setFormData(prev => ({ ...prev, dueDate: e.target.value }))}
-              />
-            </div>
+            {/* Due Date removed as it is now per-student based on payment_date */}
 
             <div>
               <Label>Academic Year *</Label>
@@ -1018,8 +1009,30 @@ export default function FeeVouchersPage() {
                   value={formData.studentId}
                   onChange={(e) => setFormData(prev => ({ ...prev, studentId: e.target.value }))}
                   options={[
-                    { value: '', label: 'Select Student' },
-                    ...students.map(st => ({ value: st.id || st._id, label: `${st.first_name} ${st.last_name}` })),
+                    { 
+                      value: 'header', 
+                      label: (
+                        <div className="flex justify-between w-full font-bold text-[10px] uppercase tracking-widest text-gray-400 border-b border-gray-100 pb-1 mb-1 px-1">
+                          <span>Student Name</span>
+                          <span>GR No</span>
+                        </div>
+                      ),
+                      disabled: true 
+                    },
+                    ...students.map(st => {
+                      const grNo = st.details?.academic_info?.roll_no || st.roll_no || '---';
+                      return { 
+                        value: st.id || st._id, 
+                        label: (
+                          <div className="flex justify-between w-full items-center pl-1">
+                            <span className="truncate font-medium">{st.first_name} {st.last_name}</span>
+                            <span className="text-[11px] font-mono bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-0.5 rounded-md whitespace-nowrap min-w-[60px] text-center border border-blue-100 dark:border-blue-800">
+                              {grNo}
+                            </span>
+                          </div>
+                        )
+                      };
+                    }),
                   ]}
                 />
               </div>

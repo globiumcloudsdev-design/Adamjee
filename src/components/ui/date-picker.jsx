@@ -218,10 +218,10 @@ export default function DatePicker({
           type="button"
           onClick={() => setIsOpen(!isOpen)}
           className={`
-            w-full flex items-center gap-3 px-4 py-2 bg-white border rounded-lg text-left transition-all shadow-sm
+            w-full flex items-center gap-3 px-4 py-1.5 bg-white border rounded-lg text-left transition-all shadow-sm
             ${isOpen ? 'border-indigo-500 ring-2 ring-indigo-500/20' : 'border-slate-200 hover:border-slate-300'}
             ${error ? 'border-red-300 ring-red-100' : ''}
-            min-h-[42px]
+            min-h-[38px]
           `}
         >
           <CalendarIcon className={`w-4 h-4 transition-colors ${isOpen ? 'text-indigo-500' : 'text-slate-400'}`} />

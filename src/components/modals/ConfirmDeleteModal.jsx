@@ -4,7 +4,7 @@ import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { AlertTriangle } from 'lucide-react';
 
-export default function ConfirmDeleteModal({ title, message, onConfirm, onCancel }) {
+export default function ConfirmDeleteModal({ title, message, onConfirm, onCancel, isLoading = false }) {
   return (
     <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-all duration-300">
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full">
@@ -28,14 +28,23 @@ export default function ConfirmDeleteModal({ title, message, onConfirm, onCancel
                 variant="outline"
                 onClick={onCancel}
                 className="flex-1"
+                disabled={isLoading}
               >
                 Cancel
               </Button>
               <Button
                 onClick={onConfirm}
                 className="flex-1 bg-red-600 hover:bg-red-700 text-white"
+                disabled={isLoading}
               >
-                Delete
+                {isLoading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    Deleting...
+                  </div>
+                ) : (
+                  'Delete'
+                )}
               </Button>
             </div>
           </CardContent>
