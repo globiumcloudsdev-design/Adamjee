@@ -31,7 +31,9 @@ async function getNotificationHistory(req) {
     });
 
     // Fetch sender details for all notifications
-    const senderIds = [...new Set(notifications.map((n) => n.sent_by).filter(Boolean))];
+    const senderIds = [
+      ...new Set(notifications.map((n) => n.sent_by).filter(Boolean)),
+    ];
     let sendersMap = {};
     if (senderIds.length > 0) {
       const senders = await User.findAll({
@@ -40,7 +42,10 @@ async function getNotificationHistory(req) {
       });
       senders.forEach((s) => {
         sendersMap[s.id] = {
-          name: [s.first_name, s.last_name].filter(Boolean).join(" ") || s.email || "Unknown",
+          name:
+            [s.first_name, s.last_name].filter(Boolean).join(" ") ||
+            s.email ||
+            "Unknown",
           role: s.role,
         };
       });
@@ -78,7 +83,11 @@ async function getNotificationHistory(req) {
   } catch (error) {
     console.error("Failed to fetch notification history:", error);
     return NextResponse.json(
-      { success: false, message: "Internal Server Error", error: error.message },
+      {
+        success: false,
+        message: "Internal Server Error",
+        error: error.message,
+      },
       { status: 500 },
     );
   }

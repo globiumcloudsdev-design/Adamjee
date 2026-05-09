@@ -55,8 +55,8 @@ export default function LoginPage() {
   const testAccounts = [
     { login: "admin@coaching.com", password: "Admin@123", role: "Super Admin" },
     {
-      login: "sajoodali486@gmail.com",
-      password: "111111",
+      login: "adamjeec12@gmail.com",
+      password: "admin@c12",
       role: "Branch Admin",
     },
     { login: "sajoodali@gmail.com", password: "111111", role: "Teacher" },
@@ -187,38 +187,40 @@ export default function LoginPage() {
             </form>
 
             {/* Demo Accounts */}
-            <div className="space-y-3">
-              <div className="text-center">
-                <span className="text-sm text-gray-500 bg-gray-50 px-3">
-                  Test Accounts
-                </span>
-                <div className="h-px bg-gray-200 mt-3" />
-              </div>
+            {process.env.NODE_ENV === 'development' && (
+              <div className="space-y-3">
+                <div className="text-center">
+                  <span className="text-sm text-gray-500 bg-gray-50 px-3">
+                    Test Accounts
+                  </span>
+                  <div className="h-px bg-gray-200 mt-3" />
+                </div>
 
-              <div className="space-y-2">
-                {testAccounts.map((account, index) => (
-                  <Button
-                    key={index}
-                    type="button"
-                    onClick={() =>
-                      fillTestCredentials(account.login, account.password)
-                    }
-                    disabled={loading}
-                    className="w-full justify-start space-y-0.5"
-                  >
-                    <div>{account.role}</div>
-                    <div className="text-xs opacity-70">{account.login}</div>
-                  </Button>
-                ))}
-              </div>
+                <div className="space-y-2">
+                  {testAccounts.map((account, index) => (
+                    <Button
+                      key={index}
+                      type="button"
+                      onClick={() =>
+                        fillTestCredentials(account.login, account.password)
+                      }
+                      disabled={loading}
+                      className="w-full justify-start space-y-0.5"
+                    >
+                      <div>{account.role}</div>
+                      <div className="text-xs opacity-70">{account.login}</div>
+                    </Button>
+                  ))}
+                </div>
 
-              {/* Footer */}
-              <div className="pt-4 border-t border-gray-200">
-                <p className="text-center text-sm text-gray-500">
-                  Demo application • Use test accounts above
-                </p>
+                {/* Footer */}
+                <div className="pt-4 border-t border-gray-200">
+                  <p className="text-center text-sm text-gray-500">
+                    Demo application • Use test accounts above
+                  </p>
+                </div>
               </div>
-            </div>
+            )}
           </CardContent>
         </Card>
 

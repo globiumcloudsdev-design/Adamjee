@@ -140,7 +140,7 @@ apiClient.interceptors.response.use(
     }
 
     // Handle JSON error responses
-    const errorMessage = error.response?.data?.message || 'An error occurred';
+    const errorMessage = error.response?.data?.message || error.response?.data?.error || 'An error occurred';
     const errorStatus = error.response?.status || 500;
 
     return Promise.reject({

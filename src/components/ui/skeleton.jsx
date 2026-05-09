@@ -1,9 +1,9 @@
 import React from 'react';
 
-const Skeleton = ({ className = '', ...props }) => {
+export const Skeleton = ({ className = '', ...props }) => {
   return (
     <div
-      className={`animate-pulse rounded-md bg-gray-200/80 ${className}`}
+      className={`animate-pulse rounded-md bg-gray-200/80 dark:bg-gray-700/80 ${className}`}
       {...props}
     />
   );
@@ -468,6 +468,84 @@ export const SubmissionsSkeleton = () => (
             </div>
             <Skeleton className="h-6 w-20 rounded-full" />
             <Skeleton className="h-4 w-24" />
+          </div>
+        ))}
+      </div>
+    </div>
+  </div>
+);
+
+export const NotificationSkeleton = () => (
+  <div className="p-6 max-w-5xl mx-auto space-y-8">
+    {/* Form Card Skeleton */}
+    <div className="bg-white rounded-xl border border-gray-100 overflow-hidden shadow-sm">
+      <div className="p-6 border-b border-gray-100 flex items-center gap-3">
+        <Skeleton className="h-10 w-10 rounded-lg" />
+        <div className="space-y-2">
+          <Skeleton className="h-6 w-64" />
+          <Skeleton className="h-4 w-96" />
+        </div>
+      </div>
+      <div className="p-6 space-y-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-3">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-10 w-full rounded-md" />
+            <div className="flex items-center gap-2 pt-1">
+              <Skeleton className="h-4 w-4 rounded" />
+              <Skeleton className="h-4 w-48" />
+            </div>
+            <div className="flex items-center gap-2">
+              <Skeleton className="h-4 w-4 rounded" />
+              <Skeleton className="h-4 w-48" />
+            </div>
+          </div>
+          <div className="space-y-3">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-10 w-full rounded-md" />
+          </div>
+        </div>
+        
+        <div className="space-y-3">
+          <Skeleton className="h-4 w-32" />
+          <Skeleton className="h-32 w-full rounded-md" />
+        </div>
+
+        <div className="pt-4 flex justify-end gap-3 border-t">
+          <Skeleton className="h-10 w-24 rounded-md" />
+          <Skeleton className="h-10 w-32 rounded-md" />
+        </div>
+      </div>
+    </div>
+
+    {/* History Section Skeleton */}
+    <div className="space-y-4">
+      <div className="flex items-center gap-2">
+        <Skeleton className="h-6 w-6 rounded-full" />
+        <Skeleton className="h-6 w-48" />
+      </div>
+      <div className="grid gap-4">
+        {[...Array(3)].map((_, i) => (
+          <div key={i} className="bg-white rounded-xl border border-gray-100 p-4 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
+            <div className="space-y-2 flex-1 w-full">
+              <div className="flex gap-2">
+                <Skeleton className="h-5 w-20 rounded" />
+                <Skeleton className="h-5 w-32 rounded-full" />
+              </div>
+              <Skeleton className="h-5 w-3/4" />
+              <Skeleton className="h-4 w-full" />
+            </div>
+            <div className="flex gap-4 items-center">
+              <div className="space-y-1">
+                <Skeleton className="h-3 w-16" />
+                <Skeleton className="h-4 w-8 mx-auto" />
+              </div>
+              <div className="space-y-1">
+                <Skeleton className="h-3 w-16" />
+                <Skeleton className="h-4 w-8 mx-auto" />
+              </div>
+              <Skeleton className="h-8 w-32 rounded-md" />
+            </div>
           </div>
         ))}
       </div>

@@ -110,7 +110,7 @@ export default function Header({ mobileOpen, setMobileOpen }) {
 
           {/* Quick Actions (Desktop) */}
           <div className="hidden sm:flex items-center gap-1">
-             <ThemeToggle />
+             {/* <ThemeToggle /> */}
              <NotificationBell />
           </div>
 

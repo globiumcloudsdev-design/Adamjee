@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { withAuth } from "@/backend/middleware/auth.middleware";
-import { Notification, User } from "@/backend/models/postgres";
+import { Notification, User, sequelize } from "@/backend/models/postgres";
 import NotificationService from "@/backend/services/NotificationService";
 import { Op } from "sequelize";
 
@@ -62,14 +62,33 @@ async function sendNotification(req) {
   try {
     const currentUser = req.user;
     const body = await req.json();
-    const { title, message, type, branch_id, targetRoles, targetUserIds, sendToAll } = body;
+    const { title, message, type, branch_id, targetRoles, targetUserIds, sendToAll, targetSectionId } = body;
+
+    // BRANCH_ADMIN: always scope to their own branch
+    const effectiveBranchId = currentUser.role === "BRANCH_ADMIN"
+      ? currentUser.branch_id
+      : (branch_id || null);
+
+    console.log(`[Notification] Sender: role=${currentUser.role}, user.branch_id=${currentUser.branch_id}, body.branch_id=${branch_id}, effectiveBranchId=${effectiveBranchId}, targetSectionId=${targetSectionId}, targetRoles=${JSON.stringify(targetRoles)}, sendToAll=${sendToAll}`);
 
     let recipientIds = [];
 
-    if (sendToAll) {
+    if (targetSectionId) {
+      // Section targeting: find students in this section (and optionally branch)
+      const where = { role: "STUDENT", is_active: true };
+      if (effectiveBranchId) where.branch_id = effectiveBranchId;
+      // Use ->> text extraction for type-safe comparison (handles both string/number stored section_id)
+      if (!where[Op.and]) where[Op.and] = [];
+      where[Op.and].push(
+        sequelize.literal(`details->'academic_info'->>'section_id' = '${targetSectionId.replace(/'/g, "''")}'`)
+      );
+      const users = await User.findAll({ where, attributes: ["id"] });
+      console.log(`[Notification] Section targeting: sectionId=${targetSectionId}, branchId=${effectiveBranchId}, found ${users.length} students`);
+      recipientIds = users.map((u) => u.id);
+    } else if (sendToAll) {
       // Fetch all active users
       const where = { is_active: true };
-      if (branch_id) where.branch_id = branch_id;
+      if (effectiveBranchId) where.branch_id = effectiveBranchId;
       
       const users = await User.findAll({ where, attributes: ["id"] });
       recipientIds = users.map((u) => u.id);
@@ -79,15 +98,19 @@ async function sendNotification(req) {
       // Normalize roles to uppercase to match database ENUM values
       const dbRoles = targetRoles.map(r => r.toUpperCase());
       const where = { role: { [Op.in]: dbRoles }, is_active: true };
-      if (branch_id) where.branch_id = branch_id;
+      if (effectiveBranchId) where.branch_id = effectiveBranchId;
       
       const users = await User.findAll({ where, attributes: ["id"] });
       recipientIds = users.map((u) => u.id);
     }
 
     if (recipientIds.length === 0) {
+      let errorMsg = "No recipients found for the selected criteria";
+      if (targetSectionId) {
+        errorMsg = "No students or parents are currently registered in this class/section.";
+      }
       return NextResponse.json(
-        { success: false, message: "No recipients found" },
+        { success: false, message: errorMsg },
         { status: 400 },
       );
     }
@@ -96,7 +119,7 @@ async function sendNotification(req) {
       title,
       message,
       type,
-      branchId: branch_id,
+      branchId: effectiveBranchId,
       sentBy: currentUser.id,
     });
 

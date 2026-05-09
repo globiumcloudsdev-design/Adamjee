@@ -187,9 +187,11 @@ import {
   uploadProfilePhoto,
   uploadQR,
   deleteFromCloudinary,
+  uploadAdminDocument,
 } from "@/backend/utils/cloudinary";
 import QRCode from "qrcode";
 import { getWelcomeEmailTemplate } from "@/backend/utils/email-templates";
+import { v4 as uuidv4 } from "uuid";
 
 // Helper to generate unique registration_no for branch admin
 async function generateBranchAdminId(branchCode) {
@@ -381,20 +383,25 @@ async function createBranchAdmin(req) {
 
     // Send email if email provided
     if (email) {
-      const emailHtml = getWelcomeEmailTemplate({
-        name: `${first_name} ${last_name}`,
-        role: "BRANCH_ADMIN",
-        id: registration_no,
-        email,
-        password,
-        branchName: branch.name,
-      });
+      try {
+        const emailHtml = getWelcomeEmailTemplate({
+          name: `${first_name} ${last_name}`,
+          role: "BRANCH_ADMIN",
+          id: registration_no,
+          email,
+          password,
+          branchName: branch.name,
+        });
 
-      await sendEmail(
-        email,
-        "Welcome to Adamjee Coaching - Your Access is Ready",
-        emailHtml,
-      );
+        await sendEmail(
+          email,
+          "Welcome to Adamjee Coaching - Your Access is Ready",
+          emailHtml,
+        );
+      } catch (emailError) {
+        console.error("Failed to send welcome email:", emailError);
+        // We don't throw here because the user is already created and committed to the DB
+      }
     }
 
     const adminResponse = {
@@ -416,7 +423,9 @@ async function createBranchAdmin(req) {
       { status: 201 },
     );
   } catch (error) {
-    await transaction.rollback();
+    if (!transaction.finished) {
+      await transaction.rollback();
+    }
     // Cleanup uploaded files if any
     if (avatarPublicId)
       await deleteFromCloudinary(avatarPublicId).catch(console.error);
