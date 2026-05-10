@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import apiClient from "@/lib/api-client";
 import { API_ENDPOINTS } from "@/constants/api-endpoints";
@@ -49,11 +49,14 @@ const PERIOD_TYPES = [
 
 export default function BranchTimetablePage() {
   const { user } = useAuth();
-  const branchId =
+  const rawBranchId =
     user?.branch_id ||
     user?.branchId ||
     (typeof user?.branch === "object" ? user.branch?.id : "") ||
     "";
+  
+  // Memoize branchId to ensure consistency
+  const branchId = React.useMemo(() => rawBranchId, [rawBranchId]);
 
   const [classes, setClasses] = useState([]);
   const [sections, setSections] = useState([]);
@@ -118,21 +121,45 @@ export default function BranchTimetablePage() {
 
   useEffect(() => {
     console.log(
-      "Timetable useEffect triggered. User:",
+      "Timetable useEffect (Fetchers) triggered. User:",
       !!user,
       "BranchId:",
       branchId,
     );
-    if (!user) return;
-    fetchGroups();
-    fetchClasses();
-    fetchTeachers();
-    fetchAcademicYears();
-    fetchAllSubjects();
-    fetchTeacherSchedulesForBranch(branchId, selectedAcademicYear);
-    fetchTimetables(true); // Fetch all for duplicate checks
-    fetchTimetables(false); // Fetch with filters for display
-  }, [user, branchId, selectedAcademicYear]);
+    if (!user || !branchId) {
+       console.log("⏳ Waiting for user or branchId...", { hasUser: !!user, branchId });
+       return;
+    }
+
+    const loadInitialData = async () => {
+       try {
+         await Promise.all([
+           fetchGroups(),
+           fetchClasses(),
+           fetchTeachers(),
+           fetchAcademicYears(),
+           fetchAllSubjects()
+         ]);
+         
+         // After basic lists are loaded, fetch schedules and tables
+         fetchTeacherSchedulesForBranch(branchId);
+         fetchTimetables(true); // Fetch all for duplicate checks
+         fetchTimetables(false); // Fetch with filters for display
+       } catch (err) {
+         console.error("Error loading initial timetable data:", err);
+       }
+    };
+
+    loadInitialData();
+  }, [user, branchId]);
+
+  // Handle academic year change separately
+  useEffect(() => {
+    if (user && branchId && selectedAcademicYear) {
+      console.log("📅 Academic Year changed, refreshing filtered results...");
+      fetchTimetables(false);
+    }
+  }, [selectedAcademicYear]);
 
   useEffect(() => {
     if (formData.classId) {
@@ -644,28 +671,26 @@ export default function BranchTimetablePage() {
 
   const fetchTeacherSchedulesForBranch = async (
     branchIdParam,
-    academicYear,
   ) => {
-    console.log("🚀 fetchTeacherSchedulesForBranch called with:", { branchIdParam, academicYear });
-    if (!branchIdParam || !academicYear) {
-      console.log("⚠️ Skipping fetchTeacherSchedulesForBranch due to missing params");
+    console.log("🚀 fetchTeacherSchedulesForBranch called with:", { branchIdParam });
+    if (!branchIdParam) {
+      console.log("⚠️ Skipping fetchTeacherSchedulesForBranch due to missing branchId");
       return;
     }
     try {
-      // Teacher API uses branchId (camelCase)
+      // 1. Fetch ALL teachers for this branch first
       const res = await apiClient.get(
-        API_ENDPOINTS.BRANCH_ADMIN.TEACHERS.LIST,
-        { branchId: branchIdParam },
+        `${API_ENDPOINTS.BRANCH_ADMIN.TEACHERS.LIST}?branchId=${branchIdParam}&limit=1000`,
       );
       const teachersList = Array.isArray(res)
         ? res
         : res.data?.teachers || res.teachers || res.data || [];
       setTeachers(teachersList);
 
-      // Timetable API uses branch_id (snake_case)
-      const ttUrl = `${API_ENDPOINTS.BRANCH_ADMIN.TIMETABLES.LIST}?branch_id=${encodeURIComponent(branchIdParam)}&academic_year_id=${encodeURIComponent(academicYear)}&limit=1000`;
+      // 2. Fetch ALL timetables for this branch (across all academic years) to ensure no conflicts
+      const ttUrl = `${API_ENDPOINTS.BRANCH_ADMIN.TIMETABLES.LIST}?branch_id=${encodeURIComponent(branchIdParam)}&limit=2000`;
       const ttRes = await apiClient.get(ttUrl);
-      console.log("📡 Timetable API Response:", ttRes);
+      console.log("📡 Timetable API Response (All Years for Conflict Check):", ttRes);
       
       let ttList = [];
       if (ttRes.success) {
@@ -678,7 +703,7 @@ export default function BranchTimetablePage() {
         ttList = ttRes.timetable;
       }
 
-      console.log(`📋 Processing ${ttList.length} timetables for conflicts...`);
+      console.log(`📋 Processing ${ttList.length} timetables for GLOBAL branch conflicts...`);
 
       const map = {};
       ttList.forEach((tt) => {
@@ -696,6 +721,7 @@ export default function BranchTimetablePage() {
             timetableId: ttId,
             className: tt.class?.name || tt.classId?.name || tt.class_id?.name || "N/A",
             sectionName: tt.section?.name || tt.sectionId?.name || tt.section_id?.name || "N/A",
+            academicYear: tt.academicYear?.year || tt.academicYearId?.year || "N/A"
           };
           
           map[normalizedTid].push(entry);
@@ -705,7 +731,7 @@ export default function BranchTimetablePage() {
       console.log(`📅 Mapped schedules for ${Object.keys(map).length} teachers.`);
       setTeacherSchedules(map);
     } catch (e) {
-      console.error("Failed to fetch teacher schedules:", e);
+      console.error("❌ Error in fetchTeacherSchedulesForBranch:", e);
     }
   };
 

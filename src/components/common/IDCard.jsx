@@ -134,8 +134,9 @@ const CardFrontVertical = ({ institute, design, student }) => {
       fontFamily: "'Outfit', 'Inter', sans-serif",
       boxShadow: '0 30px 60px rgba(0,0,0,0.15)',
       color: '#000000',
-      border: '1px solid #e2e8f0'
+      border: '2px solid #000000'
     }}>
+
       {/* Header */}
       <div style={{
         height: 85,
@@ -315,9 +316,10 @@ const CardBackVertical = ({ institute, design, student, termsList, showQr }) => 
       flexDirection: 'column',
       fontFamily: "'Outfit', 'Inter', sans-serif",
       boxShadow: '0 20px 40px rgba(0,0,0,0.1)',
-      border: '1px solid #e2e8f0',
+      border: '2px solid #000000',
       color: '#000'
     }}>
+
       {/* Header */}
       <div style={{
         height: 95,

@@ -740,3 +740,237 @@ export const generateFeeVoucherPDF = (voucher) => {
   
   return Buffer.from(doc.output('arraybuffer'));
 };
+
+export const generateFeeReceiptPDF = (voucher, paymentHistory = []) => {
+  const doc = new jsPDF();
+
+  const primaryColor = [0, 102, 204]; // Blue
+  const successColor = [34, 139, 34]; // Green
+  const textBlack = [30, 30, 30];
+
+  const pageWidth = doc.internal.pageSize.width;
+  const pageHeight = doc.internal.pageSize.height;
+  const margin = 15;
+  const contentWidth = pageWidth - (2 * margin);
+
+  // Header with background color
+  doc.setFillColor(...primaryColor);
+  doc.rect(0, 0, pageWidth, 40, 'F');
+
+  // Header text
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(24);
+  doc.text('PAYMENT RECEIPT', pageWidth / 2, 15, { align: 'center' });
+
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+  doc.text('ADAMJEE COACHING - Coaching Management System', pageWidth / 2, 28, { align: 'center' });
+
+  let yPos = 55;
+  doc.setTextColor(...textBlack);
+
+  // Receipt Details Header
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.text('RECEIPT DETAILS', margin, yPos);
+  yPos += 8;
+
+  doc.setLineWidth(0.5);
+  doc.line(margin, yPos - 2, margin + contentWidth, yPos - 2);
+
+  yPos += 6;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+
+  const receiptDate = new Date().toLocaleDateString('en-PK', { 
+    year: 'numeric', 
+    month: 'long', 
+    day: 'numeric' 
+  });
+  const receiptTime = new Date().toLocaleTimeString('en-PK');
+
+  doc.setFont('helvetica', 'bold');
+  doc.text('Receipt Date:', margin, yPos);
+  doc.setFont('helvetica', 'normal');
+  doc.text(receiptDate, margin + 40, yPos);
+
+  doc.setFont('helvetica', 'bold');
+  doc.text('Receipt Time:', margin + (contentWidth * 0.5), yPos);
+  doc.setFont('helvetica', 'normal');
+  doc.text(receiptTime, margin + (contentWidth * 0.5) + 30, yPos);
+
+  yPos += 7;
+  doc.setFont('helvetica', 'bold');
+  doc.text('Voucher #:', margin, yPos);
+  doc.setFont('helvetica', 'normal');
+  doc.text(voucher.voucherNumber || voucher.voucher_no || '---', margin + 40, yPos);
+
+  doc.setFont('helvetica', 'bold');
+  doc.text('Receipt #:', margin + (contentWidth * 0.5), yPos);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`RCP-${Date.now()}`, margin + (contentWidth * 0.5) + 30, yPos);
+
+  // Student Information Section
+  yPos += 14;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.text('STUDENT INFORMATION', margin, yPos);
+  yPos += 8;
+
+  doc.setLineWidth(0.5);
+  doc.line(margin, yPos - 2, margin + contentWidth, yPos - 2);
+
+  yPos += 6;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+
+  const studentName = voucher.studentId?.fullName || 
+                      `${voucher.studentId?.firstName || ''} ${voucher.studentId?.lastName || ''}`.trim() || 'N/A';
+  const registrationNo = voucher.studentId?.registrationNumber || voucher.studentId?.studentProfile?.registrationNumber || 'N/A';
+  const rollNo = voucher.studentId?.rollNumber || voucher.studentId?.studentProfile?.rollNumber || 'N/A';
+
+  doc.setFont('helvetica', 'bold');
+  doc.text('Student Name:', margin, yPos);
+  doc.setFont('helvetica', 'normal');
+  doc.text(studentName, margin + 40, yPos);
+
+  yPos += 7;
+  doc.setFont('helvetica', 'bold');
+  doc.text('Registration #:', margin, yPos);
+  doc.setFont('helvetica', 'normal');
+  doc.text(registrationNo, margin + 40, yPos);
+
+  doc.setFont('helvetica', 'bold');
+  doc.text('Roll #:', margin + (contentWidth * 0.5), yPos);
+  doc.setFont('helvetica', 'normal');
+  doc.text(rollNo, margin + (contentWidth * 0.5) + 30, yPos);
+
+  // Payment Details Section
+  yPos += 14;
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(11);
+  doc.text('PAYMENT DETAILS', margin, yPos);
+  yPos += 8;
+
+  doc.setLineWidth(0.5);
+  doc.line(margin, yPos - 2, margin + contentWidth, yPos - 2);
+
+  yPos += 6;
+  doc.setFont('helvetica', 'normal');
+  doc.setFontSize(10);
+
+  const totalAmount = Number(voucher.totalAmount || voucher.amount_due || 0);
+  const paidAmount = Number(voucher.paidAmount || 0);
+  const remainingAmount = Number(voucher.remainingAmount !== undefined ? voucher.remainingAmount : (totalAmount - paidAmount));
+
+  doc.setFont('helvetica', 'bold');
+  doc.text('Total Amount:', margin, yPos);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`PKR ${totalAmount.toLocaleString('en-PK')}`, margin + 40, yPos);
+
+  yPos += 7;
+  doc.setFont('helvetica', 'bold');
+  doc.text('Previously Paid:', margin, yPos);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`PKR ${(paidAmount - (paymentHistory[paymentHistory.length - 1]?.amount || 0)).toLocaleString('en-PK')}`, margin + 40, yPos);
+
+  yPos += 7;
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(...successColor);
+  doc.text('Current Payment:', margin, yPos);
+  doc.setFont('helvetica', 'normal');
+  const currentPayment = paymentHistory[paymentHistory.length - 1]?.amount || paidAmount;
+  doc.text(`PKR ${currentPayment.toLocaleString('en-PK')}`, margin + 40, yPos);
+
+  yPos += 7;
+  doc.setTextColor(...textBlack);
+  doc.setFont('helvetica', 'bold');
+  doc.text('Remaining Balance:', margin, yPos);
+  doc.setFont('helvetica', 'normal');
+  doc.text(`PKR ${remainingAmount.toLocaleString('en-PK')}`, margin + 40, yPos);
+
+  // Payment Method Section
+  yPos += 12;
+  const lastPayment = paymentHistory[paymentHistory.length - 1];
+  if (lastPayment) {
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(10);
+    doc.text('Payment Method:', margin, yPos);
+    doc.setFont('helvetica', 'normal');
+    doc.text(lastPayment.method || 'Not Specified', margin + 40, yPos);
+
+    if (lastPayment.remarks) {
+      yPos += 7;
+      doc.setFont('helvetica', 'bold');
+      doc.text('Remarks:', margin, yPos);
+      doc.setFont('helvetica', 'normal');
+      const remarksText = doc.splitTextToSize(lastPayment.remarks, contentWidth - 40);
+      doc.text(remarksText, margin + 40, yPos);
+    }
+  }
+
+  // Payment History Table
+  if (paymentHistory && paymentHistory.length > 0) {
+    yPos += 18;
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(11);
+    doc.text('PAYMENT HISTORY', margin, yPos);
+    yPos += 8;
+
+    const tableData = paymentHistory.map(payment => [
+      new Date(payment.date).toLocaleDateString('en-PK'),
+      `PKR ${payment.amount?.toLocaleString('en-PK') || '0'}`,
+      payment.method || 'Manual',
+      payment.remarks || '---'
+    ]);
+
+    autoTable(doc, {
+      startY: yPos,
+      head: [['Date', 'Amount', 'Method', 'Remarks']],
+      body: tableData,
+      theme: 'striped',
+      headStyles: {
+        fillColor: primaryColor,
+        textColor: 255,
+        fontSize: 9,
+        fontStyle: 'bold',
+        halign: 'center'
+      },
+      bodyStyles: {
+        fontSize: 8,
+        cellPadding: 3
+      },
+      alternateRowStyles: {
+        fillColor: [245, 245, 245]
+      },
+      columnStyles: {
+        0: { cellWidth: 35, halign: 'center' },
+        1: { cellWidth: 35, halign: 'right' },
+        2: { cellWidth: 35, halign: 'center' },
+        3: { cellWidth: contentWidth - 110, halign: 'left' }
+      },
+      margin: { left: margin, right: margin }
+    });
+  }
+
+  // Footer
+  yPos = pageHeight - 35;
+  doc.setLineWidth(0.5);
+  doc.line(margin, yPos, margin + contentWidth, yPos);
+
+  yPos += 8;
+  doc.setFont('helvetica', 'italic');
+  doc.setFontSize(8);
+  doc.setTextColor(100, 100, 100);
+  doc.text('This is an electronically generated receipt and is valid without a signature.', pageWidth / 2, yPos, { align: 'center' });
+
+  yPos += 5;
+  doc.text(`Generated on: ${new Date().toLocaleString('en-PK')}`, pageWidth / 2, yPos, { align: 'center' });
+
+  yPos += 5;
+  doc.setTextColor(150, 150, 150);
+  doc.text('© Adamjee Coaching - Coaching Management System', pageWidth / 2, yPos, { align: 'center' });
+
+  return Buffer.from(doc.output('arraybuffer'));
+};

@@ -9,7 +9,6 @@ import Input from '@/components/ui/input';
 import Dropdown from '@/components/ui/dropdown';
 import BranchSelect from '@/components/ui/branch-select';
 import GenderSelect from '@/components/ui/gender-select';
-import BloodGroupSelect from '@/components/ui/blood-group';
 import DepartmentSelect from '@/components/ui/department-select';
 import ClassSelect from '@/components/ui/class-select';
 import DocumentTypeSelect from '@/components/ui/document-type-select';
@@ -61,22 +60,16 @@ export default function TeacherForm({
     lastName: '',
     email: '',
     phone: '',
-    alternatePhone: '',
     dateOfBirth: '',
     gender: 'male',
-    bloodGroup: '',
-    nationality: 'Pakistani',
     cnic: '',
-    religion: '',
     address: {
       street: '',
       city: '',
       state: '',
       country: 'Pakistan',
-      postalCode: '',
     },
     branchId: (userRole?.toUpperCase() === 'BRANCH_ADMIN') ? currentBranchId : '',
-    academicYearId: '',
     profilePhoto: {
       url: '',
       publicId: '',
@@ -113,11 +106,6 @@ export default function TeacherForm({
         accountNumber: '',
         iban: '',
         branchCode: '',
-      },
-      emergencyContact: {
-        name: '',
-        relationship: '',
-        phone: '',
       },
       documents: [],
     },
@@ -160,21 +148,16 @@ export default function TeacherForm({
         lastName: fullTeacher.last_name || fullTeacher.lastName || '',
         email: fullTeacher.email || '',
         phone: fullTeacher.phone || '',
-        alternatePhone: fullTeacher.alternate_phone || fullTeacher.alternatePhone || '',
         dateOfBirth: (fullTeacher.details?.date_of_birth || fullTeacher.dateOfBirth) 
           ? new Date(fullTeacher.details?.date_of_birth || fullTeacher.dateOfBirth).toISOString().split('T')[0] 
           : '',
         gender: fullTeacher.details?.gender || fullTeacher.gender || 'male',
-        bloodGroup: fullTeacher.details?.blood_group || fullTeacher.bloodGroup || '',
-        nationality: fullTeacher.details?.nationality || fullTeacher.nationality || 'Pakistani',
         cnic: fullTeacher.details?.cnic || fullTeacher.cnic || '',
-        religion: fullTeacher.details?.religion || fullTeacher.religion || '',
         address: fullTeacher.details?.address || fullTeacher.address || {
           street: '',
           city: '',
           state: '',
           country: 'Pakistan',
-          postalCode: '',
         },
         branchId: fullTeacher.branch_id || fullTeacher.branchId?._id || (userRole?.toUpperCase() === 'BRANCH_ADMIN' ? currentBranchId : ''),
         profilePhoto: {
@@ -205,11 +188,6 @@ export default function TeacherForm({
             accountNumber: '',
             iban: '',
             branchCode: '',
-          },
-          emergencyContact: details.emergencyContact || details.emergency_contact || { 
-            name: '', 
-            relationship: '', 
-            phone: '' 
           },
           documents: existingDocs,
         },
@@ -300,16 +278,16 @@ export default function TeacherForm({
         return;
       }
       
-      if (!formData.teacherProfile?.designation || !formData.teacherProfile?.emergencyContact?.phone?.trim()) {
+      if (!formData.teacherProfile?.designation) {
         setActiveTab('professional');
-        toast.error('Please fill required professional and emergency contact fields');
+        toast.error('Please fill required professional fields');
         setLoading(false);
         return;
       }
 
-      if (!formData.academicYearId || (userRole?.toUpperCase() === 'SUPER_ADMIN' && !formData.branchId)) {
+      if (userRole?.toUpperCase() === 'SUPER_ADMIN' && !formData.branchId) {
         setActiveTab('academic');
-        toast.error('Please fill required academic fields');
+        toast.error('Please select a Branch');
         setLoading(false);
         return;
       }
@@ -546,16 +524,8 @@ export default function TeacherForm({
           toast.error('Please select a designation');
           return false;
         }
-        if (!formData.teacherProfile?.emergencyContact?.phone?.trim()) {
-          toast.error('Emergency contact phone is required');
-          return false;
-        }
         return true;
       case 'academic':
-        if (!formData.academicYearId) {
-          toast.error('Please select an Academic Year');
-          return false;
-        }
         if (userRole?.toUpperCase() === 'SUPER_ADMIN' && !formData.branchId) {
           toast.error('Please select a Branch');
           return false;
@@ -731,15 +701,6 @@ export default function TeacherForm({
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-bold text-gray-700 mb-1.5 uppercase text-[10px] tracking-widest">Alternate Phone</label>
-                <PhoneInput
-                  value={formData.alternatePhone}
-                  onChange={(val) => setFormData({ ...formData, alternatePhone: val })}
-                  hideDescription
-                />
-              </div>
-
               <DatePicker
                 label="Date of Birth"
                 name="dateOfBirth"
@@ -758,43 +719,11 @@ export default function TeacherForm({
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Blood Group</label>
-                <BloodGroupSelect
-                  name="bloodGroup"
-                  value={formData.bloodGroup}
-                  onChange={handleInputChange}
-                  placeholder="Select Blood Group"
-                />
-              </div>
-
               <CNICInput
                 label="CNIC"
                 value={formData.cnic}
                 onChange={(val) => setFormData({ ...formData, cnic: val })}
               />
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Religion</label>
-                <Input
-                  type="text"
-                  name="religion"
-                  value={formData.religion}
-                  onChange={handleInputChange}
-                  placeholder="Islam"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">Nationality</label>
-                <Input
-                  type="text"
-                  name="nationality"
-                  value={formData.nationality}
-                  onChange={handleInputChange}
-                  placeholder="Pakistani"
-                />
-              </div>
             </div>
 
             {/* Address Section */}
@@ -832,16 +761,6 @@ export default function TeacherForm({
                     value={formData.address.state}
                     onChange={handleInputChange}
                     placeholder="Sindh"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1.5 uppercase text-[10px] tracking-widest">Postal Code</label>
-                  <Input
-                    type="text"
-                    name="address.postalCode"
-                    value={formData.address.postalCode}
-                    onChange={handleInputChange}
-                    placeholder="75500"
                   />
                 </div>
               </div>
@@ -954,53 +873,6 @@ export default function TeacherForm({
                 )}
               </div>
             </div>
-
-            <div className="border-t pt-6">
-              <h3 className="text-sm font-bold text-gray-900 mb-4 flex items-center gap-2">
-                <Shield className="h-4 w-4 text-red-500" />
-                Emergency Contact Details
-              </h3>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1.5 uppercase text-[10px] tracking-widest">Contact Name</label>
-                  <Input
-                    type="text"
-                    name="teacherProfile.emergencyContact.name"
-                    value={formData.teacherProfile.emergencyContact.name}
-                    onChange={handleInputChange}
-                    placeholder="John Doe"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1.5 uppercase text-[10px] tracking-widest">Relationship</label>
-                  <Input
-                    type="text"
-                    name="teacherProfile.emergencyContact.relationship"
-                    value={formData.teacherProfile.emergencyContact.relationship}
-                    onChange={handleInputChange}
-                    placeholder="Father/Brother"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-bold text-gray-700 mb-1.5 uppercase text-[10px] tracking-widest">Phone Number</label>
-                  <PhoneInput
-                    value={formData.teacherProfile.emergencyContact.phone}
-                    onChange={(val) => setFormData({
-                      ...formData,
-                      teacherProfile: {
-                        ...formData.teacherProfile,
-                        emergencyContact: {
-                          ...formData.teacherProfile.emergencyContact,
-                          phone: val
-                        }
-                      }
-                    })}
-                    required
-                    hideDescription
-                  />
-                </div>
-              </div>
-            </div>
           </div>
         )}
 
@@ -1008,23 +880,6 @@ export default function TeacherForm({
         {activeTab === 'academic' && (
           <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Academic Year <span className="text-red-500">*</span>
-                </label>
-                <Dropdown
-                  name="academicYearId"
-                  value={formData.academicYearId}
-                  onChange={handleInputChange}
-                  options={academicYears.map(year => ({
-                    label: year.year || year.name,
-                    value: year.id || year._id
-                  }))}
-                  placeholder="Select Academic Year"
-                  required
-                />
-              </div>
-
               {userRole?.toUpperCase() === 'SUPER_ADMIN' && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
@@ -1202,3 +1057,4 @@ export default function TeacherForm({
   </div>
   );
 }
+

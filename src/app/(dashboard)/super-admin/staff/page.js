@@ -25,6 +25,7 @@ import { toast } from 'sonner';
 import UserManagementTable from '@/components/common/UserManagementTable';
 import ConfirmDeleteModal from '@/components/modals/ConfirmDeleteModal';
 import UserDetailModal from '@/components/modals/UserDetailModal';
+import AdminChangeUserPasswordModal from '@/components/modals/AdminChangeUserPasswordModal';
 
 const STATUS_OPTIONS = [
   { label: 'All Status', value: 'all' },
@@ -48,6 +49,7 @@ export default function SuperAdminStaffPage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [staffToDelete, setStaffToDelete] = useState(null);
   const [branches, setBranches] = useState([]);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [pagination, setPagination] = useState({ page: 1, limit: 10 });
 
   // Load staff
@@ -141,6 +143,11 @@ export default function SuperAdminStaffPage() {
     setShowDeleteModal(true);
   };
 
+  const handleChangePassword = (staffMember) => {
+    setSelectedStaff(staffMember);
+    setShowPasswordModal(true);
+  };
+
   const confirmDelete = async () => {
     if (!staffToDelete) return;
 
@@ -166,9 +173,13 @@ export default function SuperAdminStaffPage() {
   const handleToggleStatus = async (staffMember) => {
     try {
       const endpoint = API_ENDPOINTS.SUPER_ADMIN.STAFF.UPDATE.replace(':id', staffMember.id);
+      
+      // Staff API supports both JSON and FormData.
+      // Using JSON here as it's simpler for a status toggle and supported by the API.
       const response = await apiClient.put(endpoint, {
         is_active: !staffMember.is_active
       });
+      
       if (response.success) {
         toast.success(`Staff ${!staffMember.is_active ? 'activated' : 'deactivated'} successfully`);
         loadStaff();
@@ -262,6 +273,7 @@ export default function SuperAdminStaffPage() {
         onEdit={handleEditStaff}
         onDelete={handleDeleteStaff}
         onToggleStatus={handleToggleStatus}
+        onChangePassword={handleChangePassword}
       />
 
       {/* Pagination Controls */}
@@ -345,6 +357,18 @@ export default function SuperAdminStaffPage() {
         onClose={() => setShowViewModal(false)}
         user={selectedStaff}
         title="Staff Profile Overview"
+      />
+
+      {/* Change Password Modal */}
+      <AdminChangeUserPasswordModal
+        isOpen={showPasswordModal}
+        onClose={() => {
+          setShowPasswordModal(false);
+          setSelectedStaff(null);
+        }}
+        userToEdit={selectedStaff}
+        userRole="staff"
+        adminRole="SUPER_ADMIN"
       />
     </div>
   );

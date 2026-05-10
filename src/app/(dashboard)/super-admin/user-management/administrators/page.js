@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Input from "@/components/ui/input";
+import PasswordInput from "@/components/ui/password-input";
 import Modal from "@/components/ui/modal";
 import BranchSelect from "@/components/ui/branch-select";
 import GenderSelect from "@/components/ui/gender-select";
@@ -43,6 +44,7 @@ import Tabs, { TabPanel } from "@/components/ui/tabs";
 import UserManagementTable from "@/components/common/UserManagementTable";
 import ConfirmDeleteModal from "@/components/modals/ConfirmDeleteModal";
 import UserDetailModal from "@/components/modals/UserDetailModal";
+import AdminChangeUserPasswordModal from "@/components/modals/AdminChangeUserPasswordModal";
 
 export default function AdministratorsPage() {
   const [admins, setAdmins] = useState([]);
@@ -63,6 +65,7 @@ export default function AdministratorsPage() {
   const [showViewModal, setShowViewModal] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [adminToDelete, setAdminToDelete] = useState(null);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -595,6 +598,10 @@ export default function AdministratorsPage() {
                 toast.error('Failed to update status');
               }
             }}
+            onChangePassword={(admin) => {
+              setViewingAdmin(admin);
+              setShowPasswordModal(true);
+            }}
           />
 
           {/* Pagination Controls */}
@@ -921,17 +928,13 @@ export default function AdministratorsPage() {
 
               {!editingAdmin && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Password <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="password"
+                  <PasswordInput
+                    label="Password"
                     value={formData.password}
                     onChange={(e) =>
                       setFormData({ ...formData, password: e.target.value })
                     }
                     placeholder="Minimum 6 characters"
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     required={!editingAdmin}
                     minLength={6}
                   />
@@ -943,17 +946,13 @@ export default function AdministratorsPage() {
 
               {editingAdmin && (
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    New Password (Optional)
-                  </label>
-                  <input
-                    type="password"
+                  <PasswordInput
+                    label="New Password (Optional)"
                     value={formData.password}
                     onChange={(e) =>
                       setFormData({ ...formData, password: e.target.value })
                     }
                     placeholder="Leave empty to keep current password"
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                     minLength={6}
                   />
                   <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
@@ -1196,6 +1195,18 @@ export default function AdministratorsPage() {
         }}
         user={viewingAdmin}
         title="Administrator Details"
+      />
+
+      {/* Change Password Modal */}
+      <AdminChangeUserPasswordModal
+        isOpen={showPasswordModal}
+        onClose={() => {
+          setShowPasswordModal(false);
+          setViewingAdmin(null);
+        }}
+        userToEdit={viewingAdmin}
+        userRole="branch_admin"
+        adminRole="SUPER_ADMIN"
       />
     </div>
   );

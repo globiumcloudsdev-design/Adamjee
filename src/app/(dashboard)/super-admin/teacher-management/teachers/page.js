@@ -352,9 +352,16 @@ export default function TeachersPage() {
         onDelete={handleDelete}
         onToggleStatus={async (teacher) => {
           try {
-            const response = await apiClient.put(API_ENDPOINTS.SUPER_ADMIN.TEACHERS.UPDATE.replace(':id', teacher.id), {
-              is_active: !teacher.is_active
-            });
+            const formData = new FormData();
+            formData.append('data', JSON.stringify({
+              status: !teacher.is_active ? 'active' : 'inactive'
+            }));
+
+            const response = await apiClient.put(
+              API_ENDPOINTS.SUPER_ADMIN.TEACHERS.UPDATE.replace(':id', teacher.id), 
+              formData
+            );
+            
             if (response.success) {
               toast.success(`Teacher ${!teacher.is_active ? 'activated' : 'deactivated'} successfully`);
               fetchTeachers();

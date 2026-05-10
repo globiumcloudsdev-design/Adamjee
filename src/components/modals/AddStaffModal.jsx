@@ -10,6 +10,7 @@ import BloodGroupSelect from '@/components/ui/blood-group';
 import BranchSelect from '@/components/ui/branch-select';
 import ButtonLoader from '@/components/ui/button-loader';
 import Dropdown from '@/components/ui/dropdown';
+import { PasswordInput } from '@/components/ui/password-input';
 import { toast } from 'sonner';
 import PhoneInput from '@/components/ui/phone-input';
 import CNICInput from '@/components/ui/cnic-input';
@@ -94,11 +95,9 @@ export default function AddStaffModal({ open, onClose, onSuccess, branches, role
     lastName: staffMember?.last_name || staffMember?.lastName || '',
     email: staffMember?.email || '',
     phone: staffMember?.phone || '',
-    alternatePhone: staffMember?.details?.alternate_phone || staffMember?.alternatePhone || '',
     dateOfBirth: (staffMember?.details?.date_of_birth || staffMember?.dateOfBirth) ? new Date(staffMember?.details?.date_of_birth || staffMember.dateOfBirth).toISOString().split('T')[0] : '',
     gender: staffMember?.details?.gender || staffMember?.gender || '',
     cnic: staffMember?.details?.cnic || staffMember?.cnic || '',
-    bloodGroup: staffMember?.details?.blood_group || staffMember?.bloodGroup || '',
     branchId: staffMember?.branch_id || staffMember?.branchId?._id || staffMember?.branchId || '',
     joiningDate: (staffMember?.details?.joining_date || staffMember?.staffProfile?.joiningDate) ? new Date(staffMember?.details?.joining_date || staffMember.staffProfile.joiningDate).toISOString().split('T')[0] : '',
     staffType: staffMember?.staff_sub_type || staffMember?.staffProfile?.staffType || '',
@@ -115,17 +114,6 @@ export default function AddStaffModal({ open, onClose, onSuccess, branches, role
       endTime: staffMember?.details?.working_hours?.endTime || staffMember?.staffProfile?.workingHours?.endTime || '',
       breakDuration: staffMember?.details?.working_hours?.breakDuration || staffMember?.staffProfile?.workingHours?.breakDuration || 60,
       workingDays: staffMember?.details?.working_hours?.workingDays || staffMember?.staffProfile?.workingHours?.workingDays || []
-    },
-    specializedInfo: {
-      driverLicense: {
-        number: staffMember?.details?.specialized_info?.driverLicense?.number || staffMember?.staffProfile?.specializedInfo?.driverLicense?.number || '',
-        type: staffMember?.details?.specialized_info?.driverLicense?.type || staffMember?.staffProfile?.specializedInfo?.driverLicense?.type || '',
-        expiryDate: (staffMember?.details?.specialized_info?.driverLicense?.expiryDate || staffMember?.staffProfile?.specializedInfo?.driverLicense?.expiryDate) ? new Date(staffMember?.details?.specialized_info?.driverLicense?.expiryDate || staffMember.staffProfile.specializedInfo.driverLicense.expiryDate).toISOString().split('T')[0] : ''
-      },
-      securityBadgeNumber: staffMember?.details?.specialized_info?.securityBadgeNumber || staffMember?.staffProfile?.specializedInfo?.securityBadgeNumber || '',
-      medicalQualification: staffMember?.details?.specialized_info?.medicalQualification || staffMember?.staffProfile?.specializedInfo?.medicalQualification || '',
-      tradeCertificate: staffMember?.details?.specialized_info?.tradeCertificate || staffMember?.staffProfile?.specializedInfo?.tradeCertificate || '',
-      foodHandlingCertificate: staffMember?.details?.specialized_info?.foodHandlingCertificate || staffMember?.staffProfile?.specializedInfo?.foodHandlingCertificate || ''
     }
   });
 
@@ -470,12 +458,6 @@ export default function AddStaffModal({ open, onClose, onSuccess, branches, role
               onChange={(val) => setFormData(prev => ({ ...prev, phone: val }))}
             />
 
-            <PhoneInput
-              label="Alternate Phone"
-              value={formData.alternatePhone}
-              onChange={(val) => setFormData(prev => ({ ...prev, alternatePhone: val }))}
-            />
-
             <DatePicker
               label="Date of Birth"
               name="dateOfBirth"
@@ -499,35 +481,6 @@ export default function AddStaffModal({ open, onClose, onSuccess, branches, role
               value={formData.cnic}
               onChange={(val) => setFormData(prev => ({ ...prev, cnic: val }))}
             />
-
-
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Religion
-              </label>
-              <input
-                type="text"
-                name="religion"
-                value={formData.religion}
-                onChange={handleChange}
-                placeholder="Islam, Christianity, etc."
-                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Nationality
-              </label>
-              <input
-                type="text"
-                name="nationality"
-                value={formData.nationality}
-                onChange={handleChange}
-                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
-              />
-            </div>
           </div>
         </div>
 
@@ -716,84 +669,7 @@ export default function AddStaffModal({ open, onClose, onSuccess, branches, role
 
 
 
-        {/* Specialized Information - Conditional based on staff type */}
-        {(formData.staffType === 'Driver' || formData.staffType === 'Transporter') && (
-          <div>
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Driver Information</h3>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  License Number
-                </label>
-                <input
-                  type="text"
-                  name="specializedInfo.driverLicense.number"
-                  value={formData.specializedInfo.driverLicense.number}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  License Type
-                </label>
-                <Dropdown
-                  id="licenseType"
-                  name="specializedInfo.driverLicense.type"
-                  value={formData.specializedInfo.driverLicense.type}
-                  onChange={handleChange}
-                  options={LICENSE_TYPE_OPTIONS}
-                  placeholder="Select License Type"
-                />
-              </div>
-
-                <DatePicker
-                  label="License Expiry Date"
-                  name="specializedInfo.driverLicense.expiryDate"
-                  value={formData.specializedInfo.driverLicense.expiryDate}
-                  onChange={handleChange}
-                />
-            </div>
-          </div>
-        )}
-
-        {formData.staffType === 'Security Guard' && (
-          <div>
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Security Information</h3>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Security Badge Number
-              </label>
-              <input
-                type="text"
-                name="specializedInfo.securityBadgeNumber"
-                value={formData.specializedInfo.securityBadgeNumber}
-                onChange={handleChange}
-                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
-              />
-            </div>
-          </div>
-        )}
-
-        {(formData.staffType === 'Doctor' || formData.staffType === 'Nurse') && (
-          <div>
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Medical Information</h3>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Medical Qualification
-              </label>
-              <input
-                type="text"
-                name="specializedInfo.medicalQualification"
-                value={formData.specializedInfo.medicalQualification}
-                onChange={handleChange}
-                placeholder="MBBS, BDS, RN, etc."
-                className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
-              />
-            </div>
-          </div>
-        )}
+        {/* Specialized Information - Hidden as per request */}
 
         {/* Documents Upload */}
         <div>

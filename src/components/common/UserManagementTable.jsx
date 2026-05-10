@@ -10,7 +10,8 @@ import {
   Mail, 
   Phone,
   User,
-  Building2
+  Building2,
+  Key
 } from "lucide-react";
 import { 
   Table, 
@@ -43,6 +44,7 @@ export default function UserManagementTable({
   onDelete,
   onToggleStatus,
   onDownloadQR,
+  onChangePassword,
 }) {
   if (loading) {
     return (
@@ -199,17 +201,25 @@ export default function UserManagementTable({
 
                 {/* Status Toggle Cell */}
                 <TableCell>
-                  <button
-                    onClick={() => onToggleStatus && onToggleStatus(user)}
-                    className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-tight transition-all active:scale-95 ${
-                      user.is_active 
-                        ? 'bg-green-100 text-green-700 hover:bg-green-200' 
-                        : 'bg-red-100 text-red-700 hover:bg-red-200'
-                    }`}
-                  >
-                    <div className={`h-1.5 w-1.5 rounded-full ${user.is_active ? 'bg-green-600 animate-pulse' : 'bg-red-600'}`} />
-                    {user.is_active ? 'Active' : 'Inactive'}
-                  </button>
+                  <div className="flex items-center gap-3">
+                    <button
+                      onClick={() => onToggleStatus && onToggleStatus(user)}
+                      className={`relative inline-flex h-5 w-10 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                        user.is_active ? 'bg-blue-600' : 'bg-gray-200 dark:bg-gray-700'
+                      }`}
+                    >
+                      <span
+                        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+                          user.is_active ? 'translate-x-5' : 'translate-x-0'
+                        }`}
+                      />
+                    </button>
+                    <span className={`text-[10px] font-extrabold uppercase tracking-tight ${
+                      user.is_active ? 'text-green-600' : 'text-red-600'
+                    }`}>
+                      {user.is_active ? 'Active' : 'Inactive'}
+                    </span>
+                  </div>
                 </TableCell>
 
                 {/* Actions Cell */}
@@ -226,6 +236,13 @@ export default function UserManagementTable({
                       <Tooltip content="Edit Details">
                         <Button onClick={() => onEdit(user)} variant="ghost" size="icon" className="h-8 w-8 text-yellow-600 hover:bg-yellow-50">
                           <Edit className="h-4 w-4" />
+                        </Button>
+                      </Tooltip>
+                    )}
+                    {onChangePassword && (
+                      <Tooltip content="Change Password">
+                        <Button onClick={() => onChangePassword(user)} variant="ghost" size="icon" className="h-8 w-8 text-orange-600 hover:bg-orange-50">
+                          <Key className="h-4 w-4" />
                         </Button>
                       </Tooltip>
                     )}

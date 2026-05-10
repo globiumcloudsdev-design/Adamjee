@@ -17,7 +17,7 @@ import { useAuth } from '@/hooks/useAuth';
 import apiClient from '@/lib/api-client';
 import { API_ENDPOINTS } from '@/constants/api-endpoints';
 import { toast } from 'sonner';
-import { generateFeeVoucherPDF } from '@/lib/pdf-generator';
+import { generateFeeVoucherPDF, generateFeeReceiptPDF } from '@/lib/pdf-generator';
 import ConfirmDeleteModal from '@/components/modals/ConfirmDeleteModal';
 
 const MONTHS = [
@@ -442,6 +442,29 @@ export default function FeeVouchersPage() {
     } catch (err) {
       console.error('PDF generation error:', err);
       toast.error('Failed to generate PDF');
+    }
+  };
+
+  const handleDownloadReceipt = async (voucher) => {
+    try {
+      if (!voucher.paymentHistory || voucher.paymentHistory.length === 0) {
+        toast.error('No payment history available for receipt generation');
+        return;
+      }
+      const pdfBuffer = await generateFeeReceiptPDF(voucher, voucher.paymentHistory);
+      const blob = new Blob([pdfBuffer], { type: 'application/pdf' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `Receipt_${voucher.voucherNumber || 'download'}_${new Date().getTime()}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast.success('Receipt downloaded successfully');
+    } catch (err) {
+      console.error('Receipt generation error:', err);
+      toast.error('Failed to generate receipt');
     }
   };
 
@@ -1171,9 +1194,15 @@ export default function FeeVouchersPage() {
             )}
             <div className="flex justify-end gap-2 pt-4">
               <Button variant="outline" onClick={() => setIsViewModalOpen(false)}>Close</Button>
+              {viewingVoucher?.paidAmount > 0 && (
+                <Button variant="secondary" onClick={() => handleDownloadReceipt(viewingVoucher)}>
+                  <Download className="w-4 h-4 mr-2" />
+                  Download Receipt
+                </Button>
+              )}
               <Button onClick={() => handleDownloadVoucher(viewingVoucher)}>
                 <Download className="w-4 h-4 mr-2" />
-                Download PDF
+                Download Voucher
               </Button>
             </div>
           </div>

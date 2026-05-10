@@ -20,6 +20,7 @@ import UserDetailModal from '@/components/modals/UserDetailModal';
 import ConfirmDeleteModal from '@/components/modals/ConfirmDeleteModal';
 import UserManagementTable from '@/components/common/UserManagementTable';
 import Skeleton from '@/components/ui/skeleton';
+import AdminChangeUserPasswordModal from '@/components/modals/AdminChangeUserPasswordModal';
 
 export default function TeachersPage() {
   const router = useRouter();
@@ -36,6 +37,7 @@ export default function TeachersPage() {
   const [fullPageLoading, setFullPageLoading] = useState(false);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [teacherToDelete, setTeacherToDelete] = useState(null);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
   const [stats, setStats] = useState({
     total: 0,
     active: 0,
@@ -204,9 +206,17 @@ export default function TeachersPage() {
 
   const handleToggleStatus = async (teacher) => {
     try {
-      const response = await apiClient.put(API_ENDPOINTS.BRANCH_ADMIN.TEACHERS.UPDATE.replace(':id', teacher.id), {
-        is_active: !teacher.is_active
-      });
+      // Build FormData as the backend expects multipart/form-data
+      const formData = new FormData();
+      formData.append('data', JSON.stringify({
+        status: !teacher.is_active ? 'active' : 'inactive'
+      }));
+
+      const response = await apiClient.put(
+        API_ENDPOINTS.BRANCH_ADMIN.TEACHERS.UPDATE.replace(':id', teacher.id), 
+        formData
+      );
+      
       if (response.success) {
         toast.success(`Teacher ${!teacher.is_active ? 'activated' : 'deactivated'} successfully`);
         fetchTeachers();
@@ -214,6 +224,11 @@ export default function TeachersPage() {
     } catch (error) {
       toast.error('Failed to update status');
     }
+  };
+
+  const handleChangePassword = (teacher) => {
+    setViewingTeacher(teacher);
+    setShowPasswordModal(true);
   };
 
   return (
@@ -338,6 +353,7 @@ export default function TeachersPage() {
         onEdit={handleEdit}
         onDelete={handleDelete}
         onToggleStatus={handleToggleStatus}
+        onChangePassword={handleChangePassword}
       />
 
       {/* Pagination Controls */}
@@ -422,6 +438,17 @@ export default function TeachersPage() {
           }}
         />
       )}
+
+      <AdminChangeUserPasswordModal
+        isOpen={showPasswordModal}
+        onClose={() => {
+          setShowPasswordModal(false);
+          setViewingTeacher(null);
+        }}
+        userToEdit={viewingTeacher}
+        userRole="teacher"
+        adminRole="BRANCH_ADMIN"
+      />
     </div>
   );
 }

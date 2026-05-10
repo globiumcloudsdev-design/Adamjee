@@ -27,7 +27,7 @@ function requestJson(method, path, body = null, headers = {}) {
     },
   };
 
-  return new Promise((resolve, reject) => {t
+  return new Promise((resolve, reject) => {
     const req = http.request(options, (res) => {
       let data = "";
       res.on("data", (chunk) => {

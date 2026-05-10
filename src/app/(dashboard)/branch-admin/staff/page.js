@@ -146,9 +146,13 @@ export default function BranchAdminStaffPage() {
   const handleToggleStatus = async (staffMember) => {
     try {
       const endpoint = API_ENDPOINTS.BRANCH_ADMIN.STAFF.UPDATE.replace(':id', staffMember.id);
+      
+      // Staff API supports both JSON and FormData. 
+      // Using JSON here as it's simpler for a status toggle and supported by the API.
       const response = await apiClient.put(endpoint, {
         is_active: !staffMember.is_active
       });
+      
       if (response.success) {
         toast.success(`Staff ${!staffMember.is_active ? 'activated' : 'deactivated'} successfully`);
         loadStaff();

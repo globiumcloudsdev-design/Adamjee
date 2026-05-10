@@ -24,6 +24,7 @@ import StudentViewModal from '@/components/modals/StudentViewModal';
 import { toast } from 'sonner';
 import UserManagementTable from '@/components/common/UserManagementTable';
 import ConfirmDeleteModal from '@/components/modals/ConfirmDeleteModal';
+import AdminChangeUserPasswordModal from '@/components/modals/AdminChangeUserPasswordModal';
 
 export default function BranchAdminStudentsPage() {
   const { user } = useAuth();
@@ -59,6 +60,7 @@ export default function BranchAdminStudentsPage() {
     printCount: 0,
   });
   const [qrCodeUrl, setQrCodeUrl] = useState('');
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
 
   // --- Fetch Functions ---
 
@@ -322,6 +324,11 @@ export default function BranchAdminStudentsPage() {
     }
   };
 
+  const handleChangePassword = (student) => {
+    setViewingStudent(student);
+    setShowPasswordModal(true);
+  };
+
   const exportToExcel = () => {
     try {
       const exportData = filteredStudents.map(student => ({
@@ -485,6 +492,7 @@ export default function BranchAdminStudentsPage() {
             onDelete={(id) => setDeleteModal({ open: true, student: students.find(s => s.id === id) })}
             onToggleStatus={handleToggleStatus}
             onDownloadQR={handleDownloadCard}
+            onChangePassword={handleChangePassword}
           />
 
           {/* Pagination */}
@@ -586,6 +594,16 @@ export default function BranchAdminStudentsPage() {
         />
       )}
 
+      <AdminChangeUserPasswordModal
+        isOpen={showPasswordModal}
+        onClose={() => {
+          setShowPasswordModal(false);
+          setViewingStudent(null);
+        }}
+        userToEdit={viewingStudent}
+        userRole="student"
+        adminRole="BRANCH_ADMIN"
+      />
     </div>
   );
 }

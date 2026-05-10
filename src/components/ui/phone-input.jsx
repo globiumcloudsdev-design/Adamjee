@@ -16,8 +16,8 @@ const PhoneInput = ({ value, onChange, className, error, label, required = false
       localNumber = digits.substring(2);
     }
     
-    // Limit to 10 digits
-    const limitedNumber = localNumber.substring(0, 10);
+    // Limit to 11 digits
+    const limitedNumber = localNumber.substring(0, 11);
     
     // Call parent onChange with +92 format
     onChange(`+92${limitedNumber}`);
@@ -28,7 +28,7 @@ const PhoneInput = ({ value, onChange, className, error, label, required = false
     if (!val) return '';
     const clean = val.replace('+92', '');
     if (clean.length > 3) {
-      return `${clean.slice(0, 3)} ${clean.slice(3)}`;
+      return `${clean.slice(0, 4)} ${clean.slice(4)}`;
     }
     return clean;
   };

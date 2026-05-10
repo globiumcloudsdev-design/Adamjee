@@ -3,6 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import Modal from '@/components/ui/modal';
 import Input from '@/components/ui/input';
+import PasswordInput from '@/components/ui/password-input';
 import Dropdown from '@/components/ui/dropdown';
 import DatePicker from '@/components/ui/date-picker';
 import PhoneInput from '@/components/ui/phone-input';
@@ -54,9 +55,9 @@ const StudentFormModal = ({
     password: '',
     gender: 'male',
     date_of_birth: '',
-    nationality: 'Pakistani',
+    nationality: 'Pakistan',
     cnic: '',
-    address: { street: '', city: 'Karachi', state: 'Sindh', postalCode: '', country: 'Pakistan' },
+    address: { street: '', city: 'Karachi', state: 'Sindh', country: 'Pakistan' },
     remarks: '',
     // Academic Info
     branch_id: '',
@@ -128,7 +129,7 @@ const StudentFormModal = ({
           (editingStudent.date_of_birth ? new Date(editingStudent.date_of_birth).toISOString().split('T')[0] : ''),
         nationality: editingStudent.nationality || 'Pakistani',
         cnic: editingStudent.cnic || '',
-        address: editingStudent.address || { street: '', city: 'Karachi', state: 'Sindh', postalCode: '', country: 'Pakistan' },
+        address: editingStudent.address || { street: '', city: 'Karachi', state: 'Sindh', country: 'Pakistan' },
         remarks: editingStudent.remarks || '',
         branch_id: editingStudent.branchId || editingStudent.branch_id || '',
         academic_year_id: profile.academicYear || profile.academic_year || profile.academic_year_id || '',
@@ -165,7 +166,7 @@ const StudentFormModal = ({
         date_of_birth: '',
         nationality: 'Pakistani',
         cnic: '',
-        address: { street: '', city: 'Karachi', state: 'Sindh', postalCode: '', country: 'Pakistan' },
+        address: { street: '', city: 'Karachi', state: 'Sindh', country: 'Pakistan' },
         remarks: '',
         installment_count: 1,
         branch_id: '',
@@ -538,7 +539,12 @@ const StudentFormModal = ({
             </div>
 
             {!editingStudent && (
-              <Input label="Password" type="password" value={formData.password} onChange={(e) => handleFieldChange('password', e.target.value)} placeholder="••••••••" required />
+              <PasswordInput 
+                label="Password" 
+                value={formData.password} 
+                onChange={(e) => handleFieldChange('password', e.target.value)} 
+                required 
+              />
             )}
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <Dropdown
@@ -570,9 +576,8 @@ const StudentFormModal = ({
                 <Input label="Street" value={formData.address.street} onChange={(e) => handleNestedFieldChange('address', 'street', e.target.value)} placeholder="Street address" />
                 <Input label="City" value={formData.address.city} onChange={(e) => handleNestedFieldChange('address', 'city', e.target.value)} placeholder="City name" />
               </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mt-2">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-2">
                 <Input label="State" value={formData.address.state} onChange={(e) => handleNestedFieldChange('address', 'state', e.target.value)} placeholder="Province" />
-                <Input label="Postal Code" value={formData.address.postalCode} onChange={(e) => handleNestedFieldChange('address', 'postalCode', e.target.value)} placeholder="Zip code" />
                 <Input label="Country" value={formData.address.country} onChange={(e) => handleNestedFieldChange('address', 'country', e.target.value)} placeholder="Pakistan" />
               </div>
             </div>

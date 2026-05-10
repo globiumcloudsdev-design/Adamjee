@@ -1,5 +1,6 @@
 
-// Default policy config (fallback) - Updated with Adamjee gold/brown theme
+
+// export default generateAndDownloadIdCard;
 const DEFAULT_POLICY_CONFIG = {
   layout: 'vertical',
   card_type: 'student',
@@ -7,8 +8,8 @@ const DEFAULT_POLICY_CONFIG = {
   show_watermark: true,
   qr_enabled: true,
   design: {
-    background_color: '#5a1885',     // Purple
-    accent_color: '#f9b400',         // Yellow
+    background_color: '#ffffff',     // Purple
+    accent_color: '#ffffff',         // Yellow
     secondary_accent: '#7b2cb0',     // Lighter purple
     text_color: '#ffffff',
     border_radius: '15px',
@@ -112,6 +113,12 @@ const buildStudentQrValue = (student) => {
 const flattenStudentData = (student) => {
   const details = student?.details || {};
   const academicDetails = details?.studentDetails || details || {};
+  const academicInfo = details?.academic_info || {};
+  
+  // Extract subjects from enrollment data
+  const subjects = Array.isArray(academicInfo?.subjects) 
+    ? academicInfo.subjects.map(s => s?.name || s).filter(Boolean)
+    : [];
 
   return {
     full_name: `${student?.first_name || ""} ${student?.last_name || ""}`.trim() || "Student Name",
@@ -142,7 +149,7 @@ const flattenStudentData = (student) => {
     branch_name:
       student?.branch_name ||
       student?.branch?.name ||
-      "Main Campus",
+      "NORTH NIZAMUDDIN CAMPUS-12",
 
     shift:
       student?.shift ||
@@ -161,6 +168,7 @@ const flattenStudentData = (student) => {
     qr_code_url: student?.qr_code_url || student?.studentProfile?.qr?.url || "",
     qr_value: buildStudentQrValue(student),
     photo_url: student?.avatar_url || student?.photo_url || "",
+    subjects: subjects,
 
   };
 };
@@ -191,13 +199,13 @@ const createCompleteCardHTML = async (student, institute, policyConfig) => {
   const watermark = policyConfig?.show_watermark !== false;
   const showQr = policyConfig?.qr_enabled !== false;
   const termsList = policyConfig?.terms_list || DEFAULT_POLICY_CONFIG.terms_list;
-  const bgColor = design.background_color || '#242e46';
-  const accentColor = design.accent_color || '#f5ceb0';
+  const bgColor = design.background_color || '#ffffff';
+  const accentColor = design.accent_color || '#ffffff';
   const textColor = design.text_color || '#ffffff';
   const logoUrl = institute?.logo_url || '/id-logo.png';
   const instituteName = institute?.name || 'ADAMJEE COACHING CENTRE';
   const tagline = institute?.settings?.academic?.school_tagline || 'The Best in Coaching';
-  const address = institute?.address || 'City Branch, Pakistan';
+  const address = institute?.address || 'North Nazimabad, Karachi, Pakistan';
   const phone = institute?.phone || '+92 123 4567890';
   const email = institute?.email || 'info@adamjee.edu.pk';
 
@@ -206,9 +214,9 @@ const createCompleteCardHTML = async (student, institute, policyConfig) => {
     : '';
   const qrCodeHTML = showQr
     ? student.qr_code_url
-      ? `<img src="${student.qr_code_url}" onerror="this.onerror=null; this.src='${qrFallbackDataUrl}'" style="width:120px;height:120px;border-radius:15px;background:#fff;padding:10px;box-shadow:0 10px 30px rgba(0,0,0,0.15); border:1px solid #f1f5f9;" />`
+      ? `<img src="${student.qr_code_url}" onerror="this.onerror=null; this.src='${qrFallbackDataUrl}'" style="width:100px;height:100px;border-radius:12px;background:#fff;padding:8px;box-shadow:0 5px 15px rgba(0,0,0,0.1);" />`
       : qrFallbackDataUrl
-        ? `<img src="${qrFallbackDataUrl}" style="width:120px;height:120px;border-radius:15px;background:#fff;padding:10px;box-shadow:0 10px 30px rgba(0,0,0,0.15); border:1px solid #f1f5f9;" />`
+        ? `<img src="${qrFallbackDataUrl}" style="width:100px;height:100px;border-radius:12px;background:#fff;padding:8px;box-shadow:0 5px 15px rgba(0,0,0,0.1);" />`
         : ''
     : "";
 
@@ -222,12 +230,19 @@ const createCompleteCardHTML = async (student, institute, policyConfig) => {
           @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
           * { margin: 0; padding: 0; box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
           body { background: #f1f5f9; font-family: 'Plus Jakarta Sans', sans-serif; padding: 20px; }
-          .sheet { display: flex; flex-direction: column; justify-content: flex-start; align-items: center; gap: 18px; }
-          .card { width: 340px; height: 215px; border-radius: 24px; overflow: hidden; position: relative; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.3); background: white; margin: 15px; }
-          .front { background: ${bgColor}; color: ${textColor}; display: flex; }
+          .sheet { display: flex; flex-direction: column; justify-content: flex-start; align-items: center; gap: 20px; margin-left: 20px; }
+.card { width: 340px; height: 215px; border-radius: 24px; overflow: hidden; position: relative; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.3); background: white; margin: 15px; box-sizing: border-box; }
+          .front { background: ${bgColor}; color: ${textColor}; display: flex; height: 100%; overflow: hidden; }
+          .back { background: white; height: 100%; overflow: hidden; display: flex; flex-direction: column; }
           .front::before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-image: radial-gradient(circle at 2px 2px, rgba(255,255,255,0.05) 1px, transparent 0); background-size: 15px 15px; pointer-events: none; }
+          .info-box { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; justify-content: space-between; }
+          .back-body { flex: 1; min-height: 0; overflow: hidden; display: flex; flex-direction: column; }
+          .terms { flex: 0 0 auto; }
+          .qr-section { flex: 1; min-height: 0; overflow: hidden; }
+          .qr-container { display: flex; align-items: center; justify-content: center; height: 100%; }
+          .contact-mini { flex: 0 0 auto; }
           .accent-strip { width: 135px; background: linear-gradient(165deg, ${accentColor} 0%, ${bgColor} 100%); display: flex; flex-direction: column; align-items: center; padding: 20px 12px; position: relative; border-right: 1px solid rgba(255,255,255,0.15); z-index: 1; }
-          .photo-box { width: 90px; height: 105px; border-radius: 16px; border: 4px solid white; overflow: hidden; margin-top: 10px; background: #1e293b; box-shadow: 0 12px 24px rgba(0,0,0,0.25); position: relative; }
+          .photo-box { width: 90px; height: 105px; border-radius: 16px; border: 4px solid white; overflow: hidden; margin-top: 0px; background: #1e293b; box-shadow: 0 12px 24px rgba(0,0,0,0.25); position: fixed; }
           .info-box { flex: 1; padding: 22px 25px; display: flex; flex-direction: column; justify-content: space-between; position: relative; z-index: 1; }
           .student-name { font-size: 19px; font-weight: 800; letter-spacing: -0.02em; margin-bottom: 6px; text-transform: uppercase; color: white; }
           .detail-label { font-size: 8px; font-weight: 700; opacity: 0.5; text-transform: uppercase; margin-bottom: 3px; letter-spacing: 0.5px; }
@@ -247,9 +262,6 @@ const createCompleteCardHTML = async (student, institute, policyConfig) => {
         <div class="sheet">
         <div class="card front">
           <div class="accent-strip">
-            <div style="background: white; padding: 0px; border-radius: 12px; margin-bottom: 12px; box-shadow: 0 6px 15px rgba(0,0,0,0.15);">
-               <img src="${logoUrl}" style="width:42px; height:42px; object-fit:contain;" />
-            </div>
                <div class="photo-box" style="display:flex; align-items:center; justify-content:center; background:#334155;">
               ${student.photo_url
         ? `<img src="${student.photo_url}" style="width:100%; height:100%; object-fit:cover;" />`
@@ -257,7 +269,7 @@ const createCompleteCardHTML = async (student, institute, policyConfig) => {
       }
             </div>
             <div style="margin-top: 15px; text-align: center;">
-              <div class="detail-label" style="color: white; opacity: 0.7;">GR NO</div>
+              <div class="detail-label" style="color: white; opacity: 0.7;">ROLL NO</div>
               <div class="detail-value" style="color: ${accentColor}; font-size: 15px; font-weight: 900;">${student.roll_number}</div>
             </div>
           </div>
@@ -281,10 +293,7 @@ const createCompleteCardHTML = async (student, institute, policyConfig) => {
                 <div class="detail-label">GUARDIAN</div>
                 <div class="detail-value" style="font-size: 9.5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${student.parent_name}</div>
               </div>
-              <div>
-                <div class="detail-label">BLOOD</div>
-                <div class="detail-value" style="color: ${accentColor}; font-weight:900;">${student.blood_group}</div>
-              </div>
+            
             </div>
             <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-top: 8px;">
                <div>
@@ -308,21 +317,41 @@ const createCompleteCardHTML = async (student, institute, policyConfig) => {
             <div style="font-weight: 900; color: ${bgColor}; margin-bottom: 10px; font-size: 11px; border-left: 4px solid ${accentColor}; padding-left: 8px; letter-spacing: 0.5px;">RULES & POLICIES</div>
             ${termsList.map(term => `<div style="display:flex; gap:8px; margin-bottom:6px;"><span style="color:${accentColor}; font-size: 10px;">★</span><span>${term}</span></div>`).join('')}
           </div>
-          <div class="qr-section">
-            <div class="contact-mini">
-              <div style="margin-bottom: 6px; font-weight: 700; color: #1e293b;">📍 ${address}</div>
-              <div style="display: flex; flex-direction: column; gap: 2px;">
-                 <span>📞 ${phone}</span>
-                 <span>✉️ ${email}</span>
-              </div>
-              <div style="margin-top: 15px; border-top: 1px solid #e2e8f0; padding-top: 8px;">
-                 <div style="font-size: 9px; font-weight: 900; color: ${bgColor}; letter-spacing: 1px;">PRINCIPAL SIGNATURE</div>
-                 <div style="height: 25px; border-bottom: 2px solid ${bgColor}; width: 120px; opacity: 0.15; margin-top: 5px;"></div>
+          <div class="back-body">
+            <!-- Photo on top -->
+            <div style="width:100%; display:flex; justify-content:center; margin-top:0px;">
+              <div class="photo-box" style="width:90px; height:105px; margin-top:0;">
+                ${student.photo_url
+                  ? `<img src="${student.photo_url}" style="width:100%; height:100%; object-fit:cover;" />`
+                  : `<span style="font-size:40px;">${student.gender?.toLowerCase() === 'female' ? '👧' : '👦'}</span>`
+                }
               </div>
             </div>
-            <div style="text-align: center; margin-left: 20px;">
-              <div class="attendance-label">SCAN FOR ATTENDANCE</div>
-              <div class="qr-container">${qrCodeHTML}</div>
+
+            <!-- Student info block (left margin 20px) -->
+            <div class="student-info" style="margin-top:8px; padding: 0 16px; margin-left:20px;">
+              <div style="font-size:9px; font-weight:800; opacity:0.6; text-transform:uppercase; margin-bottom:3px;">STUDENT INFO</div>
+              <div style="font-size:11px; font-weight:900; color:#111; line-height:1.6;">
+                <div><span style="color:${accentColor}; font-weight:900;">Name:</span> ${student.full_name}</div>
+                <div><span style="color:${accentColor}; font-weight:900;">Reg:</span> ${student.registration_no}</div>
+                <div><span style="color:${accentColor}; font-weight:900;">Class:</span> ${student.class}</div>
+                <div><span style="color:${accentColor}; font-weight:900;">Section:</span> ${student.section}</div>
+                ${
+                  student.subjects && student.subjects.length > 0
+                    ? `<div style="margin-top: 8px; border-top: 1px dashed ${accentColor}; padding-top: 5px;">
+                        <span style="color:${accentColor}; font-weight:900;">Subjects:</span> ${student.subjects.join(', ')}
+                      </div>`
+                    : ''
+                }
+              </div>
+            </div>
+
+            <!-- QR at bottom -->
+            <div class="qr-section">
+              <div style="text-align:center; margin-left:20px; margin-right:8px;">
+                <div class="attendance-label">SCAN FOR ATTENDANCE</div>
+                <div class="qr-container">${qrCodeHTML}</div>
+              </div>
             </div>
           </div>
         </div>
@@ -332,166 +361,474 @@ const createCompleteCardHTML = async (student, institute, policyConfig) => {
     `;
   }
 
-  // Default: Vertical Card
-  return `
-    <!DOCTYPE html>
-    <html>
-    <head>
-      <meta charset="UTF-8">
-      <style>
-        @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;900&display=swap');
-        * { margin: 0; padding: 0; box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-        body { background: #f1f5f9; font-family: 'Outfit', sans-serif; padding: 30px; }
-        .sheet { display: flex; flex-direction: row; justify-content: center; align-items: flex-start; gap: 40px; padding: 20px; }
-        .card { width: 280px; height: 440px; border-radius: 15px; overflow: hidden; position: relative; box-shadow: 0 35px 70px rgba(0,0,0,0.15); background: white; border: none; }
-        
-        .header { height: 85px; background: #5a1885; position: relative; padding: 15px 20px; display: flex; align-items: center; gap: 12px; }
-        .header-pattern { position: absolute; top: 0; right: 0; width: 80px; height: 80px; background: rgba(0,0,0,0.1); clip-path: polygon(100% 0, 0 0, 100% 100%); z-index: 1; }
-        .header-pattern-2 { position: absolute; top: 0; right: 0; width: 40px; height: 40px; background: rgba(255,255,255,0.1); clip-path: polygon(100% 0, 0 0, 100% 100%); z-index: 2; }
-        .logo-box { background: transparent; padding: 5px; border-radius: 50%; z-index: 10; display: flex; align-items: center; justify-content: center; }
-        .inst-name { font-size: 13px; font-weight: 900; color: white; text-transform: uppercase; line-height: 1.1; z-index: 10; }
-        
-        .yellow-bar { position: relative; height: 25px; z-index: 5; }
-        .yellow-bar-main { position: absolute; top: 0; left: 0; width: 75%; height: 15px; background: #f9b400; clip-path: polygon(0 0, 100% 0, 85% 100%, 0 100%); }
-        .yellow-bar-accent-1 { position: absolute; top: 18px; left: 45px; width: 40px; height: 4px; background: #f9b400; transform: skewX(-30deg); }
-        .yellow-bar-accent-2 { position: absolute; top: 18px; left: 90px; width: 30px; height: 4px; background: #f9b400; transform: skewX(-30deg); }
-        
-        .photo-container { width: 120px; height: 140px; border: 1px solid #eee; overflow: hidden; margin: 10px auto 0; background: #f8fafc; box-shadow: 0 10px 20px rgba(0,0,0,0.05); }
-        
-        .student-body { padding: 15px 25px; display: flex; flex-direction: column; align-items: flex-start; }
-        .student-name { font-size: 16px; font-weight: 900; color: #000; text-transform: uppercase; width: 100%; margin-bottom: 15px; }
-        
-        .info-list { width: 100%; display: flex; flex-direction: column; gap: 8px; }
-        .info-row { display: flex; align-items: baseline; }
-        .info-label { width: 80px; font-size: 10px; font-weight: 800; color: #000; text-transform: uppercase; }
-        .info-sep { font-size: 10px; font-weight: 800; color: #000; margin-right: 8px; }
-        .info-value { font-size: 11px; font-weight: 500; color: #333; }
-        
-        .footer-accent { position: absolute; bottom: 30px; right: 0; width: 100px; height: 30px; z-index: 5; }
-        .footer-accent-line-1 { position: absolute; bottom: 12px; right: 35px; width: 40px; height: 4px; background: #f9b400; transform: skewX(-30deg); }
-        .footer-accent-line-2 { position: absolute; bottom: 12px; right: 80px; width: 25px; height: 4px; background: #f9b400; transform: skewX(-30deg); }
-        .footer-accent-bar { position: absolute; bottom: 0; right: 0; width: 100%; height: 10px; background: #f9b400; clip-path: polygon(15% 0, 100% 0, 100% 100%, 0 100%); }
-        
-        .footer-solid { height: 50px; background: #5a1885; width: 100%; margin-top: auto; border: none; }
-        
-        .back-body { flex: 1; padding: 15px 20px; display: flex; flexDirection: column; }
-        .terms-box { background: #f3e8ff; padding: 12px; border-radius: 12px; margin-bottom: 15px; }
-        .dates-row { display: flex; justify-content: center; gap: 20px; margin-bottom: 15px; }
-        .contact-box { background: #f3e8ff; padding: 12px; border-radius: 12px; text-align: center; margin-bottom: 15px; }
-        .qr-center { display: flex; justify-content: center; margin-top: auto; }
-        
-        @media print { body { background: white; } .card { box-shadow: none; border: 1px solid #eee; } }
-      </style>
-    </head>
-    <body>
-      <div class="sheet">
-        <!-- FRONT SIDE -->
-        <div class="card">
-          <div class="header">
-            <div class="header-pattern"></div>
-            <div class="header-pattern-2"></div>
-            <div class="logo-box">
-              <img src="${logoUrl}" style="width:40px; height:40px; object-fit:contain;" />
-            </div>
-            <div style="z-index: 10; flex: 1;">
-              <div class="inst-name" style="font-size: 13px; font-weight: 900; color: white; text-transform: uppercase; line-height: 1.1;">ADAMJEE COACHING CENTRE</div>
-              <div style="font-size: 9px; font-weight: 700; color: #f9b400; text-transform: uppercase; margin-top: 2px;">
-                ${student.branch_name || instituteName || "Campus-12"}
-              </div>
-            </div>
-          </div>
-          <div class="yellow-bar">
-            <div class="yellow-bar-main"></div>
-            <div class="yellow-bar-accent-1"></div>
-            <div class="yellow-bar-accent-2"></div>
-          </div>
-          <div class="photo-container">
-            ${student.photo_url
-        ? `<img src="${student.photo_url}" style="width:100%; height:100%; object-fit:cover;" />`
-        : `<div style="width:100%; height:100%; display:flex; align-items:center; justify-content:center; background:#f1f5f9;">
-              <img src="${student.gender?.toLowerCase() === 'male'
-          ? 'https://cdn-icons-png.flaticon.com/512/6997/6997674.png'
-          : 'https://cdn-icons-png.flaticon.com/512/6997/6997662.png'}" 
-              style="width:80%; height:80%; object-fit:contain; opacity:0.7;" />
-           </div>`
+  // Default: Coaching Card with enhanced sidebar matching the image template
+return `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <style>
+    *{
+      margin:0;
+      padding:0;
+      box-sizing:border-box;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+      font-family: 'Segoe UI', 'Poppins', Arial, sans-serif;
+    }
+
+    body{
+      background:#f0f0f0;
+      padding:30px;
+    }
+
+    .sheet{
+      display:flex;
+      justify-content:center;
+      align-items:flex-start;
+      gap:40px;
+      flex-wrap:wrap;
+    }
+
+    .card{
+      width:370px;
+      min-height:580px;
+      background:#fff;
+      border:8px solid ${bgColor};
+      border-radius:12px;
+      overflow:hidden;
+      box-shadow:0 15px 35px rgba(0,0,0,.2);
+      transition: transform 0.3s ease;
+    }
+
+    .card:hover {
+      transform: translateY(-5px);
+    }
+
+    /* FRONT STYLES */
+    .header{
+      background:${bgColor};
+      color:${accentColor};
+      text-align:center;
+      padding:16px;
+      font-size:26px;
+      font-weight:900;
+      text-transform:uppercase;
+      letter-spacing:1px;
+    }
+
+    .sub{
+      color:#fff;
+      font-size:13px;
+      margin-top:6px;
+      font-weight:600;
+      letter-spacing:0.5px;
+    }
+
+    .months{
+      display:grid;
+      grid-template-columns:repeat(3,1fr);
+    }
+
+    .month{
+      border:2px solid #222;
+      height:88px;
+      display:flex;
+      justify-content:center;
+      align-items:flex-start;
+      padding-top:14px;
+      text-align:center;
+      font-weight:800;
+      font-size:16px;
+      color:#222;
+      background:#fafafa;
+      transition: all 0.2s ease;
+    }
+
+    .month:hover {
+      background:${accentColor}20;
+    }
+
+    .footer{
+      background:${bgColor};
+      color:white;
+      text-align:center;
+      padding:20px;
+    }
+
+    .footer h3{
+      color:${accentColor};
+      margin-bottom:10px;
+      font-size:22px;
+      font-weight:800;
+    }
+
+    .footer p{
+      font-size:13px;
+      margin:5px 0;
+      line-height:1.4;
+    }
+
+    .website{
+      color:${accentColor};
+      font-weight:800;
+      margin-top:12px;
+      font-size:16px;
+      letter-spacing:0.5px;
+    }
+
+    /* BACK STYLES - Enhanced Sidebar */
+    .back{
+      display:flex;
+      min-height:580px;
+      padding-left:0;
+    }
+
+.side-strip{
+      width:100px;
+      transform: translateX(-20%);
+      background:${bgColor};
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      justify-content:space-between;
+      padding:20px 0;
+      gap:1px;
+      position:relative;
+    }
+
+    .side-strip::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      width: 100%;
+      height: 3px;
+      background: ${accentColor};
+    }
+
+    .side-logo{
+      width:32px;
+      height:32px;
+      background:white;
+      border-radius:50%;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      padding:5px;
+      box-shadow:0 4px 10px rgba(0,0,0,.2);
+    }
+
+    .side-logo img{
+      width:100%;
+      height:100%;
+      object-fit:contain;
+    }
+
+.vertical-block{
+      writing-mode:horizontal-tb;
+      transform:rotate(270deg);
+      text-align:right;
+      font-weight:700;
+      line-height:1.1;
+      letter-spacing:0.4px;
+    }
+
+    .vertical-block.campus-name {
+      color:${accentColor};
+      font-size:10px;
+      font-weight:600;
+    }
+
+    .vertical-block.campus-name span {
+      display:block;
+      color:white;
+      font-size:9px;
+      margin-top:3px;
+      font-weight:500;
+    }
+
+    .vertical-block.coaching-name {
+      color:white;
+      font-size:13px;
+      font-weight:900;
+    }
+
+    .vertical-block.coaching-name span {
+      display:block;
+      color:${accentColor};
+      font-size:10px;
+      margin-top:3px;
+    }
+
+    .vertical-block.class-info {
+      color:${accentColor};
+      font-size:9px;
+      font-weight:700;
+    }
+
+    .vertical-block.class-info span {
+      display:block;
+      color:rgba(255,255,255,0.7);
+      font-size:8px;
+      margin-top:2px;
+    }
+
+    .vertical-block.subjects {
+      color:white;
+      font-size:8px;
+      font-weight:600;
+      opacity:0.8;
+    }
+
+    .vertical-block.subjects span {
+      display:block;
+      margin-top:2px;
+    }
+
+    .vertical-block.package-title {
+      color:${accentColor};
+      font-size:9px;
+      font-weight:800;
+      letter-spacing:1px;
+    }
+
+    .vertical-block.months {
+      color:white;
+      font-size:9px;
+      font-weight:600;
+      display:flex;
+      flex-direction:column;
+      gap:6px;
+    }
+
+    .month-item {
+      background:rgba(255,215,0,0.2);
+      padding:3px 0;
+      border-radius:10px;
+      font-weight:800;
+      font-size:8px;
+    }
+
+    .back-content{
+      flex:1;
+      padding:25px 20px;
+      display:flex;
+      flex-direction:column;
+      align-items:center;
+      background: linear-gradient(135deg, #ffffff 0%, #fefefe 100%);
+      margin-left:0px;
+    }
+
+    .photo-box{
+      width:140px;
+      height:160px;
+      border:#000000;
+      border-radius:12px;
+      overflow:hidden;
+      margin-bottom:20px;
+      background:#fff;
+      box-shadow:0 8px 20px rgba(0,0,0,0.1);
+    }
+
+    .photo-box img{
+      width:100%;
+      height:100%;
+      object-fit:cover;
+    }
+
+    .avatar-placeholder{
+      width:100%;
+      height:100%;
+      display:flex;
+      align-items:center;
+margin-top:-10px;  
+font-size:50px;
+border-radius:12px;
+border-color:#000000;
+      background:#fff;
+      color:${bgColor};
+      box-shadow:0 8px 20px rgba(0,0,0,0.1);
+   }
+
+.info-container{     width:100%;       border-radius:12px;      padding:15px;      background:#fff;     margin-bottom:15px;      margin-left:20px;    }
+
+    .student-info{
+      line-height:2;
+      font-size:13px;
+      color:#333;
+      margin-left:50px;
+    }
+
+    .student-info b{
+      color:${bgColor};
+      display:inline-block;
+      width:70px;
+      font-size:12px;
+    }
+
+    .info-row {
+      display: flex;
+      margin-bottom: 8px;
+      border-bottom: 1px dashed #eee;
+      padding-bottom: 5px;
+    }
+
+    .info-label {
+      font-weight: 800;
+      color: #000000;
+      width: 75px;
+      font-size: 11px;
+      text-transform: uppercase;
+    }
+
+    .info-value {
+      color: #333;
+      font-size: 12px;
+      font-weight: 500;
+      flex: 1;
+      max-width: 50%;
+      word-wrap: break-word;
+      word-break: break-word;
+      overflow-wrap: break-word;
+    }
+
+    .qr-wrap{
+      margin-top:10px;
+      display:flex;
+      justify-content:center;
+    }
+
+    .qr-wrap img{
+      width:85px;
+      height:85px;
+      border-radius:10px;
+    }
+
+    .badge {
+      background: ${accentColor};
+      color: ${bgColor};
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 9px;
+      font-weight: 800;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+      display: inline-block;
+    }
+
+    @media print{
+      body{
+        background:#fff;
+        padding:0;
       }
-          </div>
-          <div class="student-body">
-            <div class="student-name">${student.full_name}</div>
-            <div class="info-list">
-              <div class="info-row">
-                <div class="info-label">GR No</div>
-                <div class="info-sep">:</div>
-                <div class="info-value" style="font-weight:800; color:#5a1885;">
-                  ${student.roll_number && student.roll_number !== 'N/A' ? student.roll_number : (student.roll_no || student.student_id || 'N/A')}
-                </div>
-              </div>
-              <div class="info-row">
-                <div class="info-label">Reg No</div>
-                <div class="info-sep">:</div>
-                <div class="info-value">${student.registration_no}</div>
-              </div>
-              <div class="info-row">
-                <div class="info-label">Class</div>
-                <div class="info-sep">:</div>
-                <div class="info-value">${student.class}</div>
-              </div>
-              <div class="info-row">
-                <div class="info-label">Section</div>
-                <div class="info-sep">:</div>
-                <div class="info-value">${student.section}</div>
-              </div>
-            </div>
-          </div>
-          <div class="footer-accent">
-          <div class="footer-accent-line-1"></div>
-            <div class="footer-accent-line-2"></div>
-            <div class="footer-accent-bar"></div>
-          </div>
-          <div class="footer-solid"></div>
-        </div>
+      .card{
+        box-shadow:none;
+        break-inside: avoid;
+      }
+      .card:hover {
+        transform: none;
+      }
+    }
+  </style>
+</head>
+<body>
 
-        <!-- BACK SIDE -->
-        <div class="card" style="display:flex; flex-direction:column;">
-          <div class="header" style="height: 95px; display: flex; justify-content: center; align-items: center;">
-            <div class="header-pattern"></div>
-           
-          </div>
-          <div class="yellow-bar" style="height:20px;">
-            <div class="yellow-bar-main" style="height:12px;"></div>
-          </div>
-          <div class="back-body" style="padding: 10px 20px; flex: 1; display: flex; flex-direction: column; gap: 10px;">
-            <div class="terms-box" style="background: #f3e8ff; padding: 10px 12px; border-radius: 12px;">
-              <div style="font-size:11px; font-weight:900; color:#5a1885; margin-bottom:6px; text-transform:uppercase; text-align:center;">TERMS & CONDITIONS</div>
-              ${termsList.slice(0, 3).map(term => `<div style="font-size:8px; color:#333; margin-bottom:3px; display:flex; gap:6px; line-height:1.2;"><span style="color:#5a1885">•</span><span>${term}</span></div>`).join('')}
-            </div>
+<div class="sheet">
 
-            <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; margin-top: 5px;">
-              <div style="color: #5a1885; padding: 5px 20px; border-radius: 20px; font-size: 9px; font-weight: 900; margin-bottom: 15px; letter-spacing: 0.5px; text-transform: uppercase; width: fit-content;  background: transparent;">SCAN FOR ATTENDANCE</div>
-              <div style="background: #fff; padding: 6px; border-radius: 12px; border: 1px solid #f1f5f9; display: inline-block;">
-                <div style="width: 80px; height: 80px; display: flex; align-items: center; justify-content: center;">
-                  ${qrCodeHTML}
-                </div>
-              </div>
-            </div>
+  <!-- FRONT SIDE - Months Layout -->
+  <div class="card">
+    <div class="header">
+      ${instituteName}
+      <div class="sub">${student.branch_name}</div>
+    </div>
 
-            <div style="text-align: center; padding: 10px 0; margin-top: auto;">
-              <div style="height: 20px; width: 140px; margin: 0 auto; border-bottom: 1.5px dashed #5a1885; opacity: 0.4; margin-bottom: 2px;"></div>
-              <div style="font-size: 10px; font-weight: 900; color: #5a1885; letter-spacing: 1px;">PRINCIPAL SIGNATURE</div>
-            </div>
+    <div class="months">
+      <div class="month">JANUARY</div>
+      <div class="month">FEBRUARY</div>
+      <div class="month">MARCH</div>
+      <div class="month">APRIL</div>
+      <div class="month">MAY</div>
+      <div class="month">JUNE</div>
+      <div class="month">JULY</div>
+      <div class="month">AUGUST</div>
+      <div class="month">SEPTEMBER</div>
+      <div class="month">OCTOBER</div>
+      <div class="month">NOVEMBER</div>
+      <div class="month">DECEMBER</div>
+    </div>
 
-            <div style="text-align: center; padding-bottom: 5px;">
-              <div style="font-size: 9px; font-weight: 800; color: #5a1885;">${phone}</div>
-              <div style="font-size: 8px; fontWeight: 500; color: #666;">${email}</div>
-            </div>
-          </div>
-          
-          <div class="footer-solid" style="height: 25px; background: #5a1885; width: 100%;"></div>
-        </div>
+    <div class="footer">
+      <h3>${student.branch_name}</h3>
+   
+      <div class="website">${instituteName}</div>
+    </div>
+  </div>
+
+  <!-- BACK SIDE - Enhanced with Sidebar Text (Matching your image) -->
+  <div class="card back">
+    
+
+    <div class="back-content">
+      
+      <div class="photo-box">
+        ${
+          student.photo_url
+            ? `<img src="${student.photo_url}" />`
+            : `<div class="avatar-placeholder">
+                ${student.gender?.toLowerCase() === 'female' ? '👧' : '👦'}
+              </div>`
+        }
       </div>
-    </body>
-    </html>
-  `;
+
+      <div class="info-container">
+        <div class="student-info">
+          <div class="info-row">
+            <div class="info-label">Name:</div>
+            <div class="info-value">${student.full_name}</div>
+          </div>
+      
+          <div class="info-row">
+            <div class="info-label">Reg No:</div>
+            <div class="info-value">${student.registration_no}</div>
+          </div>
+          <div class="info-row">
+            <div class="info-label">Class:</div>
+            <div class="info-value">${student.class} - ${student.section}</div>
+          </div>
+          <div class="info-row">
+            <div class="info-label">Parent:</div>
+            <div class="info-value">${student.parent_name}</div>
+          </div>
+          <div class="info-row">
+            <div class="info-label">Blood:</div>
+            <div class="info-value">${student.blood_group}</div>
+          </div>
+          ${
+            student.subjects && student.subjects.length > 0
+              ? `<div class="info-row">
+                  <div class="info-label">Subjects:</div>
+                  <div class="info-value">${student.subjects.join(', ')}</div>
+                </div>`
+              : ''
+          }
+        </div>
+
+        ${
+          qrCodeHTML
+            ? `<div class="qr-wrap">${qrCodeHTML}</div>`
+            : ""
+        }
+      </div>
+   
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>
+`;
 };
 
 export const generateAndDownloadIdCard = async ({ role, person, institute, policyConfig }) => {
@@ -554,21 +891,31 @@ export const generateAndDownloadIdCard = async ({ role, person, institute, polic
       windowHeight: Math.max(sheet.scrollHeight, 900),
     });
 
+    const CR100_MM = { width: 102, height: 76 }; // default sensible CR100 card size in mm
+
+    const formatOption = (finalPolicyConfig?.cardSize === 'CR100')
+      ? [CR100_MM.width, CR100_MM.height]
+      : 'a4';
+
     const pdf = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
-      format: 'a4',
+      format: formatOption,
       compress: true
     });
 
     const imgData = canvas.toDataURL('image/jpeg', 0.95);
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
-    const maxWidth = pageWidth - 10;
-    const maxHeight = pageHeight - 10;
+
+    // Fit canvas into the target card/page size
+    const maxWidth = pageWidth;
+    const maxHeight = pageHeight;
     const scale = Math.min(maxWidth / canvas.width, maxHeight / canvas.height);
     const imgWidth = canvas.width * scale;
     const imgHeight = canvas.height * scale;
+
+    // For CR100 we remove extra margins; for A4 keep slight centering
     const x = (pageWidth - imgWidth) / 2;
     const y = (pageHeight - imgHeight) / 2;
 
