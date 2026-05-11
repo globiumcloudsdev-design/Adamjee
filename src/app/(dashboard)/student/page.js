@@ -11,7 +11,9 @@ import {
   TrendingUp,
   ArrowRight,
   FolderOpen,
-  Calendar
+  Calendar,
+  ChevronRight,
+  ExternalLink
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { 
@@ -23,8 +25,9 @@ import {
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { apiClient } from "@/lib/api-client";
+import apiClient from "@/lib/api-client";
 import { useAuth } from "@/hooks/useAuth";
+import { cn } from "@/lib/utils";
 
 export default function StudentDashboardPage() {
   const router = useRouter();

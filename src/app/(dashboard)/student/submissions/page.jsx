@@ -25,8 +25,8 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { apiClient } from "@/lib/api-client";
-import { toast } from "react-hot-toast";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 export default function StudentSubmissionsPage() {
   const router = useRouter();

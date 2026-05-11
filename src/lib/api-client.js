@@ -350,6 +350,6 @@ class ApiClient {
 // Export singleton instance
 const client = new ApiClient();
 
-export { apiClient as axiosInstance };
+export { client as apiClient, apiClient as axiosInstance };
 export { setAccessToken, getAccessToken, clearAccessToken };
 export default client;
