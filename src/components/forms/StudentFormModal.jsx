@@ -353,6 +353,11 @@ const StudentFormModal = ({
     }));
   };
 
+  const isEmail = (val) => {
+    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return re.test(val);
+  };
+
   const validateTab = (tabId) => {
     switch (tabId) {
       case 'personal':
@@ -404,11 +409,6 @@ const StudentFormModal = ({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-
-    const isEmail = (val) => {
-      const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      return re.test(val);
-    };
 
     if (!validateTab('personal') || !validateTab('academic') || !validateTab('parent')) {
       toast.error('Please fill all required fields in all tabs');
