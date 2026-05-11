@@ -18,6 +18,8 @@ export default function Input({
   const hasIcon = icon !== null && icon !== false;
   const Icon = hasIcon ? icon : null;
 
+  const { hideDescription, ...restProps } = props;
+
   return (
     <div className={`flex flex-col ${fullWidth ? 'w-full' : ''} ${className}`}>
       {label && (
@@ -41,7 +43,7 @@ export default function Input({
             // Don't truncate number inputs — text must be fully visible
             type === 'number' ? '' : '',
           ].join(' ')}
-          {...props}
+          {...restProps}
         />
         {hasIcon && Icon && (
           <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">

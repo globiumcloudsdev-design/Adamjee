@@ -78,21 +78,24 @@ async function listTimetable(req) {
 async function createTimetable(req) {
   await ensureTableSynced();
   const currentUser = req.user;
-  if (currentUser.role !== "BRANCH_ADMIN") {
+  if (!["SUPER_ADMIN", "BRANCH_ADMIN"].includes(currentUser.role)) {
     return NextResponse.json(
-      { error: "Only branch admin can create timetable" },
+      { error: "Only super admin or branch admin can create timetable" },
       { status: 403 },
     );
   }
 
   const body = await req.json();
-  const branch_id = currentUser.branch_id;
+  const branch_id =
+    currentUser.role === "SUPER_ADMIN"
+      ? body.branch_id
+      : currentUser.branch_id;
 
   const { academic_year_id, class_id, section_id, periods } = body;
 
-  if (!class_id || !section_id || !periods || !Array.isArray(periods)) {
+  if (!branch_id || !class_id || !section_id || !periods || !Array.isArray(periods)) {
     return NextResponse.json(
-      { error: "Class, Section and Periods (array) are required" },
+      { error: "branch_id, class_id, section_id and periods (array) are required" },
       { status: 400 },
     );
   }
@@ -135,4 +138,4 @@ async function createTimetable(req) {
 }
 
 export const GET = withAuth(listTimetable, ["SUPER_ADMIN", "BRANCH_ADMIN"]);
-export const POST = withAuth(createTimetable, ["BRANCH_ADMIN"]); // only branch admin
+export const POST = withAuth(createTimetable, ["SUPER_ADMIN", "BRANCH_ADMIN"]);

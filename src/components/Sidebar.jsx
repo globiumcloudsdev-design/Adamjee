@@ -1,40 +1,38 @@
 //src/components/Sidebar.jsx
 "use client";
 
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/hooks/useAuth";
 import { cn } from "@/lib/utils";
 import {
-  LayoutDashboard,
-  Users,
-  BookOpen,
-  School,
-  Clock,
-  FileText,
-  DollarSign,
-  Settings,
-  LogOut,
-  Menu,
-  X,
-  FolderOpen,
-  Calendar,
-  Wallet,
+  ArrowRight,
   BarChart3,
   Building2,
-  UserCheck,
-  UserCog,
-  GraduationCap,
-  QrCode,
+  Calendar,
   ChevronRight,
-  Library,
+  Clock,
+  DollarSign,
+  FileText,
+  FolderOpen,
+  GraduationCap,
+  LayoutDashboard,
+  LogOut,
+  Menu,
+  QrCode,
+  Receipt,
+  School,
+  Settings,
   ShieldCheck,
   Sparkles,
-  ArrowRight,
-  Receipt,
+  UserCheck,
+  UserCog,
+  Users,
+  Wallet,
+  X
 } from "lucide-react";
-import { useState, useEffect, useMemo } from "react";
-import { Button } from "@/components/ui/button";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 
 /* ===================== MENU CONFIG ===================== */
 
@@ -175,24 +173,6 @@ const ROLE_MENUS = {
     },
   ],
 
-  parent: [
-    {
-      category: "Overview",
-      items: [{ name: "Dashboard", path: "/parent", icon: LayoutDashboard }],
-    },
-    {
-      category: "Children info",
-      isCollapsible: true,
-      items: [
-        { name: "My Children", path: "/parent/children", icon: Users },
-        { name: "Attendance", path: "/parent/attendance", icon: Clock },
-        { name: "Results", path: "/parent/results", icon: BarChart3 },
-        { name: "Fee Status", path: "/parent/fees", icon: DollarSign },
-        { name: "Notifications", path: "/parent/notifications", icon: Calendar },
-      ],
-    },
-  ],
-
   student: [
     {
       category: "Overview",
@@ -202,19 +182,14 @@ const ROLE_MENUS = {
       category: "Academics",
       isCollapsible: true,
       items: [
-        { name: "My Classes", path: "/student/classes", icon: School },
-        { name: "Attendance", path: "/student/attendance", icon: Clock },
-        { name: "Exams", path: "/student/exams", icon: FileText },
-        { name: "Results", path: "/student/results", icon: BarChart3 },
+        { name: "Assignments", path: "/student/assignments", icon: FolderOpen },
+        { name: "Submissions", path: "/student/submissions", icon: FileText },
       ],
     },
     {
       category: "Account",
-      isCollapsible: true,
       items: [
-        { name: "Profile", path: "/student/profile", icon: Users },
-        { name: "Messages", path: "/student/messages", icon: FileText },
-        { name: "Settings", path: "/student/settings", icon: Settings },
+        { name: "Profile", path: "/profile", icon: Users },
       ],
     },
   ],
@@ -312,13 +287,13 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
             </div>
           ) : (
             <div className="relative group mx-auto animate-in zoom-in duration-300">
-               <div className="absolute -inset-1 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl blur opacity-25 group-hover:opacity-50 transition duration-1000"></div>
-               <div className="relative w-12 h-12 rounded-xl bg-white dark:bg-slate-900 overflow-hidden flex items-center justify-center shadow-xl">
-                  <img src="/logo.png" alt="Logo" className="w-10 h-10 object-contain" />
-               </div>
+              <div className="absolute -inset-1 bg-gradient-to-r from-indigo-600 to-purple-600 rounded-xl blur opacity-25 group-hover:opacity-50 transition duration-1000"></div>
+              <div className="relative w-12 h-12 rounded-xl bg-white dark:bg-slate-900 overflow-hidden flex items-center justify-center shadow-xl">
+                <img src="/logo.png" alt="Logo" className="w-10 h-10 object-contain" />
+              </div>
             </div>
           )}
-          
+
           {isOpen && (
             <Button
               size="icon"
@@ -402,9 +377,9 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
                         >
                           <Icon size={isActive ? 20 : 19} className={cn("transition-all duration-300", !isActive && "group-hover:scale-110 group-hover:text-indigo-600")} />
                           {isOpen && <span className="truncate tracking-tight">{item.name}</span>}
-                          
+
                           {isActive && isOpen && (
-                             <div className="absolute right-3 w-1.5 h-1.5 rounded-full bg-white animate-pulse"></div>
+                            <div className="absolute right-3 w-1.5 h-1.5 rounded-full bg-white animate-pulse"></div>
                           )}
 
                           {/* Tooltip for collapsed state */}
@@ -426,36 +401,36 @@ export default function Sidebar({ mobileOpen, setMobileOpen }) {
 
         {/* Footer Toggle (Desktop Collapsed) */}
         {!isOpen && (
-           <div className="px-4 py-4 flex justify-center border-t border-slate-100 dark:border-slate-800/50">
-              <Button
-                size="icon"
-                variant="ghost"
-                className="h-10 w-10 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-xl transition-all"
-                onClick={() => setIsOpen(true)}
-              >
-                <ArrowRight size={20} />
-              </Button>
-           </div>
+          <div className="px-4 py-4 flex justify-center border-t border-slate-100 dark:border-slate-800/50">
+            <Button
+              size="icon"
+              variant="ghost"
+              className="h-10 w-10 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 rounded-xl transition-all"
+              onClick={() => setIsOpen(true)}
+            >
+              <ArrowRight size={20} />
+            </Button>
+          </div>
         )}
 
         {/* Mobile Toggle & Logout */}
         <div className="mt-auto border-t border-slate-100/50 dark:border-slate-800/50 p-4 space-y-2">
           {mobileOpen && (
-             <Button
-                variant="ghost"
-                onClick={() => setMobileOpen(false)}
-                 className="w-full flex md:hidden items-center justify-start gap-3 px-4 h-12 text-slate-500 hover:text-slate-900 font-semibold rounded-xl"
-             >
-                <X size={20} />
-                <span>Close Sidebar</span>
-             </Button>
+            <Button
+              variant="ghost"
+              onClick={() => setMobileOpen(false)}
+              className="w-full flex md:hidden items-center justify-start gap-3 px-4 h-12 text-slate-500 hover:text-slate-900 font-semibold rounded-xl"
+            >
+              <X size={20} />
+              <span>Close Sidebar</span>
+            </Button>
           )}
 
           <Button
             variant="ghost"
             onClick={logout}
             className={cn(
-               "group w-full h-12 rounded-xl text-slate-500 hover:bg-red-50 dark:hover:bg-red-950/20 hover:text-red-600 font-semibold transition-all duration-300",
+              "group w-full h-12 rounded-xl text-slate-500 hover:bg-red-50 dark:hover:bg-red-950/20 hover:text-red-600 font-semibold transition-all duration-300",
               isOpen ? "justify-start px-4" : "justify-center px-0"
             )}
             title={!isOpen ? "Logout" : undefined}

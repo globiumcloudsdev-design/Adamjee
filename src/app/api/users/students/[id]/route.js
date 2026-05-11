@@ -146,6 +146,7 @@ export async function PUT(req, { params }) {
         subjects,
         total_fee,
         fee_estimate: total_fee,
+        admission_fee: Number(data.admission_fee || data.academic_info?.admission_fee || student.details?.academic_info?.admission_fee || 0),
         discount: final_discount,
         fee_discount: { type: 'fixed', amount: final_discount, reason: '' },
         payable_fee,

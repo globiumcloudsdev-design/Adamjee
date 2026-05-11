@@ -246,8 +246,10 @@ export async function POST(request) {
         
         if (isFirstVoucher) {
           amount_due = (baseMonthly + admissionFee) - discount;
+          var voucherRemarks = `Admission/Test Fee included. ` + (remarks || '');
         } else {
           amount_due = baseMonthly - discount;
+          var voucherRemarks = remarks || ''; // No auto-remarks for regular months
         }
       }
 
@@ -270,10 +272,17 @@ export async function POST(request) {
       );
 
       let rolledBalance = 0;
+      let rolledVoucherNos = [];
       for (const pv of pendingVouchers) {
         const totalDue = Number(pv.amount_due) + Number(pv.fine_amount || 0);
         const currentPaid = Number(pv.paid_amount || 0);
-        rolledBalance += (totalDue - currentPaid);
+        const remaining = totalDue - currentPaid;
+        if (remaining > 0) {
+          rolledBalance += remaining;
+          rolledVoucherNos.push(pv.voucher_no);
+          // Soft delete or mark as merged the old unpaid voucher
+          await pv.destroy(); // Since we are merging the balance, we delete the previous one
+        }
       }
 
       // Validate required fields
@@ -308,7 +317,7 @@ export async function POST(request) {
           installment_no,
           total_installments,
           month: month.toString(),
-          remarks: (rolledBalance > 0 ? `Includes previous pending balance of PKR ${rolledBalance}. ` : '') + (remarks || ''),
+          remarks: (rolledBalance > 0 ? `Includes pending balance of PKR ${rolledBalance} from merged vouchers (${rolledVoucherNos.join(', ')}). ` : '') + (voucherRemarks || remarks || ''),
           created_by: user.id,
           status: 'UNPAID',
         });

@@ -165,4 +165,5 @@ export const GET = withAuth(listAssignments, [
 export const POST = withAuth(createAssignment, [
   "SUPER_ADMIN",
   "BRANCH_ADMIN",
+  "TEACHER",
 ]);

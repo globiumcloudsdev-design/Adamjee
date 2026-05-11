@@ -434,8 +434,7 @@ export default function BranchTimetablePage() {
     }
 
     const defaultStartTime = "14:00"; // 2:00 PM as requested
-    const periodDuration = formData.timeSettings.periodDuration || 40;
-    const days = DAYS;
+    const periodDuration = formData.timeSettings.periodDuration || 45;
     
     // Find the last period across any day to determine the next time slot
     let nextStart = defaultStartTime;
@@ -448,25 +447,22 @@ export default function BranchTimetablePage() {
     }
 
     const nextEnd = addMinutes(nextStart, periodDuration);
-    const newPeriods = [];
+    
+    const sameDayCount = formData.periods.filter(p => p.day === "All Days").length;
+    const newPeriod = {
+      periodNumber: sameDayCount + 1,
+      day: "All Days",
+      startTime: nextStart,
+      endTime: nextEnd,
+      subjectId: "",
+      teacherId: "",
+      periodType: "lecture",
+      roomNumber: getSectionByName(formData.section)?.roomNumber || "",
+      section: formData.section,
+    };
 
-    days.forEach(day => {
-      const sameDayCount = formData.periods.filter(p => String(p.day).toLowerCase() === day.toLowerCase()).length;
-      newPeriods.push({
-        periodNumber: sameDayCount + 1,
-        day,
-        startTime: nextStart,
-        endTime: nextEnd,
-        subjectId: "",
-        teacherId: "",
-        periodType: "lecture",
-        roomNumber: getSectionByName(formData.section)?.roomNumber || "",
-        section: formData.section,
-      });
-    });
-
-    setFormData({ ...formData, periods: [...formData.periods, ...newPeriods] });
-    toast.success(`Added periods for all days (${nextStart} - ${nextEnd})`);
+    setFormData({ ...formData, periods: [...formData.periods, newPeriod] });
+    toast.success(`Added period (${nextStart} - ${nextEnd}) for All Days`);
   };
 
   const updatePeriod = (index, field, value) => {
@@ -1475,7 +1471,7 @@ export default function BranchTimetablePage() {
                           onChange={(e) =>
                             updatePeriod(index, "day", e.target.value)
                           }
-                          options={DAYS.filter((day) => {
+                          options={["All Days", ...DAYS].filter((day) => {
                             if (!formData.section) return true;
                             const conflict = formData.periods.some((p, i) => {
                               if (i === index) return false;

@@ -26,7 +26,6 @@ export default function TeachersPage() {
   const router = useRouter();
   const { user } = useAuth();
   const [teachers, setTeachers] = useState([]);
-  const [departments, setDepartments] = useState([]);
   const [classes, setClasses] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -48,7 +47,6 @@ export default function TeachersPage() {
   // Filters
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedStatus, setSelectedStatus] = useState('');
-  const [selectedDepartment, setSelectedDepartment] = useState('');
   const [academicYears, setAcademicYears] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, limit: 10 });
 
@@ -56,12 +54,11 @@ export default function TeachersPage() {
     const branchId = user?.branch_id || user?.branchId?._id;
     if (branchId) {
       fetchTeachers();
-      fetchDepartments();
       fetchClasses();
       fetchSubjects();
       fetchAcademicYears();
     }
-  }, [user?.branch_id, user?.branchId?._id, searchTerm, selectedStatus, selectedDepartment]);
+  }, [user?.branch_id, user?.branchId?._id, searchTerm, selectedStatus]);
 
   const fetchAcademicYears = async () => {
     try {
@@ -86,7 +83,6 @@ export default function TeachersPage() {
         branchId: branchId,
         ...(searchTerm && { search: searchTerm }),
         ...(selectedStatus && { status: selectedStatus }),
-        ...(selectedDepartment && { departmentId: selectedDepartment }),
       });
 
       const response = await apiClient.get(`${API_ENDPOINTS.BRANCH_ADMIN.TEACHERS.LIST}?${params}`);
@@ -106,20 +102,6 @@ export default function TeachersPage() {
       console.error(error);
     } finally {
       setLoading(false);
-    }
-  };
-
-  const fetchDepartments = async () => {
-    try {
-      const branchId = user?.branch_id || user?.branchId?._id;
-      const response = await apiClient.get(
-        `${API_ENDPOINTS.BRANCH_ADMIN.DEPARTMENTS.LIST}?limit=200&branchId=${branchId}`
-      );
-      if (response?.success) {
-        setDepartments(response.data?.departments || response.data || []);
-      }
-    } catch (error) {
-      console.error('Failed to fetch departments:', error);
     }
   };
 
@@ -408,7 +390,6 @@ export default function TeachersPage() {
           userRole="BRANCH_ADMIN"
           currentBranchId={user?.branch_id || user?.branchId?._id}
           editingTeacher={editingTeacher}
-          departments={departments}
           classes={classes}
           subjects={subjects}
           academicYears={academicYears}

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { withAuth } from "@/backend/middleware/auth.middleware";
 import { AssignmentSubmission, Assignment, User } from "@/backend/models/postgres";
+import { Op } from "sequelize";
 
 async function listSubmissions(req) {
   const currentUser = req.user;
@@ -16,10 +17,19 @@ async function listSubmissions(req) {
   if (currentUser.role === "TEACHER") {
     const assignments = await Assignment.findAll({ where: { teacher_id: currentUser.id }, attributes: ["id"] });
     const assignmentIds = assignments.map(a => a.id);
-    where.assignment_id = assignment_id ? [assignment_id, assignmentIds] : assignmentIds;
+    if (assignment_id) {
+      if (!assignmentIds.includes(assignment_id)) {
+        return NextResponse.json({ submissions: [] });
+      }
+      where.assignment_id = assignment_id;
+    } else {
+      where.assignment_id = { [Op.in]: assignmentIds };
+    }
   } else if (currentUser.role === "BRANCH_ADMIN") {
     // Branch admin sees submissions of his branch: need join with Assignment
     // We'll handle via includes
+  } else if (currentUser.role === "STUDENT") {
+    where.student_id = currentUser.id;
   }
 
   const submissions = await AssignmentSubmission.findAll({
@@ -39,4 +49,4 @@ async function listSubmissions(req) {
   return NextResponse.json({ submissions: filtered });
 }
 
-export const GET = withAuth(listSubmissions, ["SUPER_ADMIN", "BRANCH_ADMIN", "TEACHER"]);
+export const GET = withAuth(listSubmissions, ["SUPER_ADMIN", "BRANCH_ADMIN", "TEACHER", "STUDENT"]);

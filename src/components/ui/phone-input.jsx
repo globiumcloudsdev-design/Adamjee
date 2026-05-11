@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
 const PhoneInput = ({ value, onChange, className, error, label, required = false, hideDescription = false, ...props }) => {
+  const { fullWidth, ...restProps } = props;
   const handleChange = (e) => {
     const input = e.target.value;
     // Extract only digits
@@ -57,7 +58,7 @@ const PhoneInput = ({ value, onChange, className, error, label, required = false
             error && "border-red-500 focus:ring-red-500/20",
             className
           )}
-          {...props}
+          {...restProps}
         />
       </div>
       {error && (

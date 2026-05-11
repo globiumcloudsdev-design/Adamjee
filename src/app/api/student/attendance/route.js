@@ -3,7 +3,8 @@ import { Op, fn, col } from "sequelize";
 import { withAuth } from "@/backend/middleware/auth.middleware.js";
 import { Attendance, Branch, Class, Section, User } from "@/backend/models/postgres";
 
-const ALLOWED_STATUSES = new Set(["PRESENT", "ABSENT", "LATE", "LEAVE", "HOLIDAY"]);
+const ALLOWED_FILTER_STATUSES = new Set(["PRESENT", "ABSENT", "LEAVE"]);
+const DISPLAY_STATUSES = ["present", "absent", "leave"];
 
 function parseJsonSafe(value, fallback = {}) {
   if (!value) return fallback;
@@ -35,7 +36,14 @@ function formatDateOnly(d) {
 function normalizeStatus(status) {
   if (!status) return null;
   const normalized = String(status).trim().toUpperCase();
-  return ALLOWED_STATUSES.has(normalized) ? normalized : null;
+  return ALLOWED_FILTER_STATUSES.has(normalized) ? normalized : null;
+}
+
+function normalizeStatusForStudentView(status) {
+  const normalized = String(status || "").toUpperCase();
+  if (normalized === "PRESENT") return "present";
+  if (normalized === "LEAVE") return "leave";
+  return "absent";
 }
 
 async function buildStudentContext(user) {
@@ -145,15 +153,24 @@ function buildStatisticsFromGroupedStatus(groupedRows, total) {
   const counts = {
     PRESENT: 0,
     ABSENT: 0,
-    LATE: 0,
     LEAVE: 0,
-    HOLIDAY: 0,
   };
 
   for (const row of groupedRows) {
     const status = String(row.status || "").toUpperCase();
-    if (!ALLOWED_STATUSES.has(status)) continue;
-    counts[status] = Number.parseInt(String(row.get("count") || "0"), 10) || 0;
+    const count = Number.parseInt(String(row.get("count") || "0"), 10) || 0;
+
+    if (status === "PRESENT") {
+      counts.PRESENT += count;
+      continue;
+    }
+
+    if (status === "LEAVE") {
+      counts.LEAVE += count;
+      continue;
+    }
+
+    counts.ABSENT += count;
   }
 
   const presentDays = counts.PRESENT;
@@ -162,10 +179,13 @@ function buildStatisticsFromGroupedStatus(groupedRows, total) {
     totalRecords: total,
     presentDays,
     absentDays: counts.ABSENT,
-    lateDays: counts.LATE,
     leaveDays: counts.LEAVE,
-    holidayDays: counts.HOLIDAY,
     attendancePercentage: total > 0 ? Number(((presentDays / total) * 100).toFixed(2)) : 0,
+    statusBreakdown: {
+      present: counts.PRESENT,
+      absent: counts.ABSENT,
+      leave: counts.LEAVE,
+    },
   };
 }
 
@@ -183,7 +203,7 @@ async function getStudentAttendanceHistory(request) {
       return NextResponse.json(
         {
           success: false,
-          message: "Invalid status. Allowed values: PRESENT, ABSENT, LATE, LEAVE, HOLIDAY",
+          message: "Invalid status. Allowed values: PRESENT, ABSENT, LEAVE",
         },
         { status: 400 }
       );
@@ -251,7 +271,7 @@ async function getStudentAttendanceHistory(request) {
     const records = attendanceResult.rows.map((attendance) => ({
       id: attendance.id,
       date: attendance.date,
-      status: String(attendance.status || "ABSENT").toLowerCase(),
+      status: normalizeStatusForStudentView(attendance.status),
       remarks: attendance.remarks,
       attendanceType: attendance.attendance_type || "daily",
       branch: attendance.branch
@@ -298,6 +318,7 @@ async function getStudentAttendanceHistory(request) {
             ...dateFilter.applied,
             status: status ? status.toLowerCase() : null,
           },
+          availableStatuses: DISPLAY_STATUSES,
         },
       },
       { status: 200 }
@@ -314,4 +335,116 @@ async function getStudentAttendanceHistory(request) {
   }
 }
 
+async function markStudentAttendance(request) {
+  try {
+    const currentUser = request.user;
+
+    // Only teachers, staff, and admin can mark attendance
+    if (!["TEACHER", "STAFF", "BRANCH_ADMIN", "SUPER_ADMIN"].includes(currentUser.role)) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Permission denied. Only teachers, staff, and admins can mark attendance.",
+        },
+        { status: 403 }
+      );
+    }
+
+    const body = await request.json();
+    const { student_id, date, status, remarks, leave_request_id, branch_id } = body;
+
+    // Validate required fields
+    if (!student_id || !date || !status) {
+      return NextResponse.json(
+        { success: false, message: "Missing required fields: student_id, date, status" },
+        { status: 400 }
+      );
+    }
+
+    // Validate status
+    if (!["PRESENT", "ABSENT", "LATE", "LEAVE", "HOLIDAY"].includes(status)) {
+      return NextResponse.json(
+        {
+          success: false,
+          message: "Invalid status. Must be: PRESENT, ABSENT, LATE, LEAVE, or HOLIDAY",
+        },
+        { status: 400 }
+      );
+    }
+
+    // Verify student exists
+    const student = await User.findByPk(student_id);
+    if (!student) {
+      return NextResponse.json(
+        { success: false, message: "Student not found" },
+        { status: 404 }
+      );
+    }
+
+    // Check if attendance already exists for this student on this date
+    const existingAttendance = await Attendance.findOne({
+      where: {
+        student_id,
+        date,
+      },
+    });
+
+    if (existingAttendance) {
+      // Update existing attendance
+      await existingAttendance.update({
+        status,
+        remarks,
+        leave_request_id,
+        updated_by: currentUser.id,
+      });
+
+      return NextResponse.json(
+        {
+          success: true,
+          message: "Attendance updated successfully",
+          data: {
+            id: existingAttendance.id,
+            student_id: existingAttendance.student_id,
+            date: existingAttendance.date,
+            status: existingAttendance.status,
+          },
+        },
+        { status: 200 }
+      );
+    }
+
+    // Create new attendance record
+    const attendance = await Attendance.create({
+      student_id,
+      branch_id: branch_id || student.branch_id || currentUser.branch_id,
+      date,
+      status,
+      remarks,
+      leave_request_id,
+      marked_by: currentUser.id,
+    });
+
+    return NextResponse.json(
+      {
+        success: true,
+        message: "Attendance marked successfully",
+        data: {
+          id: attendance.id,
+          student_id: attendance.student_id,
+          date: attendance.date,
+          status: attendance.status,
+        },
+      },
+      { status: 201 }
+    );
+  } catch (error) {
+    console.error("Mark attendance error:", error);
+    return NextResponse.json(
+      { success: false, message: error.message || "Failed to mark attendance" },
+      { status: 500 }
+    );
+  }
+}
+
 export const GET = withAuth(getStudentAttendanceHistory, ["STUDENT", "SUPER_ADMIN", "BRANCH_ADMIN"]);
+export const POST = withAuth(markStudentAttendance, ["TEACHER", "STAFF", "BRANCH_ADMIN", "SUPER_ADMIN"]);

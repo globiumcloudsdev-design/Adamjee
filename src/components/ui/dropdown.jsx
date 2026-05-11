@@ -13,6 +13,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 // - disabled
 // - icon: React node (defaults to ChevronDown)
 export default function Dropdown({ id, name, value, onChange, options = [], placeholder = 'Select an option', className = '', buttonClassName = '', disabled = false, icon = null, label = null, required = false, ...props }) {
+  const { hideDescription, ...restProps } = props;
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
   const Icon = icon || ChevronDown;
@@ -61,7 +62,7 @@ export default function Dropdown({ id, name, value, onChange, options = [], plac
         disabled={disabled}
         className="sr-only"
         tabIndex={-1}
-        {...props}
+        {...restProps}
       >
         {placeholder && <option value="">{placeholder}</option>}
         {options.map((opt) => (

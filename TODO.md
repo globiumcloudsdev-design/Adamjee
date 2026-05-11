@@ -1,6 +1,9 @@
-# TODO
+# TODO Tracker
 
-- [x] Fix ID card front/back height mismatch in PDF download (horizontal layout) by constraining flex/overflow.
-- [ ] Run minimal checks (tests/lint) if available.
-
+- [x] Repo scan: student/fees-vouchers/timetable/assignments endpoints found
+- [x] Identify student profile endpoints from API mapping constants
+- [x] Identify student fees endpoints + implementation details
+- [ ] Verify /student/profile actual backend implementation routes (src/app/api)
+- [ ] Verify /student/schedule/exams actual backend implementation routes (src/app/api)
+- [x] Create student.md with student/exam/fees endpoints + guides
 

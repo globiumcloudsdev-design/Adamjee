@@ -126,8 +126,9 @@ const StudentFormModal = ({
         alternate_phone: editingStudent.alternatePhone || editingStudent.alternate_phone || '',
         password: '', // do not prefill password
         gender: editingStudent.gender || 'male',
-        date_of_birth: editingStudent.dateOfBirth ? new Date(editingStudent.dateOfBirth).toISOString().split('T')[0] :
-          (editingStudent.date_of_birth ? new Date(editingStudent.date_of_birth).toISOString().split('T')[0] : ''),
+        date_of_birth: (editingStudent.details?.academic_info?.date_of_birth) ||
+          (editingStudent.dateOfBirth ? new Date(editingStudent.dateOfBirth).toISOString().split('T')[0] :
+            (editingStudent.date_of_birth ? new Date(editingStudent.date_of_birth).toISOString().split('T')[0] : '')),
         nationality: editingStudent.nationality || 'Pakistani',
         cnic: editingStudent.cnic || '',
         address: editingStudent.address || { street: '', city: 'Karachi', state: 'Sindh', country: 'Pakistan' },
@@ -145,13 +146,15 @@ const StudentFormModal = ({
         father: profile.father || { name: '', occupation: '', phone: '', email: '', cnic: '' },
         mother: profile.mother || { name: '', occupation: '', phone: '', email: '', cnic: '' },
         guardian: profile.guardian || { name: '', relation: '', phone: '', email: '', cnic: '' },
-        admission_fee: profile.admissionFee || profile.admission_fee || 0,
-        total_fee: profile.feeEstimate || profile.total_fee || 0,
-        discount: profile.feeDiscount?.amount || profile.discount || 0,
-        fee_mention: profile.feeMention || profile.fee_mention || 'Monthly',
-        payment_date: profile.academic_info?.payment_date || profile.payment_date || '10',
+        // Admission fee check academic_info inside details carefully
+        admission_fee: editingStudent.details?.academic_info?.admission_fee || profile.admission_fee || profile.admissionFee || 0,
+        total_fee: editingStudent.details?.academic_info?.total_fee || profile.feeEstimate || profile.total_fee || profile.totalFee || 0,
+        discount: editingStudent.details?.academic_info?.discount || profile.feeDiscount?.amount || profile.discount || 0,
+        fee_mention: editingStudent.details?.academic_info?.fee_mention || profile.feeMention || profile.fee_mention || 'Monthly',
+        use_subject_wise_fee: editingStudent.details?.academic_info?.use_subject_wise_fee || profile.use_subject_wise_fee || false,
+        payment_date: editingStudent.details?.academic_info?.payment_date || profile.academic_info?.payment_date || profile.payment_date || '10',
         installment_count: profile.installmentCount || profile.installment_count || profile.installments || 1,
-        subjects: profile.selectedSubjects || profile.subjects || editingStudent.selectedSubjects || [],
+        subjects: profile.selectedSubjects || profile.subjects || editingStudent.details?.academic_info?.subjects || editingStudent.selectedSubjects || [],
         profile_image: null,
         profile_preview: editingStudent.avatar_url || editingStudent.avatarUrl || '',
         documents: profile.documents || [],
@@ -178,6 +181,7 @@ const StudentFormModal = ({
         roll_no: '',
         registration_no: '',
         admission_date: new Date().toISOString().split('T')[0],
+        date_of_birth: new Date().toISOString().split('T')[0],
         guardian_type: 'parent',
         father: { name: '', occupation: '', phone: '', email: '', cnic: '' },
         mother: { name: '', occupation: '', phone: '', email: '', cnic: '' },
@@ -211,7 +215,7 @@ const StudentFormModal = ({
 
   const fetchTeacherForSubject = async (subjectId, sectionId) => {
     if (!subjectId || !sectionId) return;
-    
+
     setFetchingTeachers(prev => ({ ...prev, [subjectId]: true }));
     try {
       const res = await apiClient.get(API_ENDPOINTS.BRANCH_ADMIN.TIMETABLES.LIST, {
@@ -271,14 +275,14 @@ const StudentFormModal = ({
       } else {
         // Auto-select first section if available
         const defaultSection = sections.length > 0 ? sections[0].id : '';
-        const newSubject = { 
-          id: subject.id, 
-          name: subject.name, 
+        const newSubject = {
+          id: subject.id,
+          name: subject.name,
           fee: subject.fee || 0,
           section_id: defaultSection,
-          teacher_name: '' 
+          teacher_name: ''
         };
-        
+
         // If we auto-selected a section, fetch teacher for it immediately
         if (defaultSection) {
           setTimeout(() => fetchTeacherForSubject(subject.id, defaultSection), 0);
@@ -534,8 +538,8 @@ const StudentFormModal = ({
                 setActiveTab(tab.id);
               }}
               className={`flex items-center gap-2 px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeTab === tab.id
-                  ? 'border-primary text-primary'
-                  : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
+                ? 'border-primary text-primary'
+                : 'border-transparent text-gray-600 hover:text-gray-900 hover:border-gray-300'
                 }`}
             >
               <Icon className="w-4 h-4" />
@@ -560,14 +564,14 @@ const StudentFormModal = ({
             </div>
 
             {!editingStudent && (
-              <PasswordInput 
-                label="Password" 
-                value={formData.password} 
-                onChange={(e) => handleFieldChange('password', e.target.value)} 
-                required 
+              <PasswordInput
+                label="Password"
+                value={formData.password}
+                onChange={(e) => handleFieldChange('password', e.target.value)}
+                required
               />
             )}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <Dropdown
                 label="Gender"
                 value={formData.gender}
@@ -579,18 +583,19 @@ const StudentFormModal = ({
                 placeholder="Select Gender"
                 required
               />
-              <DatePicker
+              {/* <DatePicker
                 label="Date of Birth"
                 value={formData.date_of_birth}
                 onChange={(e) => handleFieldChange('date_of_birth', e.target.value)}
                 placeholder="Select DOB"
                 required
-              />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              /> */}
               <Input label="Nationality" value={formData.nationality} onChange={(e) => handleFieldChange('nationality', e.target.value)} placeholder="Pakistani" />
               <CNICInput label="CNIC / B-Form" value={formData.cnic} onChange={(val) => handleFieldChange('cnic', val)} hideDescription placeholder="XXXXX-XXXXXXX-X" />
             </div>
+            {/* <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            </div> */}
             <div className="border-t pt-4">
               <h4 className="font-medium text-gray-700 mb-2">Address Details</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -673,11 +678,11 @@ const StudentFormModal = ({
 
             <div className={`grid grid-cols-1 ${editingStudent ? 'md:grid-cols-2' : ''} gap-6`}>
               {editingStudent && (
-                <Input 
-                  label="GR No" 
-                  value={formData.roll_no} 
-                  onChange={(e) => handleFieldChange('roll_no', e.target.value)} 
-                  placeholder="Enter GR No" 
+                <Input
+                  label="GR No"
+                  value={formData.roll_no}
+                  onChange={(e) => handleFieldChange('roll_no', e.target.value)}
+                  placeholder="Enter GR No"
                 />
               )}
               <DatePicker
@@ -706,33 +711,33 @@ const StudentFormModal = ({
                     { value: 'Installment', label: 'Installments' },
                   ]}
                 />
-                
+
                 {/* Regular Total Fee Input for non-monthly modes */}
                 {formData.fee_mention !== 'Monthly' && (
-                  <Input 
-                    label="Total Fee Amount" 
-                    type="number" 
-                    value={formData.total_fee || ''} 
-                    onChange={(e) => handleFieldChange('total_fee', Number(e.target.value))} 
+                  <Input
+                    label="Total Fee Amount"
+                    type="number"
+                    value={formData.total_fee || ''}
+                    onChange={(e) => handleFieldChange('total_fee', Number(e.target.value))}
                     placeholder="Enter total amount"
                     required
                   />
                 )}
 
                 <div className="space-y-1">
-                  <Input 
-                    label="Payment Day (Max 25)" 
-                    type="number" 
-                    min="1" 
-                    max="25" 
-                    value={formData.payment_date || ''} 
+                  <Input
+                    label="Payment Day (Max 25)"
+                    type="number"
+                    min="1"
+                    max="25"
+                    value={formData.payment_date || ''}
                     onChange={(e) => {
                       const val = parseInt(e.target.value);
                       if (val > 25) {
                         toast.warning('Payment day cannot exceed 25 to avoid issues in shorter months (e.g. Feb)');
                       }
                       handleFieldChange('payment_date', e.target.value);
-                    }} 
+                    }}
                     placeholder="e.g. 10"
                     error={parseInt(formData.payment_date) > 25 ? "Max day is 25" : null}
                   />
@@ -758,16 +763,16 @@ const StudentFormModal = ({
               )}
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                 <Input label="Discount (Amount)" type="number" value={formData.discount || ''} onChange={(e) => handleFieldChange('discount', Number(e.target.value))} />
-                 {formData.fee_mention === 'Installment' && (
-                    <Input 
-                      label="Installment Count" 
-                      type="number" 
-                      min="1"
-                      value={formData.installment_count || 1} 
-                      onChange={(e) => handleFieldChange('installment_count', Number(e.target.value))} 
-                    />
-                 )}
+                <Input label="Discount (Amount)" type="number" value={formData.discount || ''} onChange={(e) => handleFieldChange('discount', Number(e.target.value))} />
+                {formData.fee_mention === 'Installment' && (
+                  <Input
+                    label="Installment Count"
+                    type="number"
+                    min="1"
+                    value={formData.installment_count || 1}
+                    onChange={(e) => handleFieldChange('installment_count', Number(e.target.value))}
+                  />
+                )}
               </div>
 
               {/* Admission & Monthly Fee Section (ONLY for Monthly Mode) */}
@@ -777,20 +782,20 @@ const StudentFormModal = ({
                     <Label className="text-sm font-bold text-blue-800">Fee Calculation Mode:</Label>
                     <div className="flex gap-4">
                       <label className="flex items-center gap-2 cursor-pointer group">
-                        <input 
-                          type="radio" 
-                          name="fee_mode" 
-                          checked={!formData.use_subject_wise_fee} 
+                        <input
+                          type="radio"
+                          name="fee_mode"
+                          checked={!formData.use_subject_wise_fee}
                           onChange={() => handleFieldChange('use_subject_wise_fee', false)}
                           className="w-4 h-4 text-primary focus:ring-primary border-gray-300"
                         />
                         <span className="text-sm font-medium text-gray-700 group-hover:text-primary transition-colors">Fixed Amount (Standard)</span>
                       </label>
                       <label className="flex items-center gap-2 cursor-pointer group">
-                        <input 
-                          type="radio" 
-                          name="fee_mode" 
-                          checked={!!formData.use_subject_wise_fee} 
+                        <input
+                          type="radio"
+                          name="fee_mode"
+                          checked={!!formData.use_subject_wise_fee}
                           onChange={() => handleFieldChange('use_subject_wise_fee', true)}
                           className="w-4 h-4 text-primary focus:ring-primary border-gray-300"
                         />
@@ -805,12 +810,12 @@ const StudentFormModal = ({
                         <Plus className="w-4 h-4 text-emerald-600" />
                         <Label className="text-sm font-bold text-slate-700 italic">Admission + Test Fee</Label>
                       </div>
-                      <Input 
-                        placeholder="e.g. 2000" 
-                        type="number" 
-                        value={formData.admission_fee || ''} 
+                      <Input
+                        placeholder="e.g. 2000"
+                        type="number"
+                        value={formData.admission_fee || ''}
                         onChange={(e) => handleFieldChange('admission_fee', Number(e.target.value))}
-                        className="h-11 rounded-xl bg-white border-slate-200 focus:ring-emerald-500/20 focus:border-emerald-500" 
+                        className="h-11 rounded-xl bg-white border-slate-200 focus:ring-emerald-500/20 focus:border-emerald-500"
                       />
                       <p className="text-[10px] text-slate-400 font-medium ml-1 italic leading-tight">* One-time charges (Admission, Registration, Test)</p>
                     </div>
@@ -826,10 +831,10 @@ const StudentFormModal = ({
                           <span className="ml-2 text-[10px] text-indigo-500 font-normal">(Calculated from {formData.subjects.length} subjects)</span>
                         </div>
                       ) : (
-                        <Input 
-                          placeholder="e.g. 7500" 
-                          type="number" 
-                          value={formData.total_fee || ''} 
+                        <Input
+                          placeholder="e.g. 7500"
+                          type="number"
+                          value={formData.total_fee || ''}
                           onChange={(e) => handleFieldChange('total_fee', Number(e.target.value))}
                           className="h-11 rounded-xl bg-white border-slate-200 focus:ring-indigo-500/20 focus:border-indigo-500"
                           required
@@ -845,8 +850,8 @@ const StudentFormModal = ({
                         <span className="text-[10px] uppercase tracking-wider text-slate-500 font-bold">First Month Total Bill</span>
                         <span className="text-xs text-slate-400">
                           {formData.use_subject_wise_fee ? 'Subjects Total' : 'Monthly'} ({
-                            formData.use_subject_wise_fee 
-                              ? formData.subjects.reduce((sum, s) => sum + (Number(s.fee) || 0), 0) 
+                            formData.use_subject_wise_fee
+                              ? formData.subjects.reduce((sum, s) => sum + (Number(s.fee) || 0), 0)
                               : (formData.total_fee || 0)
                           }) + Admission/Test ({formData.admission_fee || 0}) - Discount ({formData.discount || 0})
                         </span>
@@ -854,8 +859,8 @@ const StudentFormModal = ({
                       <div className="text-right">
                         <span className="text-2xl font-black text-slate-900">
                           Rs. {(
-                            (formData.use_subject_wise_fee 
-                              ? formData.subjects.reduce((sum, s) => sum + (Number(s.fee) || 0), 0) 
+                            (formData.use_subject_wise_fee
+                              ? formData.subjects.reduce((sum, s) => sum + (Number(s.fee) || 0), 0)
                               : Number(formData.total_fee || 0)
                             ) + Number(formData.admission_fee || 0) - Number(formData.discount || 0)
                           ).toLocaleString()}
@@ -879,19 +884,17 @@ const StudentFormModal = ({
                       const currentSelected = formData.subjects.find(s => s.id === sub.id);
 
                       return (
-                        <div 
-                          key={sub.id} 
-                          className={`flex flex-col p-4 border-2 rounded-2xl transition-all duration-300 ${
-                            isChecked 
-                              ? 'border-blue-500 bg-blue-50/30 shadow-md ring-4 ring-blue-500/5' 
+                        <div
+                          key={sub.id}
+                          className={`flex flex-col p-4 border-2 rounded-2xl transition-all duration-300 ${isChecked
+                              ? 'border-blue-500 bg-blue-50/30 shadow-md ring-4 ring-blue-500/5'
                               : 'border-gray-100 bg-gray-50 hover:border-gray-200 hover:bg-white'
-                          }`}
+                            }`}
                         >
                           <div className="flex items-center justify-between">
                             <label className="flex items-center space-x-4 cursor-pointer w-full">
-                              <div className={`relative flex items-center justify-center w-6 h-6 rounded-full border-2 transition-colors ${
-                                isChecked ? 'border-blue-600 bg-blue-600' : 'border-gray-300 bg-white'
-                              }`}>
+                              <div className={`relative flex items-center justify-center w-6 h-6 rounded-full border-2 transition-colors ${isChecked ? 'border-blue-600 bg-blue-600' : 'border-gray-300 bg-white'
+                                }`}>
                                 <input
                                   type="checkbox"
                                   checked={isChecked}
@@ -918,7 +921,7 @@ const StudentFormModal = ({
                               )}
                             </label>
                           </div>
-                          
+
                           {isChecked && (
                             <div className="mt-4 pt-4 border-t border-blue-100/50 space-y-4 animate-in fade-in slide-in-from-top-2 duration-300">
                               <div className="grid grid-cols-2 gap-3">

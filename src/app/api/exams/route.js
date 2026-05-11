@@ -152,9 +152,9 @@ async function createExam(req) {
   await ensureTableSynced();
   const currentUser = req.user;
 
-  if (currentUser.role !== "BRANCH_ADMIN") {
+  if (!["SUPER_ADMIN", "BRANCH_ADMIN"].includes(currentUser.role)) {
     return NextResponse.json(
-      { error: "Only Branch Admins can create exams" },
+      { error: "Only super admin or branch admin can create exams" },
       { status: 403 },
     );
   }
@@ -173,9 +173,13 @@ async function createExam(req) {
       description,
     } = body;
 
+    const targetBranchId =
+      currentUser.role === "SUPER_ADMIN" ? branch_id : currentUser.branch_id;
+
     // Validation
     if (
       !title ||
+      !targetBranchId ||
       !class_id ||
       !section_id ||
       !group_id ||
@@ -209,7 +213,7 @@ async function createExam(req) {
     const exam = await Exam.create({
       title,
       exam_type: exam_type || "midterm",
-      branch_id: currentUser.branch_id, // Force current branch
+      branch_id: targetBranchId,
       academic_year_id,
       group_id,
       class_id,

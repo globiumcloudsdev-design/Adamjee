@@ -99,7 +99,7 @@ export default function AddStaffModal({ open, onClose, onSuccess, branches, role
     gender: staffMember?.details?.gender || staffMember?.gender || '',
     cnic: staffMember?.details?.cnic || staffMember?.cnic || '',
     branchId: staffMember?.branch_id || staffMember?.branchId?._id || staffMember?.branchId || '',
-    joiningDate: (staffMember?.details?.joining_date || staffMember?.staffProfile?.joiningDate) ? new Date(staffMember?.details?.joining_date || staffMember.staffProfile.joiningDate).toISOString().split('T')[0] : '',
+    joiningDate: (staffMember?.details?.joining_date || staffMember?.staffProfile?.joiningDate) ? new Date(staffMember?.details?.joining_date || staffMember.staffProfile.joiningDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
     staffType: staffMember?.staff_sub_type || staffMember?.staffProfile?.staffType || '',
     designation: staffMember?.details?.designation || staffMember?.staffProfile?.designation || '',
     registrationNo: staffMember?.registration_no || staffMember?.registrationNo || '',
@@ -409,7 +409,7 @@ export default function AddStaffModal({ open, onClose, onSuccess, branches, role
         {/* Basic Information */}
         <div>
           <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Basic Information</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 First Name <span className="text-red-500">*</span>
@@ -458,13 +458,6 @@ export default function AddStaffModal({ open, onClose, onSuccess, branches, role
               onChange={(val) => setFormData(prev => ({ ...prev, phone: val }))}
             />
 
-            <DatePicker
-              label="Date of Birth"
-              name="dateOfBirth"
-              value={formData.dateOfBirth}
-              onChange={handleChange}
-            />
-
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Gender
@@ -487,7 +480,7 @@ export default function AddStaffModal({ open, onClose, onSuccess, branches, role
         {/* Employment Information */}
         <div>
           <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Employment Information</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {(role === 'super_admin' || role === 'SUPER_ADMIN') && (
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -529,7 +522,7 @@ export default function AddStaffModal({ open, onClose, onSuccess, branches, role
                 placeholder="Leave blank for auto-generation"
                 className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
               />
-              <p className="text-xs text-gray-500 mt-1">If blank, system will auto-generate based on branch & position.</p>
+              <p className="text-xs text-gray-500 mt-1">If blank, auto-generated.</p>
             </div>
 
             <div>
@@ -541,12 +534,10 @@ export default function AddStaffModal({ open, onClose, onSuccess, branches, role
                 name="designation"
                 value={formData.designation}
                 onChange={handleChange}
-                placeholder="e.g., Senior Clerk, Head Security, etc."
+                placeholder="e.g., Senior Clerk"
                 className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
               />
             </div>
-
-
 
             <DatePicker
               label="Joining Date"
@@ -557,13 +548,11 @@ export default function AddStaffModal({ open, onClose, onSuccess, branches, role
           </div>
         </div>
 
-
-
         {/* Address */}
         <div>
           <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">Address</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="md:col-span-2">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="md:col-span-1">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 Street
               </label>
@@ -601,8 +590,6 @@ export default function AddStaffModal({ open, onClose, onSuccess, branches, role
                 className="w-full px-4 py-2 border rounded-lg focus:ring-2 focus:ring-blue-500 dark:bg-gray-700 dark:border-gray-600"
               />
             </div>
-
-
           </div>
         </div>
 

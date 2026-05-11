@@ -9,7 +9,6 @@ import Input from '@/components/ui/input';
 import Dropdown from '@/components/ui/dropdown';
 import BranchSelect from '@/components/ui/branch-select';
 import GenderSelect from '@/components/ui/gender-select';
-import DepartmentSelect from '@/components/ui/department-select';
 import ClassSelect from '@/components/ui/class-select';
 import DocumentTypeSelect from '@/components/ui/document-type-select';
 import ButtonLoader from '@/components/ui/button-loader';
@@ -22,7 +21,6 @@ export default function TeacherForm({
   currentBranchId = null,
   editingTeacher = null,
   branches = [],
-  departments = [],
   classes = [],
   subjects = [],
   academicYears = [],
@@ -77,8 +75,6 @@ export default function TeacherForm({
     teacherProfile: {
       joiningDate: new Date().toISOString().split('T')[0],
       designation: 'Teacher',
-      departmentId: '',
-      department: '',
       qualifications: [],
       experience: {
         totalYears: '',
@@ -169,8 +165,6 @@ export default function TeacherForm({
             ? new Date(details.joiningDate || details.joining_date).toISOString().split('T')[0] 
             : new Date().toISOString().split('T')[0],
           designation: details.designation || 'Teacher',
-          departmentId: details.departmentId?._id || details.departmentId || details.department_id || '',
-          department: details.department || '',
           qualifications: details.qualifications || [],
           experience: details.experience || { 
             totalYears: '', 
@@ -271,7 +265,7 @@ export default function TeacherForm({
 
     try {
       // Comprehensive validation before submission
-      if (!formData.firstName?.trim() || !formData.lastName?.trim() || !formData.phone?.trim() || !formData.email?.trim() || !formData.gender || !formData.dateOfBirth) {
+      if (!formData.firstName?.trim() || !formData.phone?.trim() || !formData.email?.trim() || !formData.gender) {
         setActiveTab('personal');
         toast.error('Please fill all required personal fields');
         setLoading(false);
@@ -328,7 +322,6 @@ export default function TeacherForm({
         ...formData,
         teacherProfile: {
           ...formData.teacherProfile,
-          departmentId: formData.teacherProfile.departmentId || undefined,
           documents: undefined, // Let backend handle this from documentMetadata
         },
       };
@@ -514,8 +507,8 @@ export default function TeacherForm({
   const validateCurrentTab = () => {
     switch (activeTab) {
       case 'personal':
-        if (!formData.firstName?.trim() || !formData.lastName?.trim() || !formData.phone?.trim() || !formData.email?.trim() || !formData.gender || !formData.dateOfBirth) {
-          toast.error('Please fill all required personal fields (First Name, Last Name, Phone, Email, Gender, Date of Birth)');
+        if (!formData.firstName?.trim() || !formData.lastName?.trim() || !formData.phone?.trim() || !formData.email?.trim() || !formData.gender) {
+          toast.error('Please fill all required personal fields (First Name, Last Name, Phone, Email, Gender)');
           return false;
         }
         return true;
@@ -701,13 +694,13 @@ export default function TeacherForm({
                 />
               </div>
 
-              <DatePicker
+              {/* <DatePicker
                 label="Date of Birth"
                 name="dateOfBirth"
                 value={formData.dateOfBirth}
                 onChange={handleInputChange}
                 required
-              />
+              /> */}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Gender</label>

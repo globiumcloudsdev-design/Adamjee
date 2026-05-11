@@ -250,6 +250,7 @@ export default function BranchAdminStudentsPage() {
       groupId: details.group_id || '',
       status: details.status || 'active',
       remarks: details.remarks || '',
+      details: student.details, // Pass full details object
       selectedSubjects: details.selected_subjects || details.subjects || [],
       studentProfile: {
         classId: details.class_id || '',
@@ -271,6 +272,7 @@ export default function BranchAdminStudentsPage() {
         installmentCount: details.installment_count || 1,
         feeEstimate: details.total_fee || details.fee_estimate || 0,
         total_fee: details.total_fee || details.fee_estimate || 0,
+        admission_fee: details.admission_fee || 0, // Explicitly pass admission_fee
         payment_date: details.payment_date || '10',
       },
       medicalInfo: details.medical_info || { allergies: '', chronicConditions: '', medications: '', doctorName: '', doctorPhone: '' },

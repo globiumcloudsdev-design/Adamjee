@@ -152,7 +152,7 @@ export async function POST(req) {
       password_hash: password, // Model will hash it
       details: {
         academic_info: {
-          ...data.academic_info, // baki details (e.g. parent_name etc agar frontend se arahe)
+          ...data.academic_info, 
           academic_year_id,
           class_id,
           section_id,
@@ -160,6 +160,7 @@ export async function POST(req) {
           subjects: enrichedSubjects,
           total_fee: total_fee,
           fee_estimate: total_fee,
+          admission_fee: Number(data.admission_fee || 0),
           discount: final_discount,
           fee_discount: { type: 'fixed', amount: final_discount, reason: '' },
           payable_fee,

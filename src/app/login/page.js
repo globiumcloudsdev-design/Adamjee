@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,7 +20,29 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [adminContacts, setAdminContacts] = useState([]);
   const { login } = useAuth();
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadAdminContacts = async () => {
+      try {
+        const response = await fetch("/api/auth/admin-details");
+        const json = await response.json();
+        if (isMounted && json?.success && Array.isArray(json.data)) {
+          setAdminContacts(json.data);
+        }
+      } catch (fetchError) {
+        console.error("Failed to fetch admin details", fetchError);
+      }
+    };
+
+    loadAdminContacts();
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -165,6 +187,19 @@ export default function LoginPage() {
                 )}
               </Button>
             </form>
+
+            {adminContacts.length > 0 && (
+              <div className="rounded-md border border-blue-100 bg-blue-50 p-3">
+                <p className="text-sm font-semibold text-blue-900">Admin Details</p>
+                <div className="mt-2 space-y-1">
+                  {adminContacts.map((admin) => (
+                    <p key={admin.id} className="text-xs text-blue-800">
+                      {admin.first_name} {admin.last_name} ({admin.role}) - {admin.email || "No email"}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Demo Accounts */}
             {process.env.NODE_ENV === 'development' && (

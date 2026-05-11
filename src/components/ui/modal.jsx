@@ -13,7 +13,7 @@ import React from 'react';
  *    className: extra classes for dialog
  *    size: 'sm' | 'md' | 'lg' | 'xl' (controls max width)
  */
-export default function Modal({ open, onClose, title, children, headerClassName = '', footerClassName = '', className = '', size = 'md', footer = null, closeOnBackdrop = true }) {
+export default function Modal({ open, onClose, title, children, headerClassName = '', footerClassName = '', className = '', size = 'md', footer = null, closeOnBackdrop = false }) {
   if (!open) return null;
 
   const sizeClass = {

@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 
 const CNICInput = ({ value, onChange, className, error, label, required = false, hideDescription = false, ...props }) => {
+  const { fullWidth, ...restProps } = props;
   const handleChange = (e) => {
     const input = e.target.value;
     // Extract only digits
@@ -41,7 +42,7 @@ const CNICInput = ({ value, onChange, className, error, label, required = false,
           error && "border-red-500 focus:ring-red-500/20",
           className
         )}
-        {...props}
+        {...restProps}
       />
       {error && (
         <p className="text-xs font-medium text-red-500 mt-1 animate-in fade-in slide-in-from-top-1">
