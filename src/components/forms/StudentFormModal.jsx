@@ -359,6 +359,8 @@ const StudentFormModal = ({
         return (
           formData.first_name &&
           formData.last_name &&
+          formData.email &&
+          isEmail(formData.email) &&
           formData.phone &&
           (editingStudent || formData.password) &&
           formData.gender
@@ -402,6 +404,11 @@ const StudentFormModal = ({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    const isEmail = (val) => {
+      const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      return re.test(val);
+    };
 
     if (!validateTab('personal') || !validateTab('academic') || !validateTab('parent')) {
       toast.error('Please fill all required fields in all tabs');
@@ -538,7 +545,7 @@ const StudentFormModal = ({
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <Input label="Account Access Email" type="email" value={formData.email} onChange={(e) => handleFieldChange('email', e.target.value)} placeholder="Access@example.com" />
+              <Input label="Account Access Email" type="email" value={formData.email} onChange={(e) => handleFieldChange('email', e.target.value)} placeholder="Access@example.com" required />
               <PhoneInput label="Phone" value={formData.phone} onChange={(val) => handleFieldChange('phone', val)} required hideDescription />
             </div>
 

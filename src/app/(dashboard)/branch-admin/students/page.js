@@ -299,15 +299,11 @@ export default function BranchAdminStudentsPage() {
       setDeleteModal({ open: false, student: null });
       fetchStudents();
     } catch (error) {
+      console.error('Error deleting student:', error);
       toast.error(error.message || 'Failed to delete student');
     } finally {
       setSubmitting(false);
     }
-  };
-
-  const handleAddNew = () => {
-    setEditingStudent(null);
-    setIsFormModalOpen(true);
   };
 
   const handleToggleStatus = async (student) => {
@@ -320,6 +316,7 @@ export default function BranchAdminStudentsPage() {
       toast.success(`Student ${newStatus ? 'activated' : 'deactivated'} successfully!`);
       fetchStudents();
     } catch (error) {
+      console.error('Status update error:', error);
       toast.error(error.message || 'Failed to update status');
     }
   };
@@ -327,6 +324,22 @@ export default function BranchAdminStudentsPage() {
   const handleChangePassword = (student) => {
     setViewingStudent(student);
     setShowPasswordModal(true);
+  };
+
+  // const handleDownloadCard = async (student) => {
+  //   try {
+  //     toast.info('Generating ID card...');
+  //     await generateAndDownloadIdCard(student);
+  //     toast.success('ID Card downloaded!');
+  //   } catch (error) {
+  //     console.error('ID Card error:', error);
+  //     toast.error('Failed to generate ID card');
+  //   }
+  // };
+
+  const handleAddNew = () => {
+    setEditingStudent(null);
+    setIsFormModalOpen(true);
   };
 
   const exportToExcel = () => {
@@ -489,7 +502,7 @@ export default function BranchAdminStudentsPage() {
             loading={loading}
             onView={handleView}
             onEdit={handleEdit}
-            onDelete={(id) => setDeleteModal({ open: true, student: students.find(s => s.id === id) })}
+            onDelete={(student) => setDeleteModal({ open: true, student })}
             onToggleStatus={handleToggleStatus}
             onDownloadQR={handleDownloadCard}
             onChangePassword={handleChangePassword}
@@ -591,6 +604,7 @@ export default function BranchAdminStudentsPage() {
           message={`Are you sure you want to delete ${deleteModal.student?.first_name} ${deleteModal.student?.last_name}? This action cannot be undone and will remove all student records.`}
           onConfirm={handleDelete}
           onCancel={() => setDeleteModal({ open: false, student: null })}
+          isLoading={submitting}
         />
       )}
 
