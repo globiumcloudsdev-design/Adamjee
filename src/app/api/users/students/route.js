@@ -45,6 +45,30 @@ export async function POST(req) {
     const targetBranchId =
       user.role === "SUPER_ADMIN" ? branch_id : user.branch_id;
 
+    // 1.1 Duplicate Check (Email/Phone/RegNo)
+    const existingUser = await User.findOne({
+      where: {
+        [Op.or]: [
+          email ? { email } : null,
+          phone ? { phone } : null,
+          registration_no ? { registration_no } : null
+        ].filter(Boolean),
+        deleted_at: null // Active users only
+      }
+    });
+
+    if (existingUser) {
+      let duplicateField = "";
+      if (email && existingUser.email === email) duplicateField = "Email";
+      else if (phone && existingUser.phone === phone) duplicateField = "Phone number";
+      else duplicateField = "Registration number";
+
+      return NextResponse.json(
+        { error: `A student with this ${duplicateField} already exists.` },
+        { status: 400 }
+      );
+    }
+
     // 2. Roll Number Auto-Generation Logic (GR No) - Branch Wise Sequence
     let finalRollNo = roll_no;
     if (!finalRollNo) {

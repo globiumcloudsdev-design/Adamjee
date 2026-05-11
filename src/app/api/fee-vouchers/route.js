@@ -218,12 +218,12 @@ export async function POST(request) {
       }
       ----------------------------------------- */
 
-      // --- New Logic: Use Agreement Amount (total_fee) ---
+      // --- Logic: Use Agreement Amount (total_fee) ---
       const agreementTotal = Number(details.total_fee || 0);
+      const admissionFee = Number(details.admission_fee || 0);
 
       if (fee_type === 'LumpSum') {
         if (voucherMap[st.id].LumpSum) continue;
-        // Subtract discount from Agreement Total
         const baseAmount = agreementTotal > 0 ? (agreementTotal - discount) : ((subjectsTotal * totalMonths) - discount);
         amount_due = baseAmount;
       } else if (fee_type === 'Installment') {
@@ -231,13 +231,24 @@ export async function POST(request) {
         installment_no = voucherMap[st.id].Installment + 1;
         if (installment_no > total_installments) continue;
         
-        // Subtract discount from Agreement Total then divide by installments
         const baseAmount = agreementTotal > 0 ? (agreementTotal - discount) : ((subjectsTotal * totalMonths) - discount);
         amount_due = Math.round(baseAmount / total_installments);
       } else { // Monthly
         if (voucherMap[st.id].Monthly[month]) continue;
-        // Keep monthly subject-based for now as requested
-        amount_due = subjectsTotal - discount;
+        
+        // --- Monthly Logic Overhaul ---
+        const baseMonthly = agreementTotal > 0 ? agreementTotal : subjectsTotal;
+        
+        // Check if this is the first ever voucher for this student to add Admission Fee
+        const isFirstVoucher = Object.keys(voucherMap[st.id].Monthly).length === 0 && 
+                              !voucherMap[st.id].LumpSum && 
+                              voucherMap[st.id].Installment === 0;
+        
+        if (isFirstVoucher) {
+          amount_due = (baseMonthly + admissionFee) - discount;
+        } else {
+          amount_due = baseMonthly - discount;
+        }
       }
 
       // --- Per-Student Due Date Logic ---
@@ -336,3 +347,4 @@ export async function POST(request) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
+

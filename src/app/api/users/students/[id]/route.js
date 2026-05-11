@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { Op } from "sequelize";
 import { User, Branch } from "@/backend/models/postgres";
 import { getCurrentUser } from "@/lib/auth";
 import { deleteFromCloudinary, uploadProfilePhoto, uploadStudentDocument } from "@/backend/utils/cloudinary";
@@ -42,6 +43,34 @@ export async function PUT(req, { params }) {
         { error: "Unauthorized access" },
         { status: 403 },
       );
+    }
+
+    // --- 2.5 Duplicate Check (Email/Phone/RegNo) ---
+    const { email, phone, registration_no } = data;
+    if (email || phone || registration_no) {
+      const existingUser = await User.findOne({
+        where: {
+          [Op.or]: [
+            email ? { email } : null,
+            phone ? { phone } : null,
+            registration_no ? { registration_no } : null
+          ].filter(Boolean),
+          id: { [Op.ne]: student.id }, // Exclude current student
+          deleted_at: null // Active users only
+        }
+      });
+
+      if (existingUser) {
+        let duplicateField = "";
+        if (email && existingUser.email === email) duplicateField = "Email";
+        else if (phone && existingUser.phone === phone) duplicateField = "Phone number";
+        else duplicateField = "Registration number";
+
+        return NextResponse.json(
+          { error: `Another student with this ${duplicateField} already exists.` },
+          { status: 400 }
+        );
+      }
     }
 
     // --- 3. Handle File Updates (Profile & Documents) ---
