@@ -43,4 +43,9 @@ next-env.d.ts
 
 
 #FCM
-admjee-c9013-firebase-adminsdk-fbsvc-b3ab780cd1.json
+adamjee-c9013-firebase-adminsdk-fbsvc-b3ab780cd1.json
+*.json
+!components.json
+!package.json
+!jsconfig.json
+!vercel.json

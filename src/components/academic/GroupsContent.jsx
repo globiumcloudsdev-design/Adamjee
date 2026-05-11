@@ -133,10 +133,6 @@ export default function GroupsContent() {
   };
 
   const handleDeleteClick = (id) => {
-    if (!isSuperAdmin) {
-      toast.error("Only Super Admin can delete records");
-      return;
-    }
     setDeleteModal({ show: true, id });
   };
 
@@ -305,7 +301,7 @@ export default function GroupsContent() {
                         </Button>
                       </Tooltip>
                     )}
-                    {isSuperAdmin && (
+                    {((isBranchAdmin && grp.branch_id) || isSuperAdmin) && (
                       <Tooltip content="Delete Group">
                         <Button onClick={() => handleDeleteClick(grp.id)} className="w-12 shrink-0 bg-white hover:bg-red-50 border border-slate-200 hover:border-red-200 text-slate-400 hover:text-red-600 shadow-sm transition-colors px-0">
                           <Trash2 className="w-4 h-4" />

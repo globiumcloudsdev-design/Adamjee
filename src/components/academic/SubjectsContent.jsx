@@ -266,9 +266,9 @@ export default function SubjectsContent() {
       </div>
 
       {/* Subjects View */}
-      <div className="grid grid-cols-1 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
         {filteredSubjects.length === 0 ? (
-          <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-800">
+          <div className="col-span-full text-center py-20 bg-white dark:bg-slate-900 rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-800">
             <BookOpen className="w-16 h-16 text-slate-300 mx-auto mb-4" />
             <h3 className="text-xl font-bold text-slate-900 dark:text-white">No Subjects Found</h3>
             <p className="text-slate-500 mt-2">Start by adding a new academic subject to the repository.</p>
@@ -278,39 +278,58 @@ export default function SubjectsContent() {
           </div>
         ) : (
           filteredSubjects.map((sub) => (
-            <Card key={sub.id} className="overflow-hidden border-none shadow-sm bg-white dark:bg-slate-900/50 group">
-              <CardHeader className="relative flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 px-6 py-6 overflow-hidden">
-                <div className="absolute top-0 right-0 p-8 opacity-[0.03] pointer-events-none group-hover:scale-110 transition-transform">
-                   <BookOpen className="w-32 h-32 text-indigo-600" />
-                </div>
+            <div key={sub.id} className="group bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 transition-all duration-300 flex flex-col hover:shadow-xl hover:-translate-y-1 overflow-hidden hover:border-indigo-200 dark:hover:border-indigo-900/50">
+              {/* Card Header */}
+              <div className="p-5 border-b border-slate-100 dark:border-slate-800 relative overflow-hidden bg-gradient-to-br from-indigo-50/50 to-white dark:from-indigo-950/20 dark:to-slate-900">
+                <div className="absolute top-0 right-0 w-32 h-32 rounded-full blur-3xl -mr-10 -mt-10 pointer-events-none bg-indigo-400/10" />
                 
-                <div className="flex items-center gap-4 relative z-10">
-                   <div className="w-14 h-14 bg-indigo-600 text-white rounded-2xl flex items-center justify-center font-bold text-lg shadow-lg shadow-indigo-600/20">
-                     {sub.subject_code || 'N/A'}
-                   </div>
-                   <div>
-                     <CardTitle className="text-xl font-bold text-slate-900 dark:text-white">{sub.name}</CardTitle>
-                     <div className="flex flex-wrap items-center gap-3 mt-1.5">
-                       <span className="flex items-center gap-1.5 text-xs font-bold text-indigo-600 bg-indigo-50 dark:bg-indigo-900/20 px-2.5 py-1 rounded-lg">
-                         <Layout className="w-3.5 h-3.5" />
-                         {sub.class?.name || 'Unassigned'}
+                <div className="relative flex flex-col gap-3">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex flex-col">
+                      <h3 className="text-xl font-black text-slate-800 dark:text-white tracking-tight line-clamp-1">{sub.name}</h3>
+                      <p className="text-xs font-bold text-indigo-600 dark:text-indigo-400 tracking-widest uppercase mt-0.5">{sub.subject_code || 'No Code'}</p>
+                    </div>
+                    {sub.is_active ? (
+                       <span className="shrink-0 inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-700 border border-emerald-200 dark:bg-emerald-900/20 dark:text-emerald-400 dark:border-emerald-800 shadow-sm">
+                         Active
                        </span>
-                       <span className="text-slate-300 dark:text-slate-700">•</span>
-                       <span className={`text-[10px] uppercase tracking-wider font-black px-2 py-0.5 rounded-md ${
-                         sub.is_active ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
-                       }`}>
-                         {sub.is_active ? 'Active' : 'Inactive'}
+                    ) : (
+                       <span className="shrink-0 inline-flex items-center px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider bg-red-100 text-red-700 border border-red-200 dark:bg-red-900/20 dark:text-red-400 dark:border-red-800 shadow-sm">
+                         Inactive
                        </span>
-                     </div>
-                   </div>
+                    )}
+                  </div>
+                  
+                  <div className="flex flex-wrap gap-2 text-xs font-semibold tracking-wide">
+                      <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-indigo-600 dark:text-indigo-400 shadow-sm">
+                        <Layout className="w-3.5 h-3.5" />
+                        <span>{sub.class?.name || 'Unassigned Class'}</span>
+                      </div>
+
+                      {sub.branch && (
+                         <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 shadow-sm">
+                            <Building2 className="w-3.5 h-3.5" />
+                            <span>{sub.branch.name}</span>
+                         </div>
+                      )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Card Body */}
+              <div className="p-5 flex flex-col flex-1 bg-white dark:bg-slate-900/50">
+                <div className="space-y-4 mb-6">
+                  <div className="flex items-center justify-between text-sm py-2 border-b border-slate-50 dark:border-slate-800/50">
+                    <span className="text-slate-500 font-medium">Learning Materials</span>
+                    <span className="font-bold text-slate-900 dark:text-white bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-md">
+                      {sub.materials?.length || 0} Assets
+                    </span>
+                  </div>
                 </div>
 
-                 <div className="flex gap-2 relative z-10">
-                  <Tooltip content="Edit Definitions">
+                <div className="mt-auto flex flex-col gap-2.5">
+                  <div className="flex gap-2.5">
                     <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="h-9 border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800"
                       onClick={() => {
                         setEditingSubject(sub);
                         setFormData({
@@ -321,77 +340,27 @@ export default function SubjectsContent() {
                           files: []
                         });
                         setShowModal(true);
-                      }}
+                      }} 
+                      className="flex-1 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200 font-semibold shadow-sm transition-colors"
                     >
-                      <Edit className="w-4 h-4 mr-2 text-indigo-600" />
+                      <Edit className="w-4 h-4 mr-2 text-slate-500 dark:text-slate-400" />
                       Edit
                     </Button>
-                  </Tooltip>
-                  <Tooltip content="Delete Subject">
                     <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="h-9 border-rose-200 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20"
                       onClick={() => handleDelete(sub.id)}
+                      variant="outline" 
+                      className="w-12 px-0 border-rose-200 dark:border-rose-900/30 text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-900/20 transition-colors"
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
-                  </Tooltip>
+                  </div>
+                  
+                  <Button variant="ghost" className="w-full text-indigo-600 dark:text-indigo-400 hover:text-indigo-700 hover:bg-indigo-50 dark:hover:bg-indigo-900/20 text-xs font-bold uppercase tracking-widest">
+                    Manage Materials
+                  </Button>
                 </div>
-              </CardHeader>
-              <CardContent className="p-0 border-t dark:border-slate-800">
-                 <div className="overflow-x-auto">
-                    <Table>
-                      <TableHeader className="bg-slate-50/50 dark:bg-slate-800/30">
-                        <TableRow>
-                           <TableHead className="px-6 h-12 text-[11px] uppercase tracking-widest font-black text-slate-500">Asset Title</TableHead>
-                           <TableHead className="h-12 text-[11px] uppercase tracking-widest font-black text-slate-500">Resource Type</TableHead>
-                           <TableHead className="text-right h-12 text-[11px] uppercase tracking-widest font-black text-slate-500 pr-6">Access</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                         {sub.materials?.map((mat, index) => (
-                           <TableRow key={index} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors border-slate-100 dark:border-slate-800">
-                              <TableCell className="px-6 py-4 font-semibold text-slate-700 dark:text-slate-200 text-sm">{mat.title}</TableCell>
-                              <TableCell>
-                                 <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase ${
-                                   mat.type?.toLowerCase() === 'pdf' ? 'bg-rose-50 text-rose-600 dark:bg-rose-900/20' : 'bg-blue-50 text-blue-600 dark:bg-blue-900/20'
-                                 }`}>
-                                   {mat.type || 'RAW'}
-                                 </span>
-                              </TableCell>
-                              <TableCell className="text-right pr-6">
-                                <div className="flex justify-end gap-2">
-                                   <a href={mat.url} target="_blank" rel="noopener noreferrer">
-                                     <Tooltip content="Preview Resource">
-                                       <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-full hover:bg-indigo-50 text-indigo-600">
-                                         <Eye className="w-4 h-4" />
-                                       </Button>
-                                     </Tooltip>
-                                   </a>
-                                   <a href={mat.url} download>
-                                     <Tooltip content="Download Resource">
-                                       <Button variant="ghost" size="sm" className="h-8 w-8 p-0 rounded-full hover:bg-emerald-50 text-emerald-600">
-                                         <Download className="w-4 h-4" />
-                                       </Button>
-                                     </Tooltip>
-                                   </a>
-                                </div>
-                              </TableCell>
-                           </TableRow>
-                         ))}
-                         {(!sub.materials || sub.materials.length === 0) && (
-                           <TableRow>
-                             <TableCell colSpan={3} className="text-center py-10 text-slate-400 text-sm italic">
-                               No assets available for this subject yet.
-                             </TableCell>
-                           </TableRow>
-                         )}
-                      </TableBody>
-                    </Table>
-                 </div>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ))
         )}
       </div>

@@ -361,14 +361,13 @@ const StudentFormModal = ({
           formData.last_name &&
           formData.phone &&
           (editingStudent || formData.password) &&
-          formData.gender &&
-          formData.date_of_birth
+          formData.gender
         );
       case 'academic':
         return (
+          formData.academic_year_id &&
           formData.group_id &&
-          formData.class_id &&
-          formData.section_id
+          formData.class_id
         );
       case 'parent':
         const parentValid = formData.guardian_type === 'parent'
@@ -403,6 +402,11 @@ const StudentFormModal = ({
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+
+    if (!validateTab('personal') || !validateTab('academic') || !validateTab('parent')) {
+      toast.error('Please fill all required fields in all tabs');
+      return;
+    }
 
     const subjectsTotal = formData.subjects.reduce((acc, sub) => acc + (sub.fee || 0), 0);
     let calculatedEstimate = subjectsTotal - Number(formData.discount);
@@ -875,7 +879,7 @@ const StudentFormModal = ({
                     <PhoneInput label="Phone" value={formData.father.phone} onChange={(val) => handleNestedFieldChange('father', 'phone', val)} required={formData.guardian_type === 'parent'} hideDescription placeholder="3XX XXXXXXX" />
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    <Input label="CNIC" value={formData.father.cnic} onChange={(val) => handleNestedFieldChange('father', 'cnic', val)} hideDescription placeholder="XXXXX-XXXXXXX-X" />
+                    <CNICInput label="CNIC" value={formData.father.cnic} onChange={(val) => handleNestedFieldChange('father', 'cnic', val)} hideDescription placeholder="XXXXX-XXXXXXX-X" />
                     <Input label="Occupation" value={formData.father.occupation} onChange={(e) => handleNestedFieldChange('father', 'occupation', e.target.value)} placeholder="e.g. Businessman" />
                   </div>
                 </div>
