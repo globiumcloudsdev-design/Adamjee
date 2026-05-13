@@ -178,6 +178,7 @@ export const API_ENDPOINTS = {
       UPDATE: "/api/users/students/:id",
       DELETE: "/api/users/students/:id",
       SEARCH: "/api/users/students/search",
+      GR_SEARCH: "/api/users/students/gr-search",
     },
 
     // Classes Management
@@ -463,6 +464,7 @@ export const API_ENDPOINTS = {
       BULK_UPLOAD: "/api/branch-admin/students/bulk-upload", // POST
       EXPORT: "/api/branch-admin/students/export", // GET
       SEARCH: "/api/users/students/search", // GET
+      GR_SEARCH: "/api/users/students/gr-search", // GET
     },
 
     // Classes Management

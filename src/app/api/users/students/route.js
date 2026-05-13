@@ -304,6 +304,7 @@ export async function GET(req) {
     const branchId = searchParams.get("branch_id") || searchParams.get("branchId");
     const q = searchParams.get("q");
     const subjectId = searchParams.get("subject_id");
+    const rollNo = searchParams.get("roll_no");
 
     // --- Role-Based Filter ---
     let whereClause = { role: "STUDENT" };
@@ -374,6 +375,7 @@ export async function GET(req) {
     addAcademicFilter("academic_year_id", academicYearId);
     addAcademicFilter("class_id", classId);
     addAcademicFilter("section_id", sectionId);
+    addAcademicFilter("roll_no", rollNo);
 
     if (hasAcademicFilter) {
       whereClause.details = {

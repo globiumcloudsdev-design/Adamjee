@@ -84,12 +84,9 @@ const StudentViewModal = ({
     lastName: student.lastName || student.last_name || '',
     email: student.email || '',
     phone: student.phone || '',
-    alternatePhone: student.alternatePhone || student.details?.academic_info?.alternate_phone || '',
     gender: student.gender || student.details?.academic_info?.gender || '',
     dateOfBirth: student.dateOfBirth || student.details?.academic_info?.date_of_birth || '',
-    bloodGroup: student.bloodGroup || student.details?.academic_info?.blood_group || '',
     nationality: student.nationality || student.details?.academic_info?.nationality || '',
-    religion: student.religion || student.details?.academic_info?.religion || '',
     cnic: student.cnic || student.details?.academic_info?.cnic || '',
     address: student.address || student.details?.academic_info?.address || {},
     status: student.status || (student.is_active ? 'active' : 'inactive'),
@@ -108,12 +105,9 @@ const StudentViewModal = ({
       admissionDate: student.details?.academic_info?.admission_date || '',
       academicYear: student.details?.academic_info?.academic_year_id || '',
       father: student.details?.academic_info?.father || {},
-      mother: student.details?.academic_info?.mother || {},
       guardian: student.details?.academic_info?.guardian || {},
       guardianType: student.details?.academic_info?.guardian_type || 'parent',
-      previousCoaching: student.details?.academic_info?.previous_coaching || {},
       feeDiscount: student.details?.academic_info?.fee_discount || {},
-      transportFee: student.details?.academic_info?.transport_fee || {},
       documents: student.details?.documents || student.documents || [],
       feeMention: student.details?.academic_info?.fee_mention || 'Monthly',
       installmentCount: student.details?.academic_info?.installment_count || 1,
@@ -121,9 +115,8 @@ const StudentViewModal = ({
       payableFee: student.details?.academic_info?.payable_fee || 0,
       discount: student.details?.academic_info?.discount || 0,
       subjects: student.details?.academic_info?.subjects || [],
-    },
-    medicalInfo: student.medicalInfo || student.details?.academic_info?.medical_info || {},
-    emergencyContact: student.emergencyContact || student.details?.academic_info?.emergency_contact || {},
+      admissionFee: student.details?.academic_info?.admission_fee || 0,
+    }
   };
 
   // Helper functions
@@ -277,10 +270,6 @@ const StudentViewModal = ({
               <span className="text-sm text-gray-500">Phone</span>
               <span className="font-medium">{s.phone || 'N/A'}</span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-sm text-gray-500">Alternate Phone</span>
-              <span className="font-medium">{s.alternatePhone || 'N/A'}</span>
-            </div>
           </div>
         </div>
       </div>
@@ -412,9 +401,19 @@ const StudentViewModal = ({
               <span className="font-bold text-indigo-600">{s.studentProfile?.feeMention}</span>
             </div>
             <div className="flex justify-between">
+              <span className="text-sm text-gray-500">Admission Fee</span>
+              <span className="font-medium">{s.studentProfile?.admissionFee?.toLocaleString() || 0} PKR</span>
+            </div>
+            <div className="flex justify-between">
               <span className="text-sm text-gray-500">Payment Day</span>
               <span className="font-medium">Every {student.details?.academic_info?.payment_date || '10'}th of month</span>
             </div>
+            {s.studentProfile?.feeMention === 'Installment' && (
+              <div className="flex justify-between">
+                <span className="text-sm text-gray-500">Total Installments</span>
+                <span className="font-medium">{s.studentProfile?.installmentCount || 1}</span>
+              </div>
+            )}
             <div className="flex justify-between">
               <span className="text-sm text-gray-500">Agreement Total</span>
               <span className="font-medium">{s.studentProfile?.totalFee?.toLocaleString()} PKR</span>
@@ -475,7 +474,6 @@ const StudentViewModal = ({
   const renderParentInfo = () => {
     const guardianType = s.studentProfile?.guardianType || 'parent';
     const father = s.studentProfile?.father || {};
-    const mother = s.studentProfile?.mother || {};
     const guardian = s.studentProfile?.guardian || {};
 
     return (
@@ -483,67 +481,43 @@ const StudentViewModal = ({
         {/* Guardian Type Indicator */}
         <div className="flex justify-center mb-2">
           <Badge className={`px-6 py-2 text-sm uppercase tracking-widest font-black ${guardianType === 'parent' ? 'bg-blue-600' : 'bg-purple-600'}`}>
-            {guardianType === 'parent' ? 'Father & Mother' : 'Guardian Details'}
+            {guardianType === 'parent' ? 'Parent Details' : 'Guardian Details'}
           </Badge>
         </div>
 
         {guardianType === 'parent' ? (
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="max-w-2xl mx-auto">
             {/* Father Information */}
-            <div className="bg-gray-50 p-5 rounded-2xl border border-gray-100 shadow-sm">
-              <div className="flex items-center gap-3 mb-4 border-b pb-3">
+            <div className="bg-gray-50 p-6 rounded-2xl border border-gray-100 shadow-sm">
+              <div className="flex items-center gap-3 mb-6 border-b pb-4">
                 <div className="p-2 bg-blue-100 rounded-xl">
                   <User className="w-5 h-5 text-blue-600" />
                 </div>
                 <h4 className="font-bold text-gray-800">Father Details</h4>
               </div>
-              <div className="space-y-3">
-                <div className="flex flex-col">
-                  <span className="text-[10px] uppercase font-bold text-gray-400">Full Name</span>
-                  <span className="font-bold text-gray-900">{father.name || 'N/A'}</span>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="space-y-4">
+                  <div className="flex flex-col">
+                    <span className="text-[10px] uppercase font-bold text-gray-400">Full Name</span>
+                    <span className="font-bold text-gray-900">{father.name || 'N/A'}</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[10px] uppercase font-bold text-gray-400">Occupation</span>
+                    <span className="font-medium text-gray-700">{father.occupation || 'N/A'}</span>
+                  </div>
                 </div>
-                <div className="flex flex-col">
-                  <span className="text-[10px] uppercase font-bold text-gray-400">Occupation</span>
-                  <span className="font-medium text-gray-700">{father.occupation || 'N/A'}</span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[10px] uppercase font-bold text-gray-400">Phone Number</span>
-                  <span className="font-bold text-blue-600">{father.phone || 'N/A'}</span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[10px] uppercase font-bold text-gray-400">CNIC Number</span>
-                  <span className="font-medium text-gray-700">{father.cnic || 'N/A'}</span>
+                <div className="space-y-4">
+                  <div className="flex flex-col">
+                    <span className="text-[10px] uppercase font-bold text-gray-400">Phone Number</span>
+                    <span className="font-bold text-blue-600">{father.phone || 'N/A'}</span>
+                  </div>
+                  <div className="flex flex-col">
+                    <span className="text-[10px] uppercase font-bold text-gray-400">CNIC Number</span>
+                    <span className="font-medium text-gray-700">{father.cnic || 'N/A'}</span>
+                  </div>
                 </div>
               </div>
             </div>
-
-            {/* Mother Information */}
-            {/* <div className="bg-gray-50 p-5 rounded-2xl border border-gray-100 shadow-sm">
-              <div className="flex items-center gap-3 mb-4 border-b pb-3">
-                <div className="p-2 bg-pink-100 rounded-xl">
-                  <User className="w-5 h-5 text-pink-600" />
-                </div>
-                <h4 className="font-bold text-gray-800">Mother Details</h4>
-              </div>
-              <div className="space-y-3">
-                <div className="flex flex-col">
-                  <span className="text-[10px] uppercase font-bold text-gray-400">Full Name</span>
-                  <span className="font-bold text-gray-900">{mother.name || 'N/A'}</span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[10px] uppercase font-bold text-gray-400">Occupation</span>
-                  <span className="font-medium text-gray-700">{mother.occupation || 'N/A'}</span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[10px] uppercase font-bold text-gray-400">Phone Number</span>
-                  <span className="font-bold text-pink-600">{mother.phone || 'N/A'}</span>
-                </div>
-                <div className="flex flex-col">
-                  <span className="text-[10px] uppercase font-bold text-gray-400">CNIC Number</span>
-                  <span className="font-medium text-gray-700">{mother.cnic || 'N/A'}</span>
-                </div>
-              </div>
-            </div> */}
           </div>
         ) : (
           /* Guardian Information */
@@ -581,8 +555,6 @@ const StudentViewModal = ({
       </div>
     );
   };
-
-  const renderMedicalInfo = () => null;
 
   const renderDocuments = () => (
     <div className="space-y-6">

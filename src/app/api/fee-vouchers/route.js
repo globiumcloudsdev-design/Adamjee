@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { getCurrentUser } from '@/lib/auth';
+import { Op } from 'sequelize';
 import { sequelize, FeeVoucher, User, Class, Branch, AcademicYear, Section } from '@/backend/models/postgres';
 import NotificationService from '@/backend/services/NotificationService';
 import { ROLES } from '@/constants/roles';
@@ -12,6 +13,7 @@ export async function GET(request) {
     const { searchParams } = new URL(request.url);
     const branchId = searchParams.get('branchId') || searchParams.get('branch_id');
     const studentId = searchParams.get('studentId') || searchParams.get('student_id');
+    const rollNo = searchParams.get('roll_no');
 
     let whereClause = {};
     if (user.role === ROLES.BRANCH_ADMIN) {
@@ -24,10 +26,25 @@ export async function GET(request) {
       whereClause.student_id = studentId;
     }
 
+    let studentInclude = { 
+      model: User, 
+      as: 'student', 
+      attributes: ['first_name', 'last_name', 'email', 'details', 'branch_id', 'registration_no'],
+      where: {}
+    };
+
+    if (rollNo) {
+      studentInclude.where = sequelize.where(
+        sequelize.fn('replace', sequelize.literal("student.details->'academic_info'->>'roll_no'"), ' ', ''),
+        { [Op.iLike]: `%${rollNo.trim().replace(/\s+/g, '')}%` }
+      );
+      studentInclude.required = true;
+    }
+
     const vouchers = await FeeVoucher.findAll({
       where: whereClause,
       include: [
-        { model: User, as: 'student', attributes: ['first_name', 'last_name', 'email', 'details', 'branch_id', 'registration_no'] },
+        studentInclude,
         { model: Branch, as: 'branch', attributes: ['name'] },
         { model: AcademicYear, as: 'academic_year', attributes: ['name'] },
         { model: Class, as: 'class', attributes: ['name'] },

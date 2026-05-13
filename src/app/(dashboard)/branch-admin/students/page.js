@@ -48,6 +48,8 @@ export default function BranchAdminStudentsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [grSearch, setGrSearch] = useState('');
+  const [debouncedGrSearch, setDebouncedGrSearch] = useState('');
   const [classFilter, setClassFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, pages: 0 });
@@ -72,7 +74,10 @@ export default function BranchAdminStudentsPage() {
       if (classFilter) params.class_id = classFilter;
       
       let response;
-      if (debouncedSearch && debouncedSearch.trim()) {
+      if (debouncedGrSearch && debouncedGrSearch.trim()) {
+        params.roll_no = debouncedGrSearch;
+        response = await apiClient.get(API_ENDPOINTS.BRANCH_ADMIN.STUDENTS.GR_SEARCH, params);
+      } else if (debouncedSearch && debouncedSearch.trim()) {
         params.q = debouncedSearch;
         response = await apiClient.get(API_ENDPOINTS.BRANCH_ADMIN.STUDENTS.SEARCH, params);
       } else {
@@ -146,10 +151,18 @@ export default function BranchAdminStudentsPage() {
     return () => clearTimeout(timer);
   }, [search]);
 
+  // Debounce GR search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedGrSearch(grSearch);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [grSearch]);
+
   // Fetch students when filters change
   useEffect(() => {
     fetchStudents();
-  }, [debouncedSearch, classFilter, statusFilter]);
+  }, [debouncedSearch, debouncedGrSearch, classFilter, statusFilter]);
 
   // --- Helper: Get display values from PostgreSQL student ---
   const getStudentName = (student) => {
@@ -486,11 +499,23 @@ export default function BranchAdminStudentsPage() {
 
         <CardContent>
           {/* Filters */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
             <Input
-              placeholder="Search students..."
+              placeholder="Search by Name/Email..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                if (e.target.value) setGrSearch('');
+              }}
+              icon={Search}
+            />
+            <Input
+              placeholder="Search by GR Number..."
+              value={grSearch}
+              onChange={(e) => {
+                setGrSearch(e.target.value);
+                if (e.target.value) setSearch('');
+              }}
               icon={Search}
             />
             <Dropdown

@@ -13,6 +13,7 @@ import { TabPanel } from '@/components/ui/tabs';
 import { Plus, Search, Trash2, Edit, Eye, Download, CreditCard, Clock, CheckCircle, XCircle, RefreshCw, AlertTriangle, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import Textarea from '@/components/ui/textarea';
+import Skeleton from '@/components/ui/skeleton';
 import { useAuth } from '@/hooks/useAuth';
 import apiClient from '@/lib/api-client';
 import { API_ENDPOINTS } from '@/constants/api-endpoints';
@@ -81,6 +82,7 @@ export default function FeeVouchersPage() {
   
   // Filter states
   const [search, setSearch] = useState('');
+  const [grSearch, setGrSearch] = useState('');
   const [monthFilter, setMonthFilter] = useState('');
   const [yearFilter, setYearFilter] = useState(new Date().getFullYear().toString());
   
@@ -141,6 +143,24 @@ export default function FeeVouchersPage() {
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentRemarks, setPaymentRemarks] = useState('');
 
+  // Debounce search
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [debouncedGrSearch, setDebouncedGrSearch] = useState('');
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedGrSearch(grSearch);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [grSearch]);
+
   const formatStudent = (student) => {
     const nameRaw = student?.fullName || `${student?.firstName || ''} ${student?.lastName || ''}`;
     const name = (nameRaw || 'Student').trim() || 'Student';
@@ -171,7 +191,7 @@ export default function FeeVouchersPage() {
       ...prev,
       [activeTab]: { page: 1 }
     }));
-  }, [search, monthFilter, yearFilter, activeTab]);
+  }, [search, grSearch, monthFilter, yearFilter, activeTab]);
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -189,10 +209,11 @@ export default function FeeVouchersPage() {
   }, [formData.classId, formData.generation_type]);
 
   // Fetch all vouchers in one API call
-  const fetchAllVouchers = async () => {
+  const fetchAllVouchers = async (searchParams = {}) => {
     try {
       setLoading(true);
-      const response = await apiClient.get(API_ENDPOINTS.BRANCH_ADMIN.FEE_VOUCHERS.LIST, { limit: 10000 });
+      const params = { limit: 10000, ...searchParams };
+      const response = await apiClient.get(API_ENDPOINTS.BRANCH_ADMIN.FEE_VOUCHERS.LIST, params);
       
       if (response.success) {
         setAllVouchers(response.data.vouchers || []);
@@ -204,6 +225,15 @@ export default function FeeVouchersPage() {
       setLoading(false);
     }
   };
+
+  // Re-fetch when GR Search changes
+  useEffect(() => {
+    if (debouncedGrSearch) {
+      fetchAllVouchers({ roll_no: debouncedGrSearch });
+    } else {
+      fetchAllVouchers();
+    }
+  }, [debouncedGrSearch]);
 
   const fetchTemplates = async () => {
     try {
@@ -313,6 +343,16 @@ export default function FeeVouchersPage() {
       });
     }
 
+    // Apply dedicated GR search filter
+    if (grSearch.trim()) {
+      const grLower = grSearch.toLowerCase().replace(/\s+/g, '');
+      filtered = filtered.filter((voucher) => {
+        const s = formatStudent(voucher.studentId);
+        const rollNumber = (s.rollNumber?.toString() || '').toLowerCase().replace(/\s+/g, '');
+        return rollNumber.includes(grLower);
+      });
+    }
+
     // Apply month filter
     if (monthFilter) {
       filtered = filtered.filter(v => v.month?.toString() === monthFilter);
@@ -332,7 +372,7 @@ export default function FeeVouchersPage() {
       paid: filtered.filter(v => v.status === 'paid'),
       cancelled: filtered.filter(v => v.status === 'cancelled'),
     };
-  }, [allVouchers, search, monthFilter, yearFilter]);
+  }, [allVouchers, search, grSearch, monthFilter, yearFilter]);
 
   // Statistics
   const statistics = useMemo(() => ({
@@ -628,94 +668,122 @@ export default function FeeVouchersPage() {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Voucher #</TableHead>
+                <TableHead>Voucher Info</TableHead>
                 <TableHead>Student</TableHead>
                 <TableHead>Month/Year</TableHead>
                 <TableHead>Due Date</TableHead>
-                <TableHead className="text-right">Total Amount</TableHead>
-                <TableHead className="text-right">Paid Amount</TableHead>
+                <TableHead className="text-right">Total</TableHead>
+                <TableHead className="text-right">Paid</TableHead>
                 <TableHead className="text-right">Remaining</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {displayVouchers.map((voucher) => {
-                const { name, registrationNumber, rollNumber, section } = formatStudent(voucher.studentId);
-                const daysOverdue = tabKey === 'overdue' 
-                  ? Math.floor((new Date() - new Date(voucher.dueDate)) / (1000 * 60 * 60 * 24)) 
-                  : 0;
-                
-                return (
-                  <TableRow 
-                    key={voucher._id} 
-                    className={
-                      tabKey === 'overdue' ? 'bg-red-50 dark:bg-red-900/10' :
-                      tabKey === 'partial' ? 'bg-blue-50 dark:bg-blue-900/10' :
-                      tabKey === 'paid' ? 'bg-green-50 dark:bg-green-900/10' : ''
-                    }
-                  >
-                    <TableCell className="font-medium">{voucher.voucherNumber}</TableCell>
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{name}</div>
-                        <div className="text-xs text-gray-500">
-                          Reg: {registrationNumber} | GR: {rollNumber} | Sec: {voucher.section?.name || section}
-                        </div>
-                      </div>
-                    </TableCell>
-                    <TableCell>{MONTHS.find(m => m.value === voucher.month?.toString())?.label} {voucher.year}</TableCell>
-                    <TableCell>
-                      <div className={tabKey === 'overdue' ? 'text-red-600 font-medium' : ''}>
-                        {new Date(voucher.dueDate).toLocaleDateString('en-PK')}
-                      </div>
-                      {tabKey === 'overdue' && (
-                        <div className="text-xs text-orange-600">{daysOverdue} days overdue</div>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-right font-semibold">
-                      PKR {(voucher.totalAmount || 0).toLocaleString()}
-                    </TableCell>
-                    <TableCell className="text-right font-semibold text-green-600">
-                      PKR {(voucher.paidAmount ?? voucher.paid_amount ?? 0).toLocaleString()}
-                    </TableCell>
-                    <TableCell className="text-right font-semibold text-blue-600">
-                      PKR {(voucher.remainingAmount ?? (Number(voucher.totalAmount ?? voucher.amount_due ?? 0) + Number(voucher.fineAmount ?? voucher.fine_amount ?? 0) - Number(voucher.paidAmount ?? voucher.paid_amount ?? 0))).toLocaleString()}
-                    </TableCell>
-                    <TableCell>
-                      <span className={`px-2 py-1 rounded-full text-xs ${getStatusBadge(voucher.status)}`}>
-                        {voucher.status.charAt(0).toUpperCase() + voucher.status.slice(1)}
-                      </span>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex gap-1">
-                        <Button variant="ghost" size="icon-sm" title="View" onClick={() => handleViewVoucher(voucher.id || voucher._id)}>
-                          <Eye className="w-4 h-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon-sm" title="Download" onClick={() => handleDownloadVoucher(voucher)}>
-                          <Download className="w-4 h-4" />
-                        </Button>
-                        {voucher.status !== 'paid' && voucher.status !== 'cancelled' && (
-                          <>
-                            <Button variant="ghost" size="icon-sm" title="Edit" onClick={() => handleEditVoucher(voucher)}>
-                              <Edit className="w-4 h-4 text-blue-600" />
-                            </Button>
-                            <Button variant="ghost" size="icon-sm" title="Payment" onClick={() => handleOpenManualPayment(voucher)}>
-                              <CreditCard className="w-4 h-4 text-green-600" />
-                            </Button>
-                            <Button variant="ghost" size="icon-sm" title="Cancel" onClick={() => handleCancelVoucher(voucher.id || voucher._id)}>
-                              <XCircle className="w-4 h-4 text-orange-600" />
-                            </Button>
-                            <Button variant="ghost" size="icon-sm" title="Delete" onClick={() => handleDeleteVoucher(voucher.id || voucher._id)}>
-                              <Trash2 className="w-4 h-4 text-red-600" />
-                            </Button>
-                          </>
-                        )}
-                      </div>
-                    </TableCell>
+              {loading ? (
+                // Skeleton Rows
+                Array.from({ length: 5 }).map((_, i) => (
+                  <TableRow key={i}>
+                    <TableCell><Skeleton className="h-10 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-10 w-40" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-20" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-24" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-16 float-right" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-16 float-right" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-16 float-right" /></TableCell>
+                    <TableCell><Skeleton className="h-6 w-16" /></TableCell>
+                    <TableCell><Skeleton className="h-8 w-24" /></TableCell>
                   </TableRow>
-                );
-              })}
+                ))
+              ) : vouchers.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={9} className="text-center py-10 text-gray-500">
+                    No vouchers found matching your filters.
+                  </TableCell>
+                </TableRow>
+              ) : (
+                displayVouchers.map((voucher) => {
+                  const s = formatStudent(voucher.studentId);
+                  const name = s.name;
+                  const registrationNumber = s.registrationNumber;
+                  const rollNumber = s.rollNumber;
+                  const section = s.section;
+                  
+                  // Calculate days overdue
+                  const dueDate = new Date(voucher.dueDate);
+                  const today = new Date();
+                  const diffTime = today - dueDate;
+                  const daysOverdue = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+                  return (
+                    <TableRow key={voucher.id || voucher._id}>
+                      <TableCell>
+                        <div className="font-bold text-blue-600">{voucher.voucherNumber}</div>
+                        <div className="text-[10px] text-gray-400 uppercase tracking-tighter">
+                          {new Date(voucher.createdAt).toLocaleDateString()}
+                        </div>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex flex-col">
+                          <div className="font-medium">{name}</div>
+                          <div className="text-xs text-gray-500">
+                            Reg: {registrationNumber} | GR: {rollNumber} | Sec: {voucher.section?.name || section}
+                          </div>
+                        </div>
+                      </TableCell>
+                      <TableCell>{MONTHS.find(m => m.value === voucher.month?.toString())?.label} {voucher.year}</TableCell>
+                      <TableCell>
+                        <div className={tabKey === 'overdue' ? 'text-red-600 font-medium' : ''}>
+                          {new Date(voucher.dueDate).toLocaleDateString('en-PK')}
+                        </div>
+                        {tabKey === 'overdue' && (
+                          <div className="text-xs text-orange-600">{daysOverdue} days overdue</div>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right font-semibold">
+                        PKR {(voucher.totalAmount || 0).toLocaleString()}
+                      </TableCell>
+                      <TableCell className="text-right font-semibold text-green-600">
+                        PKR {(voucher.paidAmount ?? voucher.paid_amount ?? 0).toLocaleString()}
+                      </TableCell>
+                      <TableCell className="text-right font-semibold text-blue-600">
+                        PKR {(voucher.remainingAmount ?? (Number(voucher.totalAmount ?? voucher.amount_due ?? 0) + Number(voucher.fineAmount ?? voucher.fine_amount ?? 0) - Number(voucher.paidAmount ?? voucher.paid_amount ?? 0))).toLocaleString()}
+                      </TableCell>
+                      <TableCell>
+                        <span className={`px-2 py-1 rounded-full text-xs ${getStatusBadge(voucher.status)}`}>
+                          {voucher.status.charAt(0).toUpperCase() + voucher.status.slice(1)}
+                        </span>
+                      </TableCell>
+                      <TableCell>
+                        <div className="flex gap-1">
+                          <Button variant="ghost" size="icon-sm" title="View" onClick={() => handleViewVoucher(voucher.id || voucher._id)}>
+                            <Eye className="w-4 h-4" />
+                          </Button>
+                          <Button variant="ghost" size="icon-sm" title="Download" onClick={() => handleDownloadVoucher(voucher)}>
+                            <Download className="w-4 h-4" />
+                          </Button>
+                          {voucher.status !== 'paid' && voucher.status !== 'cancelled' && (
+                            <>
+                              <Button variant="ghost" size="icon-sm" title="Edit" onClick={() => handleEditVoucher(voucher)}>
+                                <Edit className="w-4 h-4 text-blue-600" />
+                              </Button>
+                              <Button variant="ghost" size="icon-sm" title="Payment" onClick={() => handleOpenManualPayment(voucher)}>
+                                <CreditCard className="w-4 h-4 text-green-600" />
+                              </Button>
+                              <Button variant="ghost" size="icon-sm" title="Cancel" onClick={() => handleCancelVoucher(voucher.id || voucher._id)}>
+                                <XCircle className="w-4 h-4 text-orange-600" />
+                              </Button>
+                              <Button variant="ghost" size="icon-sm" title="Delete" onClick={() => handleDeleteVoucher(voucher.id || voucher._id)}>
+                                <Trash2 className="w-4 h-4 text-red-600" />
+                              </Button>
+                            </>
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
             </TableBody>
           </Table>
         </div>
@@ -791,7 +859,7 @@ export default function FeeVouchersPage() {
     );
   };
 
-  if (loading) {
+  if (loading && allVouchers.length === 0) {
     return <FullPageLoader message="Loading fee vouchers..." />;
   }
 
@@ -905,11 +973,23 @@ export default function FeeVouchersPage() {
         {/* Common Filters */}
         <Card className="mb-6">
           <CardContent className="p-4">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
               <Input 
-                placeholder="Search by voucher #, student name, GR #, reg #..." 
+                placeholder="Search by name, voucher #..." 
                 value={search} 
-                onChange={(e) => setSearch(e.target.value)} 
+                onChange={(e) => {
+                  setSearch(e.target.value);
+                  if (e.target.value) setGrSearch('');
+                }} 
+                icon={Search} 
+              />
+              <Input 
+                placeholder="Search by GR Number..." 
+                value={grSearch} 
+                onChange={(e) => {
+                  setGrSearch(e.target.value);
+                  if (e.target.value) setSearch('');
+                }} 
                 icon={Search} 
               />
               <Dropdown 
