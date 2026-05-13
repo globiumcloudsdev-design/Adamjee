@@ -103,6 +103,7 @@ export async function POST(request) {
     const {
       generation_type,
       student_id,
+      student_ids,
       group_id,
       class_id,
       branch_id,
@@ -132,6 +133,7 @@ export async function POST(request) {
       const stBranchId = st.branchId || st.branch_id;
 
       if (generation_type === 'single') return st.id === student_id;
+      if (generation_type === 'multi') return Array.isArray(student_ids) && student_ids.includes(st.id);
       if (generation_type === 'group') return stGroupId === group_id;
       if (generation_type === 'class') {
         const matchClass = stClassId === class_id;

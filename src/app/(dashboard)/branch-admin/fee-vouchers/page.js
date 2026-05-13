@@ -10,7 +10,7 @@ import Modal from '@/components/ui/modal';
 import FullPageLoader from '@/components/ui/full-page-loader';
 import ButtonLoader from '@/components/ui/button-loader';
 import { TabPanel } from '@/components/ui/tabs';
-import { Plus, Search, Trash2, Eye, Download, CreditCard, Clock, CheckCircle, XCircle, RefreshCw, AlertTriangle, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Search, Trash2, Edit, Eye, Download, CreditCard, Clock, CheckCircle, XCircle, RefreshCw, AlertTriangle, FileText, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import Textarea from '@/components/ui/textarea';
 import { useAuth } from '@/hooks/useAuth';
@@ -19,6 +19,7 @@ import { API_ENDPOINTS } from '@/constants/api-endpoints';
 import { toast } from 'sonner';
 import { generateFeeVoucherPDF, generateFeeReceiptPDF } from '@/lib/pdf-generator';
 import ConfirmDeleteModal from '@/components/modals/ConfirmDeleteModal';
+import SearchableStudentSelect from '@/components/ui/searchable-student-select';
 
 const MONTHS = [
   { value: '1', label: 'January' },
@@ -110,6 +111,18 @@ export default function FeeVouchersPage() {
     year: new Date().getFullYear().toString(),
     remarks: '',
   });
+
+  // Edit State
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [editingVoucher, setEditingVoucher] = useState(null);
+  const [editFormData, setEditFormData] = useState({
+    amount_due: 0,
+    due_date: '',
+    month: '',
+    year: '',
+    remarks: '',
+    status: 'UNPAID'
+  });
   
   // Dropdown data
   const [templates, setTemplates] = useState([]);
@@ -122,6 +135,7 @@ export default function FeeVouchersPage() {
   // Delete confirmation modal states
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [deletingVoucherId, setDeletingVoucherId] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   
   // Payment modal states
   const [paymentAmount, setPaymentAmount] = useState('');
@@ -133,7 +147,10 @@ export default function FeeVouchersPage() {
     const registrationNumber = student?.studentProfile?.registrationNumber || student?.registrationNumber || '---';
     const rollNumber = student?.studentProfile?.rollNumber || student?.rollNumber || '---';
     const section = student?.studentProfile?.section || '---';
-    return { name, registrationNumber, rollNumber, section };
+    const phone = student?.phone || student?.studentProfile?.phone || '';
+    const fatherName = student?.studentProfile?.father?.name || student?.details?.academic_info?.father?.name || '';
+    const fatherPhone = student?.studentProfile?.father?.phone || student?.details?.academic_info?.father?.phone || '';
+    return { name, registrationNumber, rollNumber, section, phone, fatherName, fatherPhone };
   };
 
   // Load all vouchers once on mount
@@ -222,9 +239,23 @@ export default function FeeVouchersPage() {
   const fetchAcademicYears = async () => {
     try {
       const res = await apiClient.get('/api/academic-years');
-      if (Array.isArray(res)) setAcademicYears(res);
-      else if (res?.academic_years) setAcademicYears(res.academic_years);
-      else if (res?.success) setAcademicYears(res.data.academicYears || res.data || []);
+      let years = [];
+      if (Array.isArray(res)) years = res;
+      else if (res?.academic_years) years = res.academic_years;
+      else if (res?.success) years = res.data.academicYears || res.data || [];
+      
+      setAcademicYears(years);
+      
+      // Auto-select active academic year
+      const activeYear = years.find(y => y.is_current === true || y.is_current === 1 || y.is_current === 'true');
+      if (activeYear) {
+        setFormData(prev => {
+          if (!prev.academic_year_id) {
+            return { ...prev, academic_year_id: activeYear.id };
+          }
+          return prev;
+        });
+      }
     } catch (err) {
       console.error('Error loading academic years:', err);
     }
@@ -261,16 +292,24 @@ export default function FeeVouchersPage() {
 
     // Apply search filter
     if (search.trim()) {
-      const searchLower = search.toLowerCase();
+      const searchLower = search.toLowerCase().replace(/\s+/g, '');
       filtered = filtered.filter((voucher) => {
-        const voucherNumber = voucher.voucherNumber?.toString().toLowerCase() || '';
-        const studentName = formatStudent(voucher.studentId).name.toLowerCase();
-        const registrationNumber = voucher.studentId?.studentProfile?.registrationNumber?.toString().toLowerCase() || '';
-        const rollNumber = voucher.studentId?.studentProfile?.rollNumber?.toString().toLowerCase() || '';
+        const s = formatStudent(voucher.studentId);
+        const voucherNumber = (voucher.voucherNumber?.toString() || '').toLowerCase().replace(/\s+/g, '');
+        const studentName = s.name.toLowerCase().replace(/\s+/g, '');
+        const registrationNumber = (s.registrationNumber?.toString() || '').toLowerCase().replace(/\s+/g, '');
+        const rollNumber = (s.rollNumber?.toString() || '').toLowerCase().replace(/\s+/g, '');
+        const phone = (s.phone?.toString() || '').toLowerCase().replace(/\s+/g, '');
+        const fatherName = (s.fatherName?.toString() || '').toLowerCase().replace(/\s+/g, '');
+        const fatherPhone = (s.fatherPhone?.toString() || '').toLowerCase().replace(/\s+/g, '');
+        
         return voucherNumber.includes(searchLower) ||
                studentName.includes(searchLower) ||
                registrationNumber.includes(searchLower) ||
-               rollNumber.includes(searchLower);
+               rollNumber.includes(searchLower) ||
+               phone.includes(searchLower) ||
+               fatherName.includes(searchLower) ||
+               fatherPhone.includes(searchLower);
       });
     }
 
@@ -368,6 +407,7 @@ export default function FeeVouchersPage() {
         class_id: formData.classId,
         section_id: formData.sectionId,
         student_id: formData.studentId,
+        student_ids: formData.studentIds,
         month: parseInt(formData.month),
         year: parseInt(formData.year),
         remarks: formData.remarks,
@@ -410,6 +450,7 @@ export default function FeeVouchersPage() {
   const confirmDeleteVoucher = async () => {
     if (!deletingVoucherId) return;
     try {
+      setDeleting(true);
       const res = await apiClient.delete(`/api/fee-vouchers/${deletingVoucherId}`);
       if (res?.success) {
         toast.success('Voucher deleted successfully');
@@ -419,6 +460,41 @@ export default function FeeVouchersPage() {
       }
     } catch (err) {
       toast.error(err.message || 'Failed to delete voucher');
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const handleEditVoucher = (voucher) => {
+    setEditingVoucher(voucher);
+    setEditFormData({
+      amount_due: voucher.amountDue,
+      due_date: voucher.dueDate ? voucher.dueDate.substring(0, 10) : '',
+      month: voucher.month || '1',
+      year: voucher.year || new Date().getFullYear().toString(),
+      remarks: voucher.remarks || '',
+      status: voucher.status === 'pending' ? 'UNPAID' : (voucher.status === 'paid' ? 'PAID' : 'PARTIAL')
+    });
+    setIsEditModalOpen(true);
+  };
+
+  const handleUpdateVoucher = async (e) => {
+    e.preventDefault();
+    if (!editingVoucher) return;
+    
+    try {
+      setSubmitting(true);
+      const res = await apiClient.put(`/api/fee-vouchers/${editingVoucher.id}`, editFormData);
+      if (res?.success) {
+        toast.success('Voucher updated successfully');
+        setIsEditModalOpen(false);
+        setEditingVoucher(null);
+        fetchAllVouchers();
+      }
+    } catch (err) {
+      toast.error(err.message || 'Failed to update voucher');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -621,6 +697,9 @@ export default function FeeVouchersPage() {
                         </Button>
                         {voucher.status !== 'paid' && voucher.status !== 'cancelled' && (
                           <>
+                            <Button variant="ghost" size="icon-sm" title="Edit" onClick={() => handleEditVoucher(voucher)}>
+                              <Edit className="w-4 h-4 text-blue-600" />
+                            </Button>
                             <Button variant="ghost" size="icon-sm" title="Payment" onClick={() => handleOpenManualPayment(voucher)}>
                               <CreditCard className="w-4 h-4 text-green-600" />
                             </Button>
@@ -964,6 +1043,7 @@ export default function FeeVouchersPage() {
                   { value: 'group', label: 'Group Wise' },
                   { value: 'class', label: 'Class Wise' },
                   { value: 'single', label: 'Single Student' },
+                  { value: 'multi', label: 'Selected Students (Multi)' },
                 ]}
               />
             </div>
@@ -1026,37 +1106,24 @@ export default function FeeVouchersPage() {
             )}
 
             {formData.generation_type === 'single' && (
-              <div>
-                <Label>Student *</Label>
-                <Dropdown
-                  value={formData.studentId}
-                  onChange={(e) => setFormData(prev => ({ ...prev, studentId: e.target.value }))}
-                  options={[
-                    { 
-                      value: 'header', 
-                      label: (
-                        <div className="flex justify-between w-full font-bold text-[10px] uppercase tracking-widest text-gray-400 border-b border-gray-100 pb-1 mb-1 px-1">
-                          <span>Student Name</span>
-                          <span>GR No</span>
-                        </div>
-                      ),
-                      disabled: true 
-                    },
-                    ...students.map(st => {
-                      const grNo = st.details?.academic_info?.roll_no || st.roll_no || '---';
-                      return { 
-                        value: st.id || st._id, 
-                        label: (
-                          <div className="flex justify-between w-full items-center pl-1">
-                            <span className="truncate font-medium">{st.first_name} {st.last_name}</span>
-                            <span className="text-[11px] font-mono bg-blue-50 text-blue-600 dark:bg-blue-900/30 dark:text-blue-400 px-2 py-0.5 rounded-md whitespace-nowrap min-w-[60px] text-center border border-blue-100 dark:border-blue-800">
-                              {grNo}
-                            </span>
-                          </div>
-                        )
-                      };
-                    }),
-                  ]}
+              <SearchableStudentSelect
+                label="Student"
+                value={formData.studentId}
+                onChange={(e) => setFormData(prev => ({ ...prev, studentId: e.target.value }))}
+                branchId={user?.branch_id}
+                required
+              />
+            )}
+
+            {formData.generation_type === 'multi' && (
+              <div className="md:col-span-2">
+                <SearchableStudentSelect
+                  label="Select Students"
+                  value={formData.studentIds}
+                  onChange={(e) => setFormData(prev => ({ ...prev, studentIds: e.target.value }))}
+                  branchId={user?.branch_id}
+                  isMulti={true}
+                  required
                 />
               </div>
             )}
@@ -1269,8 +1336,80 @@ export default function FeeVouchersPage() {
             setIsDeleteModalOpen(false);
             setDeletingVoucherId(null);
           }}
+          isLoading={deleting}
         />
       )}
+
+      {/* Edit Voucher Modal */}
+      <Modal open={isEditModalOpen} onClose={() => setIsEditModalOpen(false)} title="Edit Fee Voucher" size="lg">
+        {editingVoucher && (
+          <form onSubmit={handleUpdateVoucher} className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <Label>Voucher Number</Label>
+                <Input value={editingVoucher.voucherNumber} disabled className="bg-gray-50" />
+              </div>
+              <div>
+                <Label>Student</Label>
+                <Input value={formatStudent(editingVoucher.studentId).name} disabled className="bg-gray-50" />
+              </div>
+              <div>
+                <Label>Amount Due (PKR) *</Label>
+                <Input
+                  type="number"
+                  value={editFormData.amount_due}
+                  onChange={(e) => setEditFormData(prev => ({ ...prev, amount_due: e.target.value }))}
+                  required
+                  disabled={editingVoucher.status === 'paid'}
+                />
+              </div>
+              <div>
+                <Label>Due Date *</Label>
+                <Input
+                  type="date"
+                  value={editFormData.due_date}
+                  onChange={(e) => setEditFormData(prev => ({ ...prev, due_date: e.target.value }))}
+                  required
+                  disabled={editingVoucher.status === 'paid'}
+                />
+              </div>
+              <div>
+                <Label>Month *</Label>
+                <Dropdown
+                  value={editFormData.month}
+                  onChange={(e) => setEditFormData(prev => ({ ...prev, month: e.target.value }))}
+                  options={MONTHS}
+                  required
+                />
+              </div>
+              <div>
+                <Label>Year *</Label>
+                <Input
+                  type="number"
+                  value={editFormData.year}
+                  onChange={(e) => setEditFormData(prev => ({ ...prev, year: e.target.value }))}
+                  required
+                />
+              </div>
+              <div className="md:col-span-2">
+                <Label>Remarks</Label>
+                <Textarea
+                  value={editFormData.remarks}
+                  onChange={(e) => setEditFormData(prev => ({ ...prev, remarks: e.target.value }))}
+                  placeholder="Optional remarks..."
+                  rows={2}
+                />
+              </div>
+            </div>
+            <div className="flex justify-end gap-2 pt-4">
+              <Button type="button" variant="outline" onClick={() => setIsEditModalOpen(false)}>Cancel</Button>
+              <Button type="submit" disabled={submitting}>
+                {submitting ? <ButtonLoader text="Updating..." /> : 'Update Voucher'}
+              </Button>
+            </div>
+          </form>
+        )}
+      </Modal>
     </div>
   );
 }

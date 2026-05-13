@@ -321,14 +321,35 @@ export async function GET(req) {
         { email: { [Op.iLike]: `%${q}%` } },
         { phone: { [Op.iLike]: `%${q}%` } },
         { registration_no: { [Op.iLike]: `%${q}%` } },
+        // Full Name Search (Space-insensitive)
         sequelize.where(
-          sequelize.fn(
-            "concat",
-            sequelize.col("first_name"),
-            " ",
-            sequelize.col("last_name"),
-          ),
-          { [Op.iLike]: `%${q}%` },
+          sequelize.fn("replace", sequelize.fn("concat", sequelize.col("first_name"), sequelize.col("last_name")), " ", ""),
+          { [Op.iLike]: `%${q.replace(/\s+/g, '')}%` }
+        ),
+        // Father Name (JSONB, Space-insensitive)
+        sequelize.where(
+          sequelize.fn("replace", sequelize.literal("details->'academic_info'->'father'->>'name'"), " ", ""),
+          { [Op.iLike]: `%${q.replace(/\s+/g, '')}%` }
+        ),
+        // Father Phone
+        sequelize.where(
+          sequelize.fn("replace", sequelize.literal("details->'academic_info'->'father'->>'phone'"), " ", ""),
+          { [Op.iLike]: `%${q.replace(/\s+/g, '')}%` }
+        ),
+        // Guardian Name
+        sequelize.where(
+          sequelize.fn("replace", sequelize.literal("details->'academic_info'->'guardian'->>'name'"), " ", ""),
+          { [Op.iLike]: `%${q.replace(/\s+/g, '')}%` }
+        ),
+        // Guardian Phone
+        sequelize.where(
+          sequelize.fn("replace", sequelize.literal("details->'academic_info'->'guardian'->>'phone'"), " ", ""),
+          { [Op.iLike]: `%${q.replace(/\s+/g, '')}%` }
+        ),
+        // Roll Number (GR No)
+        sequelize.where(
+          sequelize.fn("replace", sequelize.literal("details->'academic_info'->>'roll_no'"), " ", ""),
+          { [Op.iLike]: `%${q.replace(/\s+/g, '')}%` }
         ),
       ];
     }

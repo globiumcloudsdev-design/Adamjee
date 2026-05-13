@@ -98,3 +98,43 @@ export async function DELETE(request, { params }) {
     return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
 }
+
+export async function PUT(request, { params }) {
+  try {
+    const user = await getCurrentUser(request);
+    if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
+    const { id } = await params;
+    const body = await request.json();
+    const { amount_due, due_date, month, year, remarks, status } = body;
+
+    const voucher = await FeeVoucher.findByPk(id);
+    if (!voucher) {
+      return NextResponse.json({ success: false, error: 'Voucher not found' }, { status: 404 });
+    }
+
+    // If voucher is already paid, restrict some edits
+    if (voucher.status === 'PAID' && (amount_due !== undefined || due_date !== undefined)) {
+      return NextResponse.json({ success: false, error: 'Cannot edit amount or due date of a paid voucher' }, { status: 400 });
+    }
+
+    const updateData = {};
+    if (amount_due !== undefined) updateData.amount_due = amount_due;
+    if (due_date !== undefined) updateData.due_date = due_date;
+    if (month !== undefined) updateData.month = month.toString();
+    if (year !== undefined) updateData.year = year.toString();
+    if (remarks !== undefined) updateData.remarks = remarks;
+    if (status !== undefined) updateData.status = status;
+
+    await voucher.update(updateData);
+
+    return NextResponse.json({ 
+      success: true, 
+      message: 'Voucher updated successfully',
+      data: voucher
+    });
+  } catch (error) {
+    console.error('Error updating fee voucher:', error);
+    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  }
+}
