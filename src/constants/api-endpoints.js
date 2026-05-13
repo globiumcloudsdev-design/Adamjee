@@ -177,7 +177,7 @@ export const API_ENDPOINTS = {
       GET: "/api/users/students/:id",
       UPDATE: "/api/users/students/:id",
       DELETE: "/api/users/students/:id",
-      SEARCH: "/api/users/students",
+      SEARCH: "/api/users/students/search",
     },
 
     // Classes Management
@@ -462,7 +462,7 @@ export const API_ENDPOINTS = {
       PROMOTE: "/api/branch-admin/students/:id/promote", // POST
       BULK_UPLOAD: "/api/branch-admin/students/bulk-upload", // POST
       EXPORT: "/api/branch-admin/students/export", // GET
-      SEARCH: "/api/users/students", // GET
+      SEARCH: "/api/users/students/search", // GET
     },
 
     // Classes Management

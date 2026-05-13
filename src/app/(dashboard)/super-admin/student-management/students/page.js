@@ -46,6 +46,7 @@ const SuperAdminStudentsPage = () => {
 
   const [submitting, setSubmitting] = useState(false);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [branchFilter, setBranchFilter] = useState('');
   const [classFilter, setClassFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
@@ -70,7 +71,14 @@ const SuperAdminStudentsPage = () => {
       if (branchFilter) params.branch_id = branchFilter;
       if (classFilter) params.class_id = classFilter;
 
-      const response = await apiClient.get(API_ENDPOINTS.SUPER_ADMIN.STUDENTS.LIST, params);
+      let response;
+      if (debouncedSearch && debouncedSearch.trim()) {
+        params.q = debouncedSearch;
+        response = await apiClient.get(API_ENDPOINTS.SUPER_ADMIN.STUDENTS.SEARCH, params);
+      } else {
+        response = await apiClient.get(API_ENDPOINTS.SUPER_ADMIN.STUDENTS.LIST, params);
+      }
+
       // Response is the students array directly from NextResponse.json(students)
       const studentsData = Array.isArray(response) ? response : (response.data || response.students || []);
       setStudents(studentsData);
@@ -132,10 +140,18 @@ const SuperAdminStudentsPage = () => {
     fetchAcademicYears();
   }, []);
 
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [search]);
+
   // Fetch students when filters change
   useEffect(() => {
     fetchStudents();
-  }, [branchFilter, classFilter, statusFilter]);
+  }, [debouncedSearch, branchFilter, classFilter, statusFilter]);
 
   // Reset class filter when branch changes
   useEffect(() => {
@@ -198,10 +214,10 @@ const SuperAdminStudentsPage = () => {
     const regNo = (student.registration_no || '').toLowerCase();
     const searchLower = search.toLowerCase();
 
-    const matchesSearch = !search || name.includes(searchLower) || email.includes(searchLower) || regNo.includes(searchLower);
+    const matchesSearch = !debouncedSearch || name.includes(debouncedSearch.toLowerCase()) || email.includes(debouncedSearch.toLowerCase()) || regNo.includes(debouncedSearch.toLowerCase());
     const matchesStatus = !statusFilter || student.is_active === (statusFilter === 'active');
 
-    return matchesSearch && matchesStatus;
+    return matchesStatus; // Server already filtered search if debouncedSearch was provided
   });
 
   // Paginated students

@@ -47,6 +47,7 @@ export default function BranchAdminStudentsPage() {
 
   const [submitting, setSubmitting] = useState(false);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [classFilter, setClassFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, pages: 0 });
@@ -69,8 +70,15 @@ export default function BranchAdminStudentsPage() {
       setLoading(true);
       const params = {};
       if (classFilter) params.class_id = classFilter;
+      
+      let response;
+      if (debouncedSearch && debouncedSearch.trim()) {
+        params.q = debouncedSearch;
+        response = await apiClient.get(API_ENDPOINTS.BRANCH_ADMIN.STUDENTS.SEARCH, params);
+      } else {
+        response = await apiClient.get(API_ENDPOINTS.BRANCH_ADMIN.STUDENTS.LIST, params);
+      }
 
-      const response = await apiClient.get(API_ENDPOINTS.BRANCH_ADMIN.STUDENTS.LIST, params);
       const studentsData = Array.isArray(response) ? response : (response.data || response.students || []);
       setStudents(studentsData);
       setPagination(prev => ({ ...prev, total: studentsData.length, pages: Math.ceil(studentsData.length / prev.limit) }));
@@ -130,10 +138,18 @@ export default function BranchAdminStudentsPage() {
     fetchAcademicYears();
   }, []);
 
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [search]);
+
   // Fetch students when filters change
   useEffect(() => {
     fetchStudents();
-  }, [classFilter, statusFilter]);
+  }, [debouncedSearch, classFilter, statusFilter]);
 
   // --- Helper: Get display values from PostgreSQL student ---
   const getStudentName = (student) => {
@@ -186,10 +202,10 @@ export default function BranchAdminStudentsPage() {
     const regNo = (student.registration_no || '').toLowerCase();
     const searchLower = search.toLowerCase();
 
-    const matchesSearch = !search || name.includes(searchLower) || email.includes(searchLower) || regNo.includes(searchLower);
+    const matchesSearch = !debouncedSearch || name.includes(debouncedSearch.toLowerCase()) || email.includes(debouncedSearch.toLowerCase()) || regNo.includes(debouncedSearch.toLowerCase());
     const matchesStatus = !statusFilter || student.is_active === (statusFilter === 'active');
 
-    return matchesSearch && matchesStatus;
+    return matchesStatus; // Server already filtered search if debouncedSearch was provided
   });
 
   // Paginated students

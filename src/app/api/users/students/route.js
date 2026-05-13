@@ -108,7 +108,7 @@ export async function POST(req) {
     // 3. Fee Calculation logic - Respect manual input if provided
     const manualTotalFee = data.total_fee || data.academic_info?.fee_estimate || data.academic_info?.total_fee;
     const manualDiscount = data.discount !== undefined ? data.discount : (data.academic_info?.discount !== undefined ? data.academic_info.discount : 0);
-    
+
     const calculated_subject_fee = subjects.reduce(
       (acc, sub) => acc + (sub.fee || 0),
       0,
@@ -150,7 +150,7 @@ export async function POST(req) {
       password_hash: password, // Model will hash it
       details: {
         academic_info: {
-          ...data.academic_info, 
+          ...data.academic_info,
           academic_year_id,
           class_id,
           section_id,
@@ -301,8 +301,7 @@ export async function GET(req) {
     const academicYearId = searchParams.get("academic_year_id");
     const classId = searchParams.get("class_id");
     const sectionId = searchParams.get("section_id");
-    const branchId =
-      searchParams.get("branch_id") || searchParams.get("branchId");
+    const branchId = searchParams.get("branch_id") || searchParams.get("branchId");
     const q = searchParams.get("q");
     const subjectId = searchParams.get("subject_id");
 
