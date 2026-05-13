@@ -102,9 +102,30 @@ export async function PUT(req, { params }) {
     const currentUser = await getCurrentUser(req);
     if (!currentUser) return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
 
-    const formData = await req.formData();
-    const dataStr = formData.get('data');
-    const data = dataStr ? JSON.parse(dataStr) : {};
+    // --- Content-Type Detection ---
+    const contentType = req.headers.get("content-type") || "";
+    let data = {};
+    let formData = null;
+
+    if (contentType.includes("multipart/form-data")) {
+      try {
+        formData = await req.formData();
+        if (formData) {
+          const dataStr = formData.get('data');
+          if (dataStr) data = JSON.parse(dataStr);
+        }
+      } catch (e) {
+        console.error("FormData parse error:", e);
+      }
+    }
+    
+    if (!formData) {
+      try {
+        data = await req.json();
+      } catch (e) {
+        data = {};
+      }
+    }
 
     const resolvedParams = await params;
     const id = resolvedParams.id;
@@ -131,54 +152,64 @@ export async function PUT(req, { params }) {
       updateData.branch_id = data.branchId;
     }
 
+    // Support password update from Admin Modal
+    if (data.password) {
+      updateData.password_hash = data.password;
+    }
+
     // 1. Handle Profile Photo Upload
     let avatarUrl = teacher.avatar_url;
     let avatarPublicId = teacher.details?.avatar_public_id;
-    const profilePhoto = formData.get('profilePhoto');
     
-    if (profilePhoto && profilePhoto instanceof File) {
-      // Delete old photo if exists
-      if (avatarPublicId) {
-        try { await deleteFromCloudinary(avatarPublicId); } catch (e) {}
+    if (formData) {
+      const profilePhoto = formData.get('profilePhoto');
+      if (profilePhoto && profilePhoto instanceof File) {
+        // Delete old photo if exists
+        if (avatarPublicId) {
+          try { await deleteFromCloudinary(avatarPublicId); } catch (e) {}
+        }
+        
+        const buffer = Buffer.from(await profilePhoto.arrayBuffer());
+        const base64 = `data:${profilePhoto.type};base64,${buffer.toString('base64')}`;
+        const uploadRes = await uploadProfilePhoto(base64, teacher.id);
+        avatarUrl = uploadRes.url;
+        avatarPublicId = uploadRes.publicId;
+        uploadedPublicIds.push(avatarPublicId);
       }
-      
-      const buffer = Buffer.from(await profilePhoto.arrayBuffer());
-      const base64 = `data:${profilePhoto.type};base64,${buffer.toString('base64')}`;
-      const uploadRes = await uploadProfilePhoto(base64, teacher.id);
-      avatarUrl = uploadRes.url;
-      avatarPublicId = uploadRes.publicId;
-      uploadedPublicIds.push(avatarPublicId);
     }
 
     // 2. Handle Documents Upload
-    const docFiles = formData.getAll('documents');
-    const docMetaStr = formData.get('documentMetadata');
-    const allDocMeta = docMetaStr ? JSON.parse(docMetaStr) : [];
-    
-    // Filter out metadata for new files only to match docFiles array order
-    const newDocMeta = allDocMeta.filter(m => !m.isExisting);
-    
     const existingDocuments = teacher.details?.documents || [];
-    const updatedDocuments = [...existingDocuments];
+    let updatedDocuments = [...existingDocuments];
+    let allDocMeta = [];
 
-    for (let i = 0; i < docFiles.length; i++) {
-      const file = docFiles[i];
-      const meta = newDocMeta[i];
+    if (formData) {
+      const docFiles = formData.getAll('documents');
+      const docMetaStr = formData.get('documentMetadata');
+      allDocMeta = docMetaStr ? JSON.parse(docMetaStr) : [];
       
-      if (file && file instanceof File) {
-        const buffer = Buffer.from(await file.arrayBuffer());
-        const base64 = `data:${file.type};base64,${buffer.toString('base64')}`;
-        const uploadRes = await uploadTeacherDocument(base64, teacher.id, meta?.type || 'other');
+      // Filter out metadata for new files only to match docFiles array order
+      const newDocMeta = allDocMeta.filter(m => !m.isExisting);
+      
+      for (let i = 0; i < docFiles.length; i++) {
+        const file = docFiles[i];
+        const meta = newDocMeta[i];
         
-        updatedDocuments.push({
-          id: crypto.randomUUID(),
-          type: meta?.type || 'other',
-          name: meta?.name || file.name,
-          url: uploadRes.url,
-          publicId: uploadRes.publicId,
-          uploaded_at: new Date().toISOString()
-        });
-        uploadedPublicIds.push(uploadRes.publicId);
+        if (file && file instanceof File) {
+          const buffer = Buffer.from(await file.arrayBuffer());
+          const base64 = `data:${file.type};base64,${buffer.toString('base64')}`;
+          const uploadRes = await uploadTeacherDocument(base64, teacher.id, meta?.type || 'other');
+          
+          updatedDocuments.push({
+            id: crypto.randomUUID(),
+            type: meta?.type || 'other',
+            name: meta?.name || file.name,
+            url: uploadRes.url,
+            publicId: uploadRes.publicId,
+            uploaded_at: new Date().toISOString()
+          });
+          uploadedPublicIds.push(uploadRes.publicId);
+        }
       }
     }
 

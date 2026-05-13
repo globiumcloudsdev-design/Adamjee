@@ -4,7 +4,6 @@ import { Op } from "sequelize";
 import { withAuth } from "@/backend/middleware/auth.middleware.js";
 import { uploadStaffDocument, uploadProfilePhoto, deleteFromCloudinary } from "@/backend/utils/cloudinary";
 
-
 /**
  * GET /api/users/staff/[id]
  */
@@ -143,6 +142,11 @@ async function updateStaff(req, { params }) {
     if (data.is_active !== undefined) updateFields.is_active = data.is_active;
     if (data.isActive !== undefined) updateFields.is_active = data.isActive;
     if (data.staff_sub_type || data.staffSubType) updateFields.staff_sub_type = data.staff_sub_type || data.staffSubType;
+    
+    // Support password update from Admin Modal
+    if (data.password) {
+      updateFields.password_hash = data.password;
+    }
     
     updateFields.avatar_url = avatarUrl;
     updateFields.documents = finalDocuments;

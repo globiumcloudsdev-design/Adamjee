@@ -31,11 +31,39 @@ export async function GET(req, { params }) {
 export async function PUT(req, { params }) {
   try {
     const user = await getCurrentUser(req);
-    const data = await req.json();
+    // --- Content-Type Detection ---
+    const contentType = req.headers.get("content-type") || "";
+    let data = {};
+    let formData = null;
+
+    if (contentType.includes("multipart/form-data")) {
+      try {
+        formData = await req.formData();
+        if (formData) {
+          const dataStr = formData.get('data');
+          if (dataStr) data = JSON.parse(dataStr);
+        }
+      } catch (e) {
+        console.error("FormData parse error:", e);
+      }
+    }
+    
+    if (!formData) {
+      try {
+        data = await req.json();
+      } catch (e) {
+        data = {};
+      }
+    }
 
     const student = await User.findByPk((await params).id);
     if (!student)
       return NextResponse.json({ error: "Student not found" }, { status: 404 });
+
+    // Support password update from Admin Modal
+    if (data.password) {
+      data.password_hash = data.password;
+    }
 
     // Branch Admin Restriction
     if (user.role !== "SUPER_ADMIN" && student.branch_id !== user.branch_id) {
@@ -156,6 +184,7 @@ export async function PUT(req, { params }) {
     student.changed('details', true);
     await student.update(data);
     return NextResponse.json({
+      success: true,
       message: "Student updated successfully",
       student,
     });
@@ -204,6 +233,7 @@ export async function DELETE(req, { params }) {
     await student.destroy();
 
     return NextResponse.json({
+      success: true,
       message: "Student and cloud data deleted successfully",
     });
   } catch (error) {

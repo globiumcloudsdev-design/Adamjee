@@ -744,7 +744,7 @@ export default function SuperAdminFeeVouchersPage() {
                     <TableCell><Skeleton className="h-8 w-24" /></TableCell>
                   </TableRow>
                 ))
-              ) : currentPageData.length === 0 ? (
+              ) : displayVouchers.length === 0 ? (
                 <TableRow>
                   <TableCell colSpan={9} className="text-center py-10 text-gray-500 font-medium">
                     No vouchers found for this category.
