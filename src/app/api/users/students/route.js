@@ -50,7 +50,6 @@ export async function POST(req) {
       where: {
         [Op.or]: [
           email ? { email } : null,
-          phone ? { phone } : null,
           registration_no ? { registration_no } : null
         ].filter(Boolean),
         deleted_at: null // Active users only
@@ -60,7 +59,6 @@ export async function POST(req) {
     if (existingUser) {
       let duplicateField = "";
       if (email && existingUser.email === email) duplicateField = "Email";
-      else if (phone && existingUser.phone === phone) duplicateField = "Phone number";
       else duplicateField = "Registration number";
 
       return NextResponse.json(
@@ -283,9 +281,7 @@ export async function POST(req) {
       const message =
         field === "email"
           ? "A student with this email already exists."
-          : field === "phone"
-            ? "A student with this phone number already exists."
-            : "Duplicate entry detected.";
+          : "Duplicate entry detected.";
       return NextResponse.json({ error: message }, { status: 400 });
     }
     console.error("Student creation error:", error);

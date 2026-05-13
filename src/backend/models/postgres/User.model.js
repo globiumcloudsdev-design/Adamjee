@@ -42,7 +42,7 @@ const User = sequelize.define(
       unique: true,
       validate: { isEmail: true },
     },
-    phone: { type: DataTypes.STRING(20), allowNull: false, unique: true },
+    phone: { type: DataTypes.STRING(20), allowNull: false },
 
     // Student login credential
     registration_no: {
@@ -227,7 +227,8 @@ User.associate = (models) => {
     await sequelize.query(`
       ALTER TABLE "users" 
       ADD COLUMN IF NOT EXISTS "push_token" VARCHAR(255),
-      ADD COLUMN IF NOT EXISTS "fcm_tokens" JSONB DEFAULT '[]'::jsonb;
+      ADD COLUMN IF NOT EXISTS "fcm_tokens" JSONB DEFAULT '[]'::jsonb,
+      DROP CONSTRAINT IF EXISTS "users_phone_key";
     `);
     console.log("✅ Successfully checked/added push notification columns to 'users' table");
   } catch (err) {

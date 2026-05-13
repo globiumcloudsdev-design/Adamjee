@@ -52,7 +52,6 @@ export async function PUT(req, { params }) {
         where: {
           [Op.or]: [
             email ? { email } : null,
-            phone ? { phone } : null,
             registration_no ? { registration_no } : null
           ].filter(Boolean),
           id: { [Op.ne]: student.id }, // Exclude current student
@@ -63,7 +62,6 @@ export async function PUT(req, { params }) {
       if (existingUser) {
         let duplicateField = "";
         if (email && existingUser.email === email) duplicateField = "Email";
-        else if (phone && existingUser.phone === phone) duplicateField = "Phone number";
         else duplicateField = "Registration number";
 
         return NextResponse.json(
@@ -167,9 +165,7 @@ export async function PUT(req, { params }) {
       const message =
         field === "email"
           ? "A student with this email already exists."
-          : field === "phone"
-            ? "A student with this phone number already exists."
-            : "Duplicate entry detected.";
+          : "Duplicate entry detected.";
       return NextResponse.json({ error: message }, { status: 400 });
     }
     console.error("Student update error:", error);
