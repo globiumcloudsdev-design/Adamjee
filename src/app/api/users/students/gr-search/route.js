@@ -32,6 +32,9 @@ export async function GET(req) {
       whereClause.branch_id = branchId;
     }
 
+    const academicYearId = searchParams.get("academic_year_id");
+    const classId = searchParams.get("class_id");
+
     // Strict GR No (Roll No) search in JSONB
     whereClause[Op.and] = [
       sequelize.where(
@@ -44,6 +47,27 @@ export async function GET(req) {
         { [Op.iLike]: `%${cleanRollNo}%` }
       )
     ];
+
+    // --- Academic Info Filtering ---
+    const academicInfoFilter = {};
+    let hasAcademicFilter = false;
+
+    if (academicYearId) {
+      academicInfoFilter.academic_year_id = academicYearId;
+      hasAcademicFilter = true;
+    }
+    if (classId) {
+      academicInfoFilter.class_id = classId;
+      hasAcademicFilter = true;
+    }
+
+    if (hasAcademicFilter) {
+      whereClause.details = {
+        [Op.contains]: {
+          academic_info: academicInfoFilter,
+        },
+      };
+    }
 
     const students = await User.findAll({
       where: whereClause,

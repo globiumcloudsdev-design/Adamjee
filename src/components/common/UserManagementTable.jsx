@@ -11,7 +11,8 @@ import {
   Phone,
   User,
   Building2,
-  Key
+  Key,
+  Printer
 } from "lucide-react";
 import { 
   Table, 
@@ -45,6 +46,7 @@ export default function UserManagementTable({
   onToggleStatus,
   onDownloadQR,
   onChangePassword,
+  onPrintCard,
 }) {
   if (loading) {
     return (
@@ -243,6 +245,13 @@ export default function UserManagementTable({
                       <Tooltip content="Change Password">
                         <Button onClick={() => onChangePassword(user)} variant="ghost" size="icon" className="h-8 w-8 text-orange-600 hover:bg-orange-50">
                           <Key className="h-4 w-4" />
+                        </Button>
+                      </Tooltip>
+                    )}
+                    {onPrintCard && (
+                      <Tooltip content="Print ID Card">
+                        <Button onClick={() => onPrintCard(user)} variant="ghost" size="icon" className="h-8 w-8 text-purple-600 hover:bg-purple-50">
+                          <Printer className="h-4 w-4" />
                         </Button>
                       </Tooltip>
                     )}

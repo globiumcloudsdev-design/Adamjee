@@ -437,6 +437,141 @@ const SuperAdminStudentsPage = () => {
     }
   };
 
+  // ---- Print Card on Pre-Printed Card (matches download card layout) ----
+  const handlePrintCard = (student) => {
+    if (!student) {
+      toast.error('No student data found');
+      return;
+    }
+
+    const studentName  = `${student.first_name || ''} ${student.last_name || ''}`.trim();
+    const grNo         = student.details?.academic_info?.roll_no || student.registration_no || 'N/A';
+    const className    = getStudentClassName(student);
+    const sectionName  = getStudentSectionName(student);
+    const photoUrl     = student.avatar_url || '';
+
+    const subjectsArr  = student.details?.academic_info?.subjects || [];
+    const subjectsText = subjectsArr.length > 0
+      ? subjectsArr.map(s => s?.name || s).filter(Boolean).join(', ')
+      : 'N/A';
+
+    const qrValue = JSON.stringify({
+      id: student.id,
+      registrationNumber: student.registration_no || grNo,
+      role: 'student',
+      fullName: studentName
+    });
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qrValue)}&size=200x200&margin=2`;
+
+    /*
+     * Same layout as idCardGenerator.js — 3in × 4in portrait
+     * Left 1.1in  = Adamjee pre-printed strip  → blank
+     * Photo       : absolute left:1.4in, top:0.25in,  0.79in × 0.79in
+     * Info fields : absolute left:1.1in, top:1.15in,  right:0.1in
+     * QR          : absolute left:1.1in, bottom:0.15in, 0.72in × 0.72in
+     */
+    const printHTML = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Print Card – ${studentName}</title>
+  <style>
+    @page { size: 3in 4in; margin: 0; }
+    *, *::before, *::after {
+      box-sizing: border-box; margin: 0; padding: 0;
+      -webkit-print-color-adjust: exact; print-color-adjust: exact;
+      font-family: 'Segoe UI', Arial, sans-serif;
+    }
+    html, body { width: 3in; height: 4in; background: transparent; }
+    .card { position: relative; width: 3in; height: 4in; background: transparent; overflow: hidden; }
+
+    /* Photo */
+    .photo-section { position: absolute; left: 1.4in; top: 0.25in; width: 0.79in; height: 0.79in; }
+    .photo-box {
+      width: 0.79in; height: 0.79in;
+      border: 1px solid #1f3a93; overflow: hidden; background: #fff;
+      display: flex; align-items: center; justify-content: center; border-radius: 2px;
+    }
+    .photo-box img { width: 100%; height: 100%; object-fit: cover; }
+    .photo-placeholder { width: 100%; height: 100%; background: #f0f0f0; }
+
+    /* Info */
+    .info-section { position: absolute; left: 1.1in; top: 1.15in; right: 0.1in; color: #1f2937; }
+    .info-field {
+      display: grid; grid-template-columns: 0.72in 1fr;
+      gap: 0.06in; margin-bottom: 0.09in; line-height: 1.2; align-items: start;
+    }
+    .field-label { font-size: 7px; font-weight: 700; color: #1f3a93; text-transform: uppercase; letter-spacing: 0.3px; }
+    .field-value { font-size: 8px; font-weight: 600; color: #111827; word-break: break-word; line-height: 1.25; }
+    .field-value.student-name { font-size: 8px; font-weight: 800; text-transform: uppercase; }
+    .subject-value { font-size: 6.5px; line-height: 1.4; max-height: 0.32in; overflow: hidden; word-break: break-word; }
+
+    /* QR */
+    .qr-section {
+      position: absolute; left: 1.1in; bottom: 0.15in;
+      width: 0.72in; height: 0.72in;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .qr-section img { width: 100%; height: 100%; object-fit: contain; }
+    .reg-text { position: absolute; left: 1.85in; bottom: 0.15in; font-size: 6px; color: #1f3a93; font-weight: 700; }
+
+    @media print { html, body { background: transparent; } .card { border: none; } }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="photo-section">
+      <div class="photo-box">
+        ${photoUrl ? `<img src="${photoUrl}" alt="photo" />` : `<div class="photo-placeholder"></div>`}
+      </div>
+    </div>
+    <div class="info-section">
+      <div class="info-field">
+        <div class="field-label">Name:</div>
+        <div class="field-value student-name">${studentName}</div>
+      </div>
+      <div class="info-field">
+        <div class="field-label">GR No.:</div>
+        <div class="field-value">${grNo}</div>
+      </div>
+      <div class="info-field">
+        <div class="field-label">Class:</div>
+        <div class="field-value">${className} – ${sectionName}</div>
+      </div>
+      <div class="info-field">
+        <div class="field-label">Subject:</div>
+        <div class="field-value subject-value">${subjectsText}</div>
+      </div>
+    </div>
+    <div class="qr-section">
+      <img src="${qrUrl}" alt="QR" />
+    </div>
+    <div class="reg-text">${student.registration_no || ''}</div>
+  </div>
+  <script>
+    window.addEventListener('load', function () {
+      var images = document.querySelectorAll('img');
+      var total = images.length;
+      if (total === 0) { setTimeout(function(){ window.print(); window.close(); }, 300); return; }
+      var loaded = 0;
+      function onDone() { loaded++; if (loaded >= total) { setTimeout(function(){ window.print(); window.close(); }, 300); } }
+      images.forEach(function(img) {
+        if (img.complete) { onDone(); } else { img.addEventListener('load', onDone); img.addEventListener('error', onDone); }
+      });
+    });
+  <\/script>
+</body>
+</html>`;
+
+    const pw = window.open('', '_blank', 'width=400,height=600');
+    if (!pw) {
+      toast.error('Popup blocked! Allow popups for this site and try again.');
+      return;
+    }
+    pw.document.write(printHTML);
+    pw.document.close();
+  };
+
   const generateQRCode = async (data) => {
     try {
       const qrCodeData = JSON.stringify({
@@ -549,6 +684,7 @@ const SuperAdminStudentsPage = () => {
             onEdit={handleEdit}
             onDelete={(id) => setDeleteModal({ open: true, student: students.find(s => s.id === id) })}
             onToggleStatus={handleToggleStatus}
+            onPrintCard={handlePrintCard}
             onDownloadQR={handleDownloadCard}
           />
 

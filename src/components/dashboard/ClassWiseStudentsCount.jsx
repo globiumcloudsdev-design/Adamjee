@@ -7,10 +7,10 @@ import ChartFilters from './ChartFilters';
 import apiClient from '@/lib/api-client';
 import { API_ENDPOINTS } from '@/constants/api-endpoints';
 
-const ClassWiseStudentsCount = () => {
+const ClassWiseStudentsCount = ({ data: externalData }) => {
   const [selectedFilter, setSelectedFilter] = useState('monthly');
   const [data, setData] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   // Memoized mock data generation
@@ -22,6 +22,18 @@ const ClassWiseStudentsCount = () => {
     }));
   }, []);
 
+  useEffect(() => {
+    if (externalData && externalData.length > 0) {
+      setData(externalData.map(item => ({
+        class: item.name || item.class,
+        count: item.students || item.count
+      })));
+      setLoading(false);
+    } else if (!externalData) {
+      fetchData();
+    }
+  }, [externalData]);
+
   // Memoized fetch function
   const fetchData = useCallback(async () => {
     try {
@@ -29,29 +41,17 @@ const ClassWiseStudentsCount = () => {
       setError(null);
       const response = await apiClient.get(`${API_ENDPOINTS.BRANCH_ADMIN.CHARTS.CLASS_WISE_STUDENTS}?filter=${selectedFilter}`);
 
-      // Always use mock data for now to ensure it shows
-      setData(getMockData());
-
-      // Uncomment below when you want to use real API data
-      /*
       // Check if response has valid data
       if (response.success && response.data && Array.isArray(response.data) && response.data.length > 0) {
-        // Additional check to ensure data is not all zeros or null
-        const hasValidData = response.data.some(item => item.students && item.students > 0);
-        if (hasValidData) {
-          setData(response.data);
-        } else {
-          // Use mock data if all data is zero/null
-          setData(getMockData());
-        }
+        setData(response.data.map(item => ({
+          class: item.name || item.class,
+          count: item.students || item.count
+        })));
       } else {
-        // Use mock data if API returns empty/null data
         setData(getMockData());
       }
-      */
     } catch (err) {
       console.error('Class-wise students fetch error:', err);
-      setError('Failed to load data');
       setData(getMockData());
     } finally {
       setLoading(false);
@@ -59,8 +59,10 @@ const ClassWiseStudentsCount = () => {
   }, [selectedFilter, getMockData]);
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    if (!externalData) {
+      fetchData();
+    }
+  }, [fetchData, externalData]);
 
   if (loading) {
     return (

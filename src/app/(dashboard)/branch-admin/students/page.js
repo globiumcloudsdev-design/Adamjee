@@ -51,6 +51,7 @@ export default function BranchAdminStudentsPage() {
   const [grSearch, setGrSearch] = useState('');
   const [debouncedGrSearch, setDebouncedGrSearch] = useState('');
   const [classFilter, setClassFilter] = useState('');
+  const [academicYearFilter, setAcademicYearFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, pages: 0 });
   const [deleteModal, setDeleteModal] = useState({ open: false, student: null });
@@ -70,8 +71,10 @@ export default function BranchAdminStudentsPage() {
   const fetchStudents = async () => {
     try {
       setLoading(true);
-      const params = {};
-      if (classFilter) params.class_id = classFilter;
+      const params = {
+        class_id: classFilter,
+        academic_year_id: academicYearFilter
+      };
       
       let response;
       if (debouncedGrSearch && debouncedGrSearch.trim()) {
@@ -129,6 +132,7 @@ export default function BranchAdminStudentsPage() {
     try {
       const response = await apiClient.get('/api/academic-years');
       const yearsData = response.academic_years || (Array.isArray(response) ? response : []);
+      console.log("academic years",yearsData)
       setAcademicYears(yearsData);
     } catch (error) {
       console.error('Error fetching academic years:', error);
@@ -162,7 +166,7 @@ export default function BranchAdminStudentsPage() {
   // Fetch students when filters change
   useEffect(() => {
     fetchStudents();
-  }, [debouncedSearch, debouncedGrSearch, classFilter, statusFilter]);
+  }, [debouncedSearch, debouncedGrSearch, classFilter, academicYearFilter, statusFilter]);
 
   // --- Helper: Get display values from PostgreSQL student ---
   const getStudentName = (student) => {
@@ -447,6 +451,246 @@ export default function BranchAdminStudentsPage() {
     }
   };
 
+  // ---- Print Card on Pre-Printed Card (matches download card exactly) ----
+  const handlePrintCard = (student) => {
+    if (!student) {
+      toast.error('No student data found');
+      return;
+    }
+
+    const studentName  = `${student.first_name || ''} ${student.last_name || ''}`.trim();
+    const grNo         = student.details?.academic_info?.roll_no || student.registration_no || 'N/A';
+    const className    = getStudentClassName(student);
+    const sectionName  = getStudentSectionName(student);
+    const photoUrl     = student.avatar_url || '';
+
+    const subjectsArr  = student.details?.academic_info?.subjects || [];
+    const subjectsText = subjectsArr.length > 0
+      ? subjectsArr.map(s => s?.name || s).filter(Boolean).join(', ')
+      : 'N/A';
+
+    const qrValue = JSON.stringify({
+      id: student.id,
+      registrationNumber: student.registration_no || grNo,
+      role: 'student',
+      fullName: studentName
+    });
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qrValue)}&size=200x200&margin=2`;
+
+    /*
+     * Card is 3in × 4in portrait  — same as idCardGenerator.js
+     * Left 1.1in = Adamjee pre-printed strip  → leave blank
+     * Photo  : absolute, left:1.4in, top:0.25in,  0.79in × 0.79in
+     * Info   : absolute, left:1.1in, top:1.15in,  right:0.1in
+     * QR     : absolute, left:1.1in, bottom:0.15in, 0.7in × 0.7in
+     */
+    const printHTML = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Print Card – ${studentName}</title>
+  <style>
+    @page {
+      size: 3in 4in;
+      margin: 0;
+    }
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+      font-family: 'Segoe UI', Arial, sans-serif;
+    }
+    html, body {
+      width: 3in;
+      height: 4in;
+      background: transparent;
+    }
+    /* Full card container – transparent so pre-printed design shows */
+    .card {
+      position: relative;
+      width: 3in;
+      height: 4in;
+      background: transparent;
+      overflow: hidden;
+    }
+
+    /* ── Photo box ─────────────────────────────────────────────── */
+    /* Sits in the upper-right of the right white area             */
+    .photo-section {
+      position: absolute;
+      left: 1.4in;
+      top: 0.25in;
+      width: 0.79in;
+      height: 0.79in;
+    }
+    .photo-box {
+      width: 0.79in;
+      height: 0.79in;
+      border: 1px solid #1f3a93;
+      overflow: hidden;
+      background: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 2px;
+    }
+    .photo-box img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .photo-placeholder {
+      width: 100%;
+      height: 100%;
+      background: #f0f0f0;
+    }
+
+    /* ── Info fields ────────────────────────────────────────────── */
+    .info-section {
+      position: absolute;
+      left: 1.1in;
+      top: 1.15in;
+      right: 0.1in;
+      color: #1f2937;
+    }
+    .info-field {
+      display: grid;
+      grid-template-columns: 0.72in 1fr;
+      gap: 0.06in;
+      margin-bottom: 0.09in;
+      line-height: 1.2;
+      align-items: start;
+    }
+    .field-label {
+      font-size: 7px;
+      font-weight: 700;
+      color: #1f3a93;
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .field-value {
+      font-size: 8px;
+      font-weight: 600;
+      color: #111827;
+      word-break: break-word;
+      line-height: 1.25;
+    }
+    .field-value.student-name {
+      font-size: 8px;
+      font-weight: 800;
+      text-transform: uppercase;
+    }
+    .subject-value {
+      font-size: 6.5px;
+      line-height: 1.4;
+      max-height: 0.32in;
+      overflow: hidden;
+      word-break: break-word;
+    }
+
+    /* ── QR code ────────────────────────────────────────────────── */
+    .qr-section {
+      position: absolute;
+      left: 1.1in;
+      bottom: 0.15in;
+      width: 0.72in;
+      height: 0.72in;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .qr-section img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
+    /* Reg no below QR */
+    .reg-text {
+      position: absolute;
+      left: 1.85in;
+      bottom: 0.15in;
+      font-size: 6px;
+      color: #1f3a93;
+      font-weight: 700;
+    }
+
+    @media print {
+      html, body { background: transparent; }
+      .card { border: none; }
+    }
+  </style>
+</head>
+<body>
+  <div class="card">
+
+    <!-- Photo -->
+    <div class="photo-section">
+      <div class="photo-box">
+        ${photoUrl
+          ? `<img src="${photoUrl}" alt="photo" />`
+          : `<div class="photo-placeholder"></div>`
+        }
+      </div>
+    </div>
+
+    <!-- Info fields -->
+    <div class="info-section">
+      <div class="info-field">
+        <div class="field-label">Name:</div>
+        <div class="field-value student-name">${studentName}</div>
+      </div>
+      <div class="info-field">
+        <div class="field-label">GR No.:</div>
+        <div class="field-value">${grNo}</div>
+      </div>
+      <div class="info-field">
+        <div class="field-label">Class:</div>
+        <div class="field-value">${className} – ${sectionName}</div>
+      </div>
+      <div class="info-field">
+        <div class="field-label">Subject:</div>
+        <div class="field-value subject-value">${subjectsText}</div>
+      </div>
+    </div>
+
+    <!-- QR code -->
+    <div class="qr-section">
+      <img src="${qrUrl}" alt="QR" />
+    </div>
+
+    <!-- Reg no -->
+    <div class="reg-text">${student.registration_no || ''}</div>
+
+  </div>
+
+  <script>
+    // Wait for all images (photo + QR) then auto-print
+    window.addEventListener('load', function () {
+      var images = document.querySelectorAll('img');
+      var total = images.length;
+      if (total === 0) { setTimeout(function(){ window.print(); window.close(); }, 300); return; }
+      var loaded = 0;
+      function onDone() { loaded++; if (loaded >= total) { setTimeout(function(){ window.print(); window.close(); }, 300); } }
+      images.forEach(function(img) {
+        if (img.complete) { onDone(); } else { img.addEventListener('load', onDone); img.addEventListener('error', onDone); }
+      });
+    });
+  <\/script>
+</body>
+</html>`;
+
+    const pw = window.open('', '_blank', 'width=400,height=600');
+    if (!pw) {
+      toast.error('Popup blocked! Allow popups for this site and try again.');
+      return;
+    }
+    pw.document.write(printHTML);
+    pw.document.close();
+  };
+
   const generateQRCode = async (data) => {
     try {
       const qrCodeData = JSON.stringify({
@@ -519,6 +763,15 @@ export default function BranchAdminStudentsPage() {
               icon={Search}
             />
             <Dropdown
+              placeholder="Academic Year"
+              value={academicYearFilter}
+              onChange={(e) => setAcademicYearFilter(e.target.value)}
+              options={[
+                { value: '', label: 'All Years' },
+                ...academicYears.map(ay => ({ value: ay.id, label: ay.name })),
+              ]}
+            />
+            <Dropdown
               placeholder="Filter by class"
               value={classFilter}
               onChange={(e) => setClassFilter(e.target.value)}
@@ -547,6 +800,7 @@ export default function BranchAdminStudentsPage() {
             onEdit={handleEdit}
             onDelete={(student) => setDeleteModal({ open: true, student })}
             onToggleStatus={handleToggleStatus}
+            onPrintCard={handlePrintCard}
             onDownloadQR={handleDownloadCard}
             onChangePassword={handleChangePassword}
           />

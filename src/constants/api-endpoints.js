@@ -392,6 +392,7 @@ export const API_ENDPOINTS = {
   // Branch Admin Endpoints
   BRANCH_ADMIN: {
     DASHBOARD: "/api/branch-admin/dashboard", // GET
+    DASHBOARD_STATS: "/api/branch-admin/dashboard/stats", // GET
     NOTIFICATIONS: {
       LIST: "/api/notifications", // GET
       MARK_READ: "/api/notifications", // PATCH

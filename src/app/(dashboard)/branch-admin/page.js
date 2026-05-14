@@ -56,11 +56,19 @@ export default function BranchAdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [selectedTimeRange, setSelectedTimeRange] = useState('30days');
+  const [academicYears, setAcademicYears] = useState([]);
+  const [classes, setClasses] = useState([]);
+  const [selectedAcademicYear, setSelectedAcademicYear] = useState('');
+  const [selectedClass, setSelectedClass] = useState('');
 
   // Chart data states
   const [chartsLoading, setChartsLoading] = useState(true);
   const [studentTrendsData, setStudentTrendsData] = useState([]);
   const [classWiseStudentsData, setClassWiseStudentsData] = useState([]);
+
+  useEffect(() => {
+    fetchFilters();
+  }, []);
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -71,23 +79,47 @@ export default function BranchAdminDashboard() {
       loadDashboardData();
       fetchChartData();
     }
-  }, [user, authLoading, selectedTimeRange]);
+  }, [user, authLoading, selectedTimeRange, selectedAcademicYear, selectedClass]);
+
+  const fetchFilters = async () => {
+    try {
+      const [ayRes, classRes] = await Promise.all([
+        apiClient.get('/api/academic-years'),
+        apiClient.get('/api/classes')
+      ]);
+      
+      if (ayRes.success) {
+        setAcademicYears(ayRes.data.map(ay => ({ value: ay.id, label: ay.name })));
+        const currentYear = ayRes.data.find(ay => ay.is_current);
+        if (currentYear) setSelectedAcademicYear(currentYear.id);
+      }
+      
+      if (classRes.success) {
+        setClasses(classRes.data.map(c => ({ value: c.id, label: c.name })));
+      }
+    } catch (err) {
+      console.error('Failed to fetch filters:', err);
+    }
+  };
 
   const loadDashboardData = async () => {
     try {
       setLoading(true);
       setError(null);
-      const url = `/api/branch-admin/dashboard/stats?timeRange=${selectedTimeRange}`;
-      const response = await apiClient.get(url);
       
+      let url = `${API_ENDPOINTS.BRANCH_ADMIN.DASHBOARD_STATS}?timeRange=${selectedTimeRange}`;
+      if (selectedAcademicYear) url += `&academicYearId=${selectedAcademicYear}`;
+      if (selectedClass) url += `&classId=${selectedClass}`;
+      
+      const response = await apiClient.get(url);
       if (response.success) {
         setDashboardData(response.data);
       } else {
         setError(response.message || 'Failed to load dashboard');
       }
     } catch (err) {
-      setError(err.message || 'Failed to load dashboard data');
-      console.error('Dashboard fetch error:', err);
+      console.error('Dashboard data fetch error:', err);
+      setError(err.message || 'An error occurred while loading dashboard data.');
     } finally {
       setLoading(false);
     }
@@ -204,6 +236,20 @@ export default function BranchAdminDashboard() {
         onRefresh={loadDashboardData}
       >
         <Dropdown
+          value={selectedAcademicYear}
+          onChange={(e) => setSelectedAcademicYear(e.target.value)}
+          options={[{ value: '', label: 'All Years' }, ...academicYears]}
+          placeholder="Academic Year"
+          className="min-w-[140px]"
+        />
+        <Dropdown
+          value={selectedClass}
+          onChange={(e) => setSelectedClass(e.target.value)}
+          options={[{ value: '', label: 'All Classes' }, ...classes]}
+          placeholder="Select Class"
+          className="min-w-[140px]"
+        />
+        <Dropdown
           value={selectedTimeRange}
           onChange={(e) => setSelectedTimeRange(e.target.value)}
           options={[
@@ -223,30 +269,32 @@ export default function BranchAdminDashboard() {
           title="Total Students"
           value={formatNumber(headerStats.totalStudents || 0)}
           icon={GraduationCap}
-          change={headerStats.studentGrowth || 12}
+          change={headerStats.studentGrowth}
           description={`${headerStats.activeStudents || 0} Active • ${headerStats.inactiveStudents || 0} Inactive`}
-          color="green"
+          color="blue"
         />
         <StatsCard 
           title="Total Teachers"
           value={formatNumber(headerStats.totalTeachers || 0)}
           icon={UserCheck}
-          description="Active faculty members"
+          description={`${headerStats.activeTeachers || 0} Active faculty`}
           color="purple"
         />
         <StatsCard 
-          title="Total Classes"
-          value={formatNumber(headerStats.totalClasses || 0)}
-          icon={BookOpen}
-          description={`${headerStats.activeClasses || 0} Active sections`}
-          color="indigo"
+          title="Fee Collection"
+          value={`${performanceMetrics.feeCollection || 0}%`}
+          icon={Wallet}
+          change={performanceMetrics.feeChange}
+          description={`${formatCurrency(performanceMetrics.totalPaid || 0)} / ${formatCurrency(performanceMetrics.totalDue || 0)}`}
+          color="emerald"
         />
         <StatsCard 
-          title="System Health"
-          value="100%"
+          title="Avg. Attendance"
+          value={`${performanceMetrics.avgAttendance || 0}%`}
           icon={Activity}
-          description="Fully operational"
-          color="emerald"
+          change={performanceMetrics.attendanceChange}
+          description="Average daily attendance"
+          color="indigo"
         />
       </div>
 
@@ -350,8 +398,8 @@ export default function BranchAdminDashboard() {
 
         {/* Row 1: Student Trends and Class-wise Students Count */}
         <div className="grid gap-4 sm:gap-6 grid-cols-1 lg:grid-cols-2">
-          <TotalStudentsTrend data={studentTrendsData} />
-          <ClassWiseStudentsCount data={classWiseStudentsData} />
+          <TotalStudentsTrend filters={{ academicYearId: selectedAcademicYear, classId: selectedClass }} />
+          <ClassWiseStudentsCount data={dashboardData?.charts?.classDistribution || classWiseStudentsData} />
         </div>
       </div>
     </div>

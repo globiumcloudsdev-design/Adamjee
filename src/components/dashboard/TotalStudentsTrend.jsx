@@ -8,7 +8,7 @@ import ChartFilters from './ChartFilters';
 import apiClient from '@/lib/api-client';
 import { API_ENDPOINTS } from '@/constants/api-endpoints';
 
-const TotalStudentsTrend = () => {
+const TotalStudentsTrend = ({ filters = {} }) => {
   const [selectedFilter, setSelectedFilter] = useState('monthly');
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -42,12 +42,16 @@ const TotalStudentsTrend = () => {
 
   useEffect(() => {
     fetchData();
-  }, [selectedFilter]);
+  }, [selectedFilter, filters.academicYearId, filters.classId]);
 
   const fetchData = async () => {
     try {
       setLoading(true);
-      const response = await apiClient.get(`${API_ENDPOINTS.BRANCH_ADMIN.CHARTS.STUDENT_TRENDS}?filter=${selectedFilter}`);
+      let url = `${API_ENDPOINTS.BRANCH_ADMIN.CHARTS.STUDENT_TRENDS}?filter=${selectedFilter}`;
+      if (filters.academicYearId) url += `&academicYearId=${filters.academicYearId}`;
+      if (filters.classId) url += `&classId=${filters.classId}`;
+      
+      const response = await apiClient.get(url);
 
       // Check if response has valid data
       if (response.success && response.data && Array.isArray(response.data) && response.data.length > 0) {
