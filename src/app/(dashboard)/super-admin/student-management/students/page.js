@@ -24,6 +24,7 @@ import StudentViewModal from '@/components/modals/StudentViewModal';
 import { toast } from 'sonner';
 import UserManagementTable from '@/components/common/UserManagementTable';
 import ConfirmDeleteModal from '@/components/modals/ConfirmDeleteModal';
+import StudentUploadModal from '@/components/modals/StudentUploadModal';
 import { withAuth } from '@/hooks/useAuth';
 import { ROLES } from '@/constants/roles';
 
@@ -41,8 +42,10 @@ const SuperAdminStudentsPage = () => {
   // Modals
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState(null);
   const [viewingStudent, setViewingStudent] = useState(null);
+  const [uploadingStudent, setUploadingStudent] = useState(null);
 
   const [submitting, setSubmitting] = useState(false);
   const [search, setSearch] = useState('');
@@ -323,6 +326,11 @@ const SuperAdminStudentsPage = () => {
   const handleView = (student) => {
     setViewingStudent(student);
     setIsViewModalOpen(true);
+  };
+
+  const handleUploadDocuments = (student) => {
+    setUploadingStudent(student);
+    setIsUploadModalOpen(true);
   };
 
   const openDeleteModal = (studentId) => {
@@ -682,10 +690,11 @@ const SuperAdminStudentsPage = () => {
             loading={loading}
             onView={handleView}
             onEdit={handleEdit}
-            onDelete={(id) => setDeleteModal({ open: true, student: students.find(s => s.id === id) })}
+            onDelete={(student) => setDeleteModal({ open: true, student: student })}
             onToggleStatus={handleToggleStatus}
             onPrintCard={handlePrintCard}
             onDownloadQR={handleDownloadCard}
+            onUploadDocuments={handleUploadDocuments}
           />
 
           {/* Pagination */}
@@ -772,6 +781,13 @@ const SuperAdminStudentsPage = () => {
         branches={branches}
         classes={classes}
         departments={departments}
+      />
+
+      <StudentUploadModal
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        student={uploadingStudent}
+        onSuccess={() => fetchStudents()}
       />
 
       {/* Delete Confirmation Modal */}

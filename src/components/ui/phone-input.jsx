@@ -52,7 +52,7 @@ const PhoneInput = ({ value, onChange, className, error, label, required = false
           type="tel"
           value={displayValue}
           onChange={handleChange}
-          placeholder="300 1234567"
+          placeholder="0300 1234567"
           className={cn(
             "pl-20 h-11 rounded-xl bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 focus:ring-2 focus:ring-indigo-500/20 transition-all font-medium tracking-wider",
             error && "border-red-500 focus:ring-red-500/20",

@@ -25,6 +25,7 @@ import { toast } from 'sonner';
 import UserManagementTable from '@/components/common/UserManagementTable';
 import ConfirmDeleteModal from '@/components/modals/ConfirmDeleteModal';
 import AdminChangeUserPasswordModal from '@/components/modals/AdminChangeUserPasswordModal';
+import StudentUploadModal from '@/components/modals/StudentUploadModal';
 
 export default function BranchAdminStudentsPage() {
   const { user } = useAuth();
@@ -42,8 +43,10 @@ export default function BranchAdminStudentsPage() {
   // Modals
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [isUploadModalOpen, setIsUploadModalOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState(null);
   const [viewingStudent, setViewingStudent] = useState(null);
+  const [uploadingStudent, setUploadingStudent] = useState(null);
 
   const [submitting, setSubmitting] = useState(false);
   const [search, setSearch] = useState('');
@@ -132,7 +135,6 @@ export default function BranchAdminStudentsPage() {
     try {
       const response = await apiClient.get('/api/academic-years');
       const yearsData = response.academic_years || (Array.isArray(response) ? response : []);
-      console.log("academic years",yearsData)
       setAcademicYears(yearsData);
     } catch (error) {
       console.error('Error fetching academic years:', error);
@@ -320,6 +322,11 @@ export default function BranchAdminStudentsPage() {
   const handleView = (student) => {
     setViewingStudent(student);
     setIsViewModalOpen(true);
+  };
+
+  const handleUploadDocuments = (student) => {
+    setUploadingStudent(student);
+    setIsUploadModalOpen(true);
   };
 
   const handleDelete = async () => {
@@ -803,6 +810,7 @@ export default function BranchAdminStudentsPage() {
             onPrintCard={handlePrintCard}
             onDownloadQR={handleDownloadCard}
             onChangePassword={handleChangePassword}
+            onUploadDocuments={handleUploadDocuments}
           />
 
           {/* Pagination */}
@@ -892,6 +900,13 @@ export default function BranchAdminStudentsPage() {
         departments={[]}
         academicYears={academicYears}
         groups={branchGroups}
+      />
+
+      <StudentUploadModal
+        isOpen={isUploadModalOpen}
+        onClose={() => setIsUploadModalOpen(false)}
+        student={uploadingStudent}
+        onSuccess={() => fetchStudents()}
       />
 
       {/* Delete Confirmation Modal */}

@@ -55,6 +55,7 @@ export async function GET(req) {
     const { searchParams } = new URL(req.url);
     const branchIdParam = searchParams.get("branch_id");
     const groupIdParam = searchParams.get("group_id");
+    const academicYearIdParam = searchParams.get("academic_year_id");
 
     // Role-based + query param filtering
     let where = {};
@@ -71,6 +72,11 @@ export async function GET(req) {
     // Filter by group if provided
     if (groupIdParam) {
       where.group_id = groupIdParam;
+    }
+
+    // Filter by academic year if provided
+    if (academicYearIdParam) {
+      where.academic_year_id = academicYearIdParam;
     }
 
     const classes = await Class.findAll({

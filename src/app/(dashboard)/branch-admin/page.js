@@ -39,7 +39,9 @@ import {
   Settings,
   FileText,
   Receipt,
-  RefreshCw
+  RefreshCw,
+  Filter,
+  X
 } from 'lucide-react';
 import Skeleton from '@/components/ui/skeleton';
 import { useRouter } from 'next/navigation';
@@ -54,10 +56,13 @@ export default function BranchAdminDashboard() {
   const router = useRouter();
   const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
   const [error, setError] = useState(null);
   const [selectedTimeRange, setSelectedTimeRange] = useState('30days');
   const [academicYears, setAcademicYears] = useState([]);
-  const [classes, setClasses] = useState([]);
+  const [allClasses, setAllClasses] = useState([]); // تمام classes store کرتا ہے
+  const [classes, setClasses] = useState([]); // filtered classes (year کے مطابق)
   const [selectedAcademicYear, setSelectedAcademicYear] = useState('');
   const [selectedClass, setSelectedClass] = useState('');
 
@@ -69,6 +74,19 @@ export default function BranchAdminDashboard() {
   useEffect(() => {
     fetchFilters();
   }, []);
+
+  // جب academic year بدلے تو classes filter کریں اور selected class reset کریں
+  useEffect(() => {
+    if (allClasses.length > 0) {
+      if (selectedAcademicYear) {
+        setClasses(allClasses.filter(c => String(c.academicYearId) === String(selectedAcademicYear)));
+      } else {
+        setClasses([]); // Year select نہ ہونے پر classes خالی کر دیں
+      }
+      // class reset کریں کیونکہ پچھلی class نئے year میں نہیں ہوگی
+      setSelectedClass('');
+    }
+  }, [selectedAcademicYear, allClasses]);
 
   useEffect(() => {
     if (!authLoading && user) {
@@ -87,24 +105,60 @@ export default function BranchAdminDashboard() {
         apiClient.get('/api/academic-years'),
         apiClient.get('/api/classes')
       ]);
-      
-      if (ayRes.success) {
-        setAcademicYears(ayRes.data.map(ay => ({ value: ay.id, label: ay.name })));
-        const currentYear = ayRes.data.find(ay => ay.is_current);
-        if (currentYear) setSelectedAcademicYear(currentYear.id);
+
+      // Academic years API returns: { academic_years: [...] }
+      let currentYearId = '';
+      const yearsArray = ayRes?.academic_years || [];
+      if (yearsArray.length > 0) {
+        setAcademicYears(yearsArray.map(ay => ({ value: ay.id, label: ay.name })));
+        const currentYear = yearsArray.find(ay => ay.is_current);
+        if (currentYear) {
+          currentYearId = currentYear.id;
+          setSelectedAcademicYear(currentYear.id);
+        }
       }
-      
-      if (classRes.success) {
-        setClasses(classRes.data.map(c => ({ value: c.id, label: c.name })));
+
+      // Classes API returns: [...] directly (array)
+      const classesArray = Array.isArray(classRes) ? classRes : (classRes?.data || []);
+      if (classesArray.length > 0) {
+        const mapped = classesArray.map(c => ({
+          value: c.id,
+          label: c.name,
+          academicYearId: c.academic_year_id || c.academic_year?.id || null
+        }));
+        setAllClasses(mapped);
+        // اگر current year ہے تو صرف اس کی classes دکھائیں
+        if (currentYearId) {
+          setClasses(mapped.filter(c => String(c.academicYearId) === String(currentYearId)));
+        } else {
+          setClasses([]); // Year select نہ ہونے پر classes خالی کر دیں
+        }
       }
     } catch (err) {
       console.error('Failed to fetch filters:', err);
     }
   };
 
+  const handleRefresh = () => {
+    // If filters are already default, just refresh data
+    if (!selectedAcademicYear && !selectedClass && selectedTimeRange === '30days') {
+      loadDashboardData();
+      fetchChartData();
+    } else {
+      // Reset filters, the useEffect will trigger data loading
+      setSelectedAcademicYear('');
+      setSelectedClass('');
+      setSelectedTimeRange('30days');
+    }
+  };
+
   const loadDashboardData = async () => {
     try {
-      setLoading(true);
+      if (!dashboardData) {
+        setLoading(true);
+      } else {
+        setIsRefreshing(true);
+      }
       setError(null);
       
       let url = `${API_ENDPOINTS.BRANCH_ADMIN.DASHBOARD_STATS}?timeRange=${selectedTimeRange}`;
@@ -122,6 +176,7 @@ export default function BranchAdminDashboard() {
       setError(err.message || 'An error occurred while loading dashboard data.');
     } finally {
       setLoading(false);
+      setIsRefreshing(false);
     }
   };
 
@@ -228,39 +283,87 @@ export default function BranchAdminDashboard() {
   const { headerStats, branchInfo, summary, performanceMetrics = {}, studentAnalytics = {} } = dashboardData;
 
   return (
-    <div className="p-4 md:p-6 space-y-6 dark:from-gray-900 dark:via-blue-900 dark:to-purple-900 min-h-screen">
+    <div className={`p-4 md:p-6 space-y-6 dark:from-gray-900 dark:via-blue-900 dark:to-purple-900 min-h-screen transition-opacity duration-200 ${isRefreshing ? 'opacity-60 pointer-events-none' : ''}`}>
       {/* Header */}
       <DashboardHeader 
         title="Branch Admin Dashboard"
         subtitle={`Comprehensive overview of ${branchInfo.name} (${branchInfo.code})`}
-        onRefresh={loadDashboardData}
+        onRefresh={handleRefresh}
       >
-        <Dropdown
-          value={selectedAcademicYear}
-          onChange={(e) => setSelectedAcademicYear(e.target.value)}
-          options={[{ value: '', label: 'All Years' }, ...academicYears]}
-          placeholder="Academic Year"
-          className="min-w-[140px]"
-        />
-        <Dropdown
-          value={selectedClass}
-          onChange={(e) => setSelectedClass(e.target.value)}
-          options={[{ value: '', label: 'All Classes' }, ...classes]}
-          placeholder="Select Class"
-          className="min-w-[140px]"
-        />
-        <Dropdown
-          value={selectedTimeRange}
-          onChange={(e) => setSelectedTimeRange(e.target.value)}
-          options={[
-            { value: '7days', label: 'Last 7 Days' },
-            { value: '30days', label: 'Last 30 Days' },
-            { value: '90days', label: 'Last 90 Days' },
-            { value: '1year', label: 'Last Year' }
-          ]}
-          placeholder="Select Time Range"
-          className="min-w-[140px]"
-        />
+        <div className="relative">
+          <Button 
+            onClick={() => setIsFilterOpen(!isFilterOpen)} 
+            variant="outline" 
+            className={`flex items-center gap-2 rounded-xl border-slate-200 dark:border-slate-800 transition-all ${isFilterOpen ? 'bg-slate-100 dark:bg-slate-800' : 'hover:bg-slate-50 dark:hover:bg-slate-800'}`}
+          >
+            <Filter className="w-4 h-4" />
+            <span className="hidden sm:inline font-semibold">Filters</span>
+            {(selectedAcademicYear || selectedClass || selectedTimeRange !== '30days') && (
+              <span className="flex h-2 w-2 rounded-full bg-blue-600"></span>
+            )}
+          </Button>
+
+          {isFilterOpen && (
+            <>
+              {/* Overlay to close when clicking outside */}
+              <div className="fixed inset-0 z-40" onClick={() => setIsFilterOpen(false)}></div>
+              
+              <div className="absolute right-0 sm:left-auto sm:right-0 top-full mt-2 w-[280px] sm:w-[320px] bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 p-4 z-50 flex flex-col gap-4 animate-in fade-in slide-in-from-top-2">
+                <div className="flex justify-between items-center mb-1">
+                  <h3 className="font-semibold text-gray-900 dark:text-white">Dashboard Filters</h3>
+                  <button onClick={() => setIsFilterOpen(false)} className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors">
+                    <X className="w-5 h-5" />
+                  </button>
+                </div>
+                
+                <div className="space-y-4">
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Academic Year</label>
+                    <Dropdown
+                      value={selectedAcademicYear}
+                      onChange={(e) => setSelectedAcademicYear(e.target.value)}
+                      options={[{ value: '', label: 'All Years' }, ...academicYears]}
+                      placeholder="Academic Year"
+                      className="w-full"
+                    />
+                  </div>
+                  
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Class</label>
+                    <Dropdown
+                      value={selectedClass}
+                      onChange={(e) => setSelectedClass(e.target.value)}
+                      options={
+                        classes.length > 0
+                          ? [{ value: '', label: `All Classes (${classes.length})` }, ...classes]
+                          : [{ value: '', label: selectedAcademicYear ? 'No classes found' : 'Select year first' }]
+                      }
+                      placeholder="Select Class"
+                      className="w-full"
+                      disabled={classes.length === 0}
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-sm font-medium text-gray-700 dark:text-gray-300">Time Range</label>
+                    <Dropdown
+                      value={selectedTimeRange}
+                      onChange={(e) => setSelectedTimeRange(e.target.value)}
+                      options={[
+                        { value: '7days', label: 'Last 7 Days' },
+                        { value: '30days', label: 'Last 30 Days' },
+                        { value: '90days', label: 'Last 90 Days' },
+                        { value: '1year', label: 'Last Year' }
+                      ]}
+                      placeholder="Select Time Range"
+                      className="w-full"
+                    />
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
       </DashboardHeader>
 
       {/* Key Metrics Cards */}
@@ -386,7 +489,7 @@ export default function BranchAdminDashboard() {
         <div className="flex items-center justify-between">
           <h2 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-white">Analytics Overview</h2>
           <Button
-            onClick={fetchChartData}
+            onClick={handleRefresh}
             variant="outline"
             size="sm"
             className="flex items-center gap-2"

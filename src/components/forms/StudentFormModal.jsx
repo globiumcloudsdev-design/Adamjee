@@ -514,7 +514,6 @@ const StudentFormModal = ({
     { id: 'personal', label: 'Personal', icon: User },
     { id: 'academic', label: 'Academic & Fees', icon: GraduationCap },
     { id: 'parent', label: 'Family', icon: Users },
-    { id: 'documents', label: 'Documents', icon: FileUp },
   ];
 
   return (
@@ -628,6 +627,7 @@ const StudentFormModal = ({
               ) : (
                 <Dropdown
                   label="Academic Year"
+                  required={true}
                   value={formData.academic_year_id}
                   onChange={(e) => handleFieldChange('academic_year_id', e.target.value)}
                   options={[
@@ -639,6 +639,7 @@ const StudentFormModal = ({
               {userRole !== 'BRANCH_ADMIN' && (
                 <Dropdown
                   label="Academic Year"
+                  required={true}
                   value={formData.academic_year_id}
                   onChange={(e) => handleFieldChange('academic_year_id', e.target.value)}
                   options={[
@@ -1021,83 +1022,7 @@ const StudentFormModal = ({
           </div>
         )}
 
-        {/* Documents Tab */}
-        {activeTab === 'documents' && (
-          <div className="space-y-8">
-            {/* Profile Picture Section */}
-            <div className="flex flex-col items-center justify-center p-6 border-2 border-dashed rounded-xl bg-gray-50/50 border-gray-200">
-              <div className="relative group">
-                <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-white shadow-lg bg-gray-100 flex items-center justify-center">
-                  {formData.profile_preview ? (
-                    <img src={formData.profile_preview} alt="Profile Preview" className="w-full h-full object-cover" />
-                  ) : (
-                    <User className="w-12 h-12 text-gray-300" />
-                  )}
-                </div>
-                <label className="absolute bottom-0 right-0 p-2 bg-primary text-white rounded-full shadow-lg cursor-pointer hover:scale-110 transition-transform">
-                  <Camera className="w-4 h-4" />
-                  <input type="file" className="hidden" accept="image/*" onChange={handleFileChange} />
-                </label>
-              </div>
-              <div className="mt-4 text-center">
-                <h4 className="font-semibold text-gray-800">Profile Picture</h4>
-                <p className="text-xs text-gray-500 mt-1">Upload a clear photo of the student (JPG, PNG)</p>
-              </div>
-            </div>
 
-            {/* Supporting Documents Section */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h4 className="font-semibold text-gray-800 flex items-center gap-2">
-                  <FileText className="w-4 h-4 text-primary" />
-                  Supporting Documents
-                </h4>
-                <label className="flex items-center gap-2 px-3 py-1.5 bg-indigo-50 text-indigo-600 rounded-lg text-xs font-bold cursor-pointer hover:bg-indigo-100 transition-colors">
-                  <Plus className="w-3.5 h-3.5" />
-                  Add Document
-                  <input
-                    type="file"
-                    className="hidden"
-                    multiple
-                    onChange={(e) => {
-                      Array.from(e.target.files).forEach(file => addDocument(file));
-                    }}
-                  />
-                </label>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {formData.documents.map((doc, index) => (
-                  <div key={index} className="flex items-center justify-between p-3 border rounded-xl bg-white shadow-sm group hover:border-indigo-200 transition-colors">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-indigo-50 rounded-lg">
-                        <FileUp className="w-4 h-4 text-indigo-500" />
-                      </div>
-                      <div className="max-w-[150px]">
-                        <p className="text-sm font-medium text-gray-800 truncate">{doc.label || doc.file?.name || 'Document'}</p>
-                        <p className="text-[10px] text-gray-500 uppercase tracking-wider">{doc.type || 'Other'}</p>
-                      </div>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removeDocument(index)}
-                      className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-all"
-                    >
-                      <X className="w-4 h-4" />
-                    </button>
-                  </div>
-                ))}
-
-                {formData.documents.length === 0 && (
-                  <div className="col-span-full py-8 text-center border-2 border-dashed rounded-xl border-gray-100">
-                    <FileUp className="w-8 h-8 text-gray-200 mx-auto mb-2" />
-                    <p className="text-sm text-gray-400">No documents added yet</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* Action Buttons */}
         <div className="flex justify-between items-center border-t pt-6 mt-4">
@@ -1114,7 +1039,7 @@ const StudentFormModal = ({
               </Button>
             )}
 
-            {activeTab !== 'documents' ? (
+            {activeTab !== tabs[tabs.length - 1].id ? (
               <Button type="button" onClick={handleNext} disabled={isSubmitting}>
                 Next Step
               </Button>

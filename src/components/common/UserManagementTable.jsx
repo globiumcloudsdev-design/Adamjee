@@ -12,7 +12,8 @@ import {
   User,
   Building2,
   Key,
-  Printer
+  Printer,
+  Camera
 } from "lucide-react";
 import { 
   Table, 
@@ -36,6 +37,7 @@ import Tooltip from "@/components/ui/tooltip";
  * @param {Function} onDelete - Delete action callback
  * @param {Function} onToggleStatus - Status toggle callback
  * @param {Function} onDownloadQR - QR Download callback
+ * @param {Function} onUploadDocuments - Upload Documents callback
  */
 export default function UserManagementTable({
   data = [],
@@ -47,6 +49,7 @@ export default function UserManagementTable({
   onDownloadQR,
   onChangePassword,
   onPrintCard,
+  onUploadDocuments,
 }) {
   if (loading) {
     return (
@@ -259,6 +262,13 @@ export default function UserManagementTable({
                       <Tooltip content="Download ID Card / QR">
                         <Button onClick={() => onDownloadQR(user)} variant="ghost" size="icon" className="h-8 w-8 text-green-600 hover:bg-green-50">
                           <Download className="h-4 w-4" />
+                        </Button>
+                      </Tooltip>
+                    )}
+                    {onUploadDocuments && (
+                      <Tooltip content="Upload Photo / Docs">
+                        <Button onClick={() => onUploadDocuments(user)} variant="ghost" size="icon" className="h-8 w-8 text-indigo-600 hover:bg-indigo-50">
+                          <Camera className="h-4 w-4" />
                         </Button>
                       </Tooltip>
                     )}

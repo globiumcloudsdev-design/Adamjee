@@ -51,9 +51,9 @@ export async function POST(req) {
         [Op.or]: [
           email ? { email } : null,
           registration_no ? { registration_no } : null
-        ].filter(Boolean),
-        deleted_at: null // Active users only
-      }
+        ].filter(Boolean)
+      },
+      paranoid: false // Check deleted users too because of unique DB constraints
     });
 
     if (existingUser) {
@@ -62,7 +62,7 @@ export async function POST(req) {
       else duplicateField = "Registration number";
 
       return NextResponse.json(
-        { error: `A student with this ${duplicateField} already exists.` },
+        { error: `A student with this ${duplicateField} already exists (might be in deleted records).` },
         { status: 400 }
       );
     }
@@ -84,6 +84,7 @@ export async function POST(req) {
             "DESC",
           ],
         ],
+        paranoid: false
       });
 
       const lastRollNo =
@@ -99,10 +100,26 @@ export async function POST(req) {
       const branch = await Branch.findByPk(targetBranchId);
       const branchCode = branch.name.slice(0, 3).toUpperCase();
       const year = new Date().getFullYear();
-      const count = await User.count({
-        where: { role: "STUDENT", branch_id: targetBranchId },
+      
+      const lastStudentInYear = await User.findOne({
+        where: { 
+          role: "STUDENT", 
+          branch_id: targetBranchId,
+          registration_no: { [Op.like]: `${branchCode}-${year}-%` }
+        },
+        order: [['registration_no', 'DESC']],
+        paranoid: false
       });
-      finalRegNo = `${branchCode}-${year}-${(count + 1).toString().padStart(4, "0")}`;
+
+      let nextNumber = 1;
+      if (lastStudentInYear && lastStudentInYear.registration_no) {
+         const parts = lastStudentInYear.registration_no.split('-');
+         if (parts.length === 3) {
+            nextNumber = parseInt(parts[2], 10) + 1;
+         }
+      }
+      
+      finalRegNo = `${branchCode}-${year}-${nextNumber.toString().padStart(4, "0")}`;
     }
 
     // 3. Fee Calculation logic - Respect manual input if provided

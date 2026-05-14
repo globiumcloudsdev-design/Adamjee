@@ -105,11 +105,46 @@ export async function PUT(req, { params }) {
     // 3.1 Profile Photo Update
     if (pendingProfileFile) {
       try {
+        if (student.avatar_url && student.avatar_url.includes('cloudinary')) {
+          try {
+            // Extract public_id from Cloudinary URL: e.g. https://res.cloudinary.com/xx/image/upload/v123/folder/file.jpg
+            const urlParts = student.avatar_url.split('/');
+            const uploadIndex = urlParts.findIndex(part => part === 'upload');
+            if (uploadIndex !== -1) {
+              // skip 'upload' and the version string (e.g. v123456)
+              let pathParts = urlParts.slice(uploadIndex + 2);
+              const lastPart = pathParts.pop();
+              pathParts.push(lastPart.split('.')[0]); // remove extension
+              const publicId = pathParts.join('/');
+              await deleteFromCloudinary(publicId, "image");
+            }
+          } catch (e) {
+            console.error("Failed to delete old avatar:", e);
+          }
+        }
         const uploadRes = await uploadProfilePhoto(pendingProfileFile, student.id);
         data.avatar_url = uploadRes.url;
       } catch (err) {
         console.error("Update: Profile photo upload failed:", err);
       }
+    } else if (data.deleteProfilePhoto) {
+      // If requested to delete the profile photo explicitly
+      if (student.avatar_url && student.avatar_url.includes('cloudinary')) {
+        try {
+          const urlParts = student.avatar_url.split('/');
+          const uploadIndex = urlParts.findIndex(part => part === 'upload');
+          if (uploadIndex !== -1) {
+            let pathParts = urlParts.slice(uploadIndex + 2);
+            const lastPart = pathParts.pop();
+            pathParts.push(lastPart.split('.')[0]); // remove extension
+            const publicId = pathParts.join('/');
+            await deleteFromCloudinary(publicId, "image");
+          }
+        } catch (e) {
+          console.error("Failed to delete old avatar explicitly:", e);
+        }
+      }
+      data.avatar_url = null;
     }
 
     // 3.2 Documents Management
@@ -119,8 +154,19 @@ export async function PUT(req, { params }) {
     if (documentsToDelete && Array.isArray(documentsToDelete)) {
       for (const doc of documentsToDelete) {
         try {
-          if (doc.publicId) await deleteFromCloudinary(doc.publicId, "auto");
-          updatedDocuments = updatedDocuments.filter(d => d.publicId !== doc.publicId);
+          let publicId = doc.publicId;
+          if (!publicId && doc.url && doc.url.includes('cloudinary')) {
+            const urlParts = doc.url.split('/');
+            const uploadIndex = urlParts.findIndex(part => part === 'upload');
+            if (uploadIndex !== -1) {
+              let pathParts = urlParts.slice(uploadIndex + 2);
+              const lastPart = pathParts.pop();
+              pathParts.push(lastPart.split('.')[0]); // remove extension
+              publicId = pathParts.join('/');
+            }
+          }
+          if (publicId) await deleteFromCloudinary(publicId, "auto");
+          updatedDocuments = updatedDocuments.filter(d => d.id !== doc.id);
         } catch (err) {
           console.error("Update: Document deletion failed:", err);
         }
