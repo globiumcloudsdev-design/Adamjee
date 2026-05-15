@@ -122,26 +122,42 @@ export async function GET(req) {
 
     const { searchParams } = new URL(req.url);
     const date = searchParams.get("date");
+    const fromDate = searchParams.get("fromDate");
+    const toDate = searchParams.get("toDate");
+    const status = searchParams.get("status");
     const branchId = searchParams.get("branch_id") || searchParams.get("branchId");
 
     let finalBranchId = user.role === "BRANCH_ADMIN" ? user.branch_id : branchId;
 
     const whereClause = {};
     if (finalBranchId) whereClause.branch_id = finalBranchId;
-    if (date) whereClause.date = date;
+
+    // Single date takes priority, otherwise use date range
+    if (date) {
+      whereClause.date = date;
+    } else if (fromDate || toDate) {
+      whereClause.date = {};
+      if (fromDate) whereClause.date[Op.gte] = fromDate;
+      if (toDate) whereClause.date[Op.lte] = toDate;
+    }
+
+    // Status filter
+    if (status) whereClause.status = status.toUpperCase();
 
     const attendances = await Attendance.findAll({
       where: whereClause,
+      attributes: ["id", "date", "status", "remarks", "created_at", "student_id", "branch_id", "marked_by"],
       include: [
         {
           model: User,
           as: "student",
-          attributes: ["id", "first_name", "last_name", "registration_no"],
+          attributes: ["id", "first_name", "last_name", "registration_no", "details"],
         },
       ],
+      order: [["date", "DESC"], ["created_at", "DESC"]],
     });
 
-    return NextResponse.json(attendances);
+    return NextResponse.json({ success: true, data: attendances });
   } catch (error) {
     console.error("Error fetching student attendance:", error);
     return NextResponse.json(

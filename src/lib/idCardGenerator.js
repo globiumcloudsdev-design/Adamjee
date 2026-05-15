@@ -126,9 +126,9 @@ const flattenStudentData = (student) => {
   const details = student?.details || {};
   const academicDetails = details?.studentDetails || details || {};
   const academicInfo = details?.academic_info || {};
-  
+
   // Extract subjects from enrollment data
-  const subjects = Array.isArray(academicInfo?.subjects) 
+  const subjects = Array.isArray(academicInfo?.subjects)
     ? academicInfo.subjects.map(s => s?.name || s).filter(Boolean)
     : [];
 
@@ -231,14 +231,14 @@ const createCompleteCardHTML = async (student, institute, policyConfig) => {
     : "";
 
   // Redesigned card: 3 inches width × 4 inches height
-return `
+  return `
 <!DOCTYPE html>
 <html>
 <head>
   <meta charset="UTF-8">
   <style>
     @page {
-      size: 3in 4in;
+      size: 2.91in 4.13in;
       margin: 0;
     }
 
@@ -252,8 +252,8 @@ return `
     }
 
     html, body {
-      width: 3in;
-      height: 4in;
+      width: 2.91in;
+      height: 4.13in;
     }
 
     body{
@@ -262,8 +262,8 @@ return `
 
     .card {
       position:relative;
-      width:3in;
-      height:4in;
+      width:2.91in;
+      height:4.13in;
       background:linear-gradient(135deg, #f5f5f5 0%, #ffffff 100%);
       border:1px solid #e0e0e0;
       padding:0;
@@ -307,42 +307,45 @@ return `
     .info-section {
       position:absolute;
       left:1in;
-      top:1.4in;
+      top:1in;
       right:0.15in;
       color:#1f2937;
       font-size:10px;
     }
 
-    .info-field {
-      display:grid;
-      grid-template-columns:0.8in 1.05in;
-      gap:0.08in;
-      margin-bottom:0.1in;
-      line-height:1.2;
-      align-items:start;
+.info-field {
+      display: grid;
+      grid-template-columns: 0.4in 1.1in;
+      column-gap: 0.1in;
+      row-gap: 0in;
+      margin-bottom: 0.1in;
+      line-height: 1.2;
+      align-items: start;
     }
 
     .field-label {
-      font-size:8px;
+      font-size:11px;
       font-weight:700;
       color:#1f3a93;
       text-transform:uppercase;
-      letter-spacing:0.3px;
+      letter-spacing:0.1px;
     }
 
     .field-value {
-      font-size:9px;
+      font-size:12px;
       font-weight:600;
       color:#111827;
-      word-break:break-word;
-      line-height:1.25;
+      line-height:1.5;
     }
 
     .subject-value {
-      line-height:2;
+      line-height:1.2;
       max-height:0.28in;
-      font-size:7px;
+      font-size:12px;
+      font-weight:600;
+      color:#111827;
       word-break:break-word;
+      margin-left:0.1in;
     }
 
     .contact-value {
@@ -355,10 +358,10 @@ return `
 
     .qr-section {
       position:absolute;
-      left:1in;
-      bottom:0.15in;
-      width:0.7in;
-      height:0.7in;
+      left:1.4in;
+      bottom:0.2in;
+      width:1in;
+      height:1in;
       display:flex;
       align-items:center;
       justify-content:center;
@@ -398,11 +401,10 @@ return `
 
     <div class="photo-section">
       <div class="photo-box">
-        ${
-          student.photo_url
-            ? `<img src="${student.photo_url}" />`
-            : `<div class="avatar-placeholder"></div>`
-        }
+        ${student.photo_url
+      ? `<img src="${student.photo_url}" />`
+      : `<div class="avatar-placeholder"></div>`
+    }
       </div>
     </div>
 
@@ -457,8 +459,8 @@ export const generateAndDownloadIdCard = async ({ role, person, institute, polic
     iframe.style.position = 'fixed';
     iframe.style.top = '-10000px';
     iframe.style.left = '-10000px';
-    iframe.style.width = '228px';
-    iframe.style.height = '304px';
+    iframe.style.width = '280px';
+    iframe.style.height = '397px';
     iframe.style.border = '0';
     iframe.style.opacity = '0';
     document.body.appendChild(iframe);
@@ -500,16 +502,16 @@ export const generateAndDownloadIdCard = async ({ role, person, institute, polic
       scale: renderScale,
       logging: false,
       imageTimeout: 0,
-      windowWidth: 228,
-      windowHeight: 304,
+      windowWidth: 280,
+      windowHeight: 397,
     });
 
-    const CR100_MM = { width: 102, height: 76 }; // default sensible CR100 card size in mm
-    const CARD_3X4_MM = { width: 76.2, height: 101.6 }; // 3 inches × 4 inches
+    const CR100_MM = { width: 102, height: 76 }; // CR100 card size in mm
+    const A7_MM = { width: 74, height: 105 }; // A7 size: 74mm × 105mm
 
     const cardDimensions = (finalPolicyConfig?.cardSize === 'CR100')
       ? [CR100_MM.width, CR100_MM.height]
-      : [CARD_3X4_MM.width, CARD_3X4_MM.height]; // Default to 3x4 inches
+      : [A7_MM.width, A7_MM.height]; // Default to A7 size
 
     const pdf = new jsPDF({
       orientation: 'portrait',

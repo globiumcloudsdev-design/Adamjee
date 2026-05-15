@@ -15,7 +15,8 @@
     "seed:undo": "npx sequelize-cli db:seed:undo",
     "lint": "eslint",
     "test:assignments:list": "node test-assignments-list.js",
-    "test:assignment:delete": "node test-assignment-delete.js"
+    "test:assignment:delete": "node test-assignment-delete.js",
+    "test:teachers:api": "node test-teachers-api.js"
   },
   "dependencies": {
     "@heroicons/react": "^2.2.0",

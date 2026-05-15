@@ -18,7 +18,7 @@ import LiveJsQRScanner from '@/components/LiveJsQRScanner';
 import apiClient from '@/lib/api-client';
 import API_ENDPOINTS from '@/constants/api-endpoints';
 import { toast } from 'sonner';
-import { Camera, Search, Save, CheckCircle, XCircle, Clock, UserSearch, Eye, DollarSign, Calendar, X, Scan, Upload, FileText, QrCode } from 'lucide-react';
+import { Camera, Search, Save, CheckCircle, XCircle, Clock, UserSearch, Eye, DollarSign, Calendar, X, Scan, Upload, FileText, QrCode, Download } from 'lucide-react';
 import ButtonLoader from '@/components/ui/button-loader';
 import { Checkbox } from '@/components/ui/checkbox';
 
@@ -148,6 +148,18 @@ export default function BranchAdminAttendancePage() {
   const [editStatus, setEditStatus] = useState('');
   const [editRemarks, setEditRemarks] = useState('');
   const [updating, setUpdating] = useState(false);
+
+  // Standalone History Modal states
+  const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
+  const todayStr = new Date().toISOString().split('T')[0];
+  const [historyModalFilters, setHistoryModalFilters] = useState({
+    fromDate: todayStr,
+    toDate: todayStr,
+    status: ''
+  });
+  const [historyModalRecords, setHistoryModalRecords] = useState([]);
+  const [historyModalLoading, setHistoryModalLoading] = useState(false);
+  const [historyModalFetched, setHistoryModalFetched] = useState(false);
 
   // Manual Bulk Attendance States
   const [manualAttendanceModalOpen, setManualAttendanceModalOpen] = useState(false);
@@ -1010,6 +1022,203 @@ export default function BranchAdminAttendancePage() {
       setHistoryLoading(false);
     }
   };
+
+  // Standalone History Modal fetch
+  const fetchHistoryModal = async (overrideFilters) => {
+    try {
+      setHistoryModalLoading(true);
+      setHistoryModalFetched(false);
+      const filters = overrideFilters || historyModalFilters;
+      const params = {};
+      if (filters.fromDate) params.fromDate = filters.fromDate;
+      if (filters.toDate) params.toDate = filters.toDate;
+      if (filters.status) params.status = filters.status;
+      
+      const response = await apiClient.get('/api/attendance', params);
+      
+      if (response.success && response.data) {
+        setHistoryModalRecords(response.data);
+      } else {
+        setHistoryModalRecords([]);
+      }
+      setHistoryModalFetched(true);
+    } catch (error) {
+      toast.error('Failed to fetch attendance history');
+      setHistoryModalRecords([]);
+      setHistoryModalFetched(true);
+    } finally {
+      setHistoryModalLoading(false);
+    }
+  };
+
+  const exportAttendancePDF = async () => {
+    if (!historyModalRecords.length) {
+      toast.error('No records to export');
+      return;
+    }
+    try {
+      const { default: jsPDF } = await import('jspdf');
+      const { default: autoTable } = await import('jspdf-autotable');
+
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pageWidth = doc.internal.pageSize.getWidth();
+
+      // ── HEADER BACKGROUND ──────────────────────────────────────────
+      doc.setFillColor(109, 40, 217); // violet-700
+      doc.rect(0, 0, pageWidth, 38, 'F');
+
+      // Logo
+      try {
+        const img = new Image();
+        img.src = '/logo.png';
+        await new Promise((res) => { img.onload = res; img.onerror = res; });
+        doc.addImage(img, 'PNG', 8, 4, 28, 28);
+      } catch (_) {}
+
+      // School title
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(16);
+      doc.text('Adamjee Coaching Center', 42, 14);
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Campus 12 — Student Attendance Report', 42, 21);
+
+      // Date generated
+      doc.setFontSize(7.5);
+      doc.setTextColor(220, 200, 255);
+      doc.text(`Generated: ${new Date().toLocaleString('en-PK')}`, 42, 27);
+
+      // ── FILTER INFO BOX ─────────────────────────────────────────────
+      doc.setFillColor(245, 243, 255); // very light violet
+      doc.setDrawColor(200, 185, 255);
+      doc.roundedRect(8, 42, pageWidth - 16, 18, 3, 3, 'FD');
+
+      doc.setTextColor(80, 40, 160);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+
+      const fromLabel = historyModalFilters.fromDate
+        ? new Date(historyModalFilters.fromDate).toLocaleDateString('en-PK', { year: 'numeric', month: 'short', day: 'numeric' })
+        : 'All';
+      const toLabel = historyModalFilters.toDate
+        ? new Date(historyModalFilters.toDate).toLocaleDateString('en-PK', { year: 'numeric', month: 'short', day: 'numeric' })
+        : 'All';
+      const statusLabel = historyModalFilters.status
+        ? historyModalFilters.status.charAt(0) + historyModalFilters.status.slice(1).toLowerCase()
+        : 'All';
+
+      doc.text(`Date Range:  ${fromLabel}  →  ${toLabel}`, 14, 51);
+      doc.text(`Status Filter:  ${statusLabel}`, 14, 57);
+      doc.setTextColor(109, 40, 217);
+      doc.setFont('helvetica', 'bold');
+      const totalTxt = `Total Records: ${historyModalRecords.length}`;
+      doc.text(totalTxt, pageWidth - 14, 51, { align: 'right' });
+
+      // Count present/absent
+      const presentCount = historyModalRecords.filter(r => r.status === 'PRESENT').length;
+      const absentCount = historyModalRecords.filter(r => r.status === 'ABSENT').length;
+      doc.setFontSize(7.5);
+      doc.setTextColor(22, 163, 74);
+      doc.text(`Present: ${presentCount}`, pageWidth - 14, 57, { align: 'right' });
+      doc.setTextColor(220, 38, 38);
+
+      // ── TABLE ────────────────────────────────────────────────────────
+      const tableData = historyModalRecords.map((record, idx) => {
+        const student = record.student;
+        const name = student ? `${student.first_name || ''} ${student.last_name || ''}`.trim() : '—';
+        const grNo = student?.details?.academic_info?.roll_no || student?.details?.student?.roll_no || student?.registration_no || '—';
+        const date = record.date ? new Date(record.date).toLocaleDateString('en-PK', { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
+        const timeIn = record.created_at ? new Date(record.created_at).toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit', hour12: true }) : '—';
+        const status = record.status ? record.status.charAt(0) + record.status.slice(1).toLowerCase() : '—';
+        return [idx + 1, date, name, grNo, status, timeIn];
+      });
+
+      autoTable(doc, {
+        startY: 64,
+        head: [['#', 'Date', 'Student Name', 'GR No', 'Status', 'Time In']],
+        body: tableData,
+        styles: {
+          fontSize: 8.5,
+          cellPadding: 3.5,
+          font: 'helvetica',
+          textColor: [30, 30, 50],
+          lineColor: [220, 215, 255],
+          lineWidth: 0.2,
+        },
+        headStyles: {
+          fillColor: [109, 40, 217],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          fontSize: 9,
+          halign: 'center',
+        },
+        alternateRowStyles: { fillColor: [248, 245, 255] },
+        columnStyles: {
+          0: { halign: 'center', cellWidth: 10 },
+          1: { cellWidth: 30 },
+          2: { cellWidth: 55 },
+          3: { halign: 'center', cellWidth: 25 },
+          4: {
+            halign: 'center', cellWidth: 22,
+            didDrawCell: undefined,
+          },
+          5: { halign: 'center', cellWidth: 25 },
+        },
+        didDrawCell: (data) => {
+          if (data.column.index === 4 && data.section === 'body') {
+            const status = data.cell.raw;
+            if (status === 'Present') {
+              doc.setTextColor(22, 163, 74);
+            } else if (status === 'Absent') {
+              doc.setTextColor(220, 38, 38);
+            } else {
+              doc.setTextColor(30, 30, 50);
+            }
+          }
+        },
+        margin: { left: 8, right: 8 },
+        tableLineColor: [200, 185, 255],
+        tableLineWidth: 0.3,
+      });
+
+      // ── FOOTER ───────────────────────────────────────────────────────
+      const finalY = doc.lastAutoTable.finalY + 6;
+      doc.setDrawColor(200, 185, 255);
+      doc.line(8, finalY, pageWidth - 8, finalY);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7);
+      doc.setTextColor(150, 130, 200);
+      doc.text('Adamjee Coaching Center — Confidential Attendance Record', pageWidth / 2, finalY + 5, { align: 'center' });
+
+      // Page numbers
+      const pageCount = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(7);
+        doc.setTextColor(170, 150, 220);
+        doc.text(`Page ${i} of ${pageCount}`, pageWidth - 10, doc.internal.pageSize.getHeight() - 5, { align: 'right' });
+      }
+
+      const fileName = `attendance_${historyModalFilters.fromDate || 'all'}_${statusLabel.toLowerCase()}.pdf`;
+      doc.save(fileName);
+      toast.success('PDF exported successfully!');
+    } catch (err) {
+      console.error('PDF export error:', err);
+      toast.error('Failed to export PDF');
+    }
+  };
+
+  const openHistoryModal = () => {
+    const today = new Date().toISOString().split('T')[0];
+    const todayFilters = { fromDate: today, toDate: today, status: '' };
+    setHistoryModalFilters(todayFilters);
+    setHistoryModalRecords([]);
+    setHistoryModalFetched(false);
+    setIsHistoryModalOpen(true);
+    // Auto-fetch today's records using direct params
+    fetchHistoryModal(todayFilters);
+  };
   
   const handleEditStatus = (record) => {
     setEditingRecord(record);
@@ -1529,10 +1738,20 @@ export default function BranchAdminAttendancePage() {
 
       <Card className="border-none shadow-sm rounded-3xl mb-8 relative z-20">
         <CardHeader className="bg-slate-50/50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800">
-          <CardTitle className="text-lg font-semibold flex items-center gap-2">
-            <Search className="h-5 w-5 text-indigo-500" />
-            Attendance Filters
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg font-semibold flex items-center gap-2">
+              <Search className="h-5 w-5 text-indigo-500" />
+              Attendance Filters
+            </CardTitle>
+            <Button
+              onClick={openHistoryModal}
+              variant="outline"
+              className="border-2 border-violet-500 text-violet-600 hover:bg-violet-50 dark:hover:bg-violet-900/20 font-bold rounded-xl gap-2 transition-all active:scale-95"
+            >
+              <Calendar className="h-4 w-4" />
+              History
+            </Button>
+          </div>
         </CardHeader>
         <CardContent className="p-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -1575,28 +1794,246 @@ export default function BranchAdminAttendancePage() {
                 onChange={(e) => setAttendanceType(e.target.value)}
                 options={[
                   { value: 'daily', label: 'Daily' },
-                  // { value: 'subject', label: 'Subject' },
-                  // { value: 'event', label: 'Event' },
                 ]}
               />
             </div>
-
-            {/* {attendanceType === 'event' && (
-              <div className="space-y-2">
-                <Label>Event *</Label>
-                <Dropdown
-                  name="event"
-                  value={selectedEvent}
-                  onChange={(e) => setSelectedEvent(e.target.value)}
-                  options={events.map(ev => ({ value: ev._id || ev.id, label: `${ev.title} — ${new Date(ev.startDate).toLocaleDateString()}` }))}
-                  placeholder={events.length ? 'Select event' : 'No events found'}
-                  disabled={events.length === 0}
-                />
-              </div>
-            )} */}
           </div>
         </CardContent>
       </Card>
+
+      {/* ============ HISTORY MODAL ============ */}
+      {isHistoryModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[200] p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-[2rem] shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col border border-slate-100 dark:border-slate-800 overflow-hidden">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-8 py-5 border-b border-slate-100 dark:border-slate-800 bg-gradient-to-r from-violet-600 to-indigo-600 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-white/20 rounded-xl">
+                  <Calendar className="h-6 w-6 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-black text-white tracking-tight">Attendance History</h2>
+                  <p className="text-violet-200 text-xs mt-0.5">View past attendance records by date</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsHistoryModalOpen(false)}
+                className="p-2 hover:bg-white/20 rounded-full transition-colors"
+              >
+                <X className="h-6 w-6 text-white" />
+              </button>
+            </div>
+
+            {/* Filters Row */}
+            <div className="px-8 py-5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 shrink-0">
+              <div className="flex flex-wrap items-end gap-4">
+                <div className="space-y-1.5 flex-1 min-w-[160px]">
+                  <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">From Date</Label>
+                  <DatePicker
+                    value={historyModalFilters.fromDate}
+                    onChange={(e) => setHistoryModalFilters(prev => ({ ...prev, fromDate: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-1.5 flex-1 min-w-[160px]">
+                  <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">To Date</Label>
+                  <DatePicker
+                    value={historyModalFilters.toDate}
+                    onChange={(e) => setHistoryModalFilters(prev => ({ ...prev, toDate: e.target.value }))}
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Status</Label>
+                  <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
+                    {[
+                      { value: '', label: 'All', icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>, activeClass: 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-100 shadow-sm border border-slate-200 dark:border-slate-600' },
+                      { value: 'PRESENT', label: 'Present', icon: <CheckCircle className="h-4 w-4" />, activeClass: 'bg-emerald-500 text-white shadow-sm shadow-emerald-200' },
+                      { value: 'ABSENT', label: 'Absent', icon: <XCircle className="h-4 w-4" />, activeClass: 'bg-red-500 text-white shadow-sm shadow-red-200' },
+                    ].map(opt => (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => {
+                          const newFilters = { ...historyModalFilters, status: opt.value };
+                          setHistoryModalFilters(newFilters);
+                          fetchHistoryModal(newFilters);
+                        }}
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                          historyModalFilters.status === opt.value
+                            ? opt.activeClass
+                            : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
+                        }`}
+                      >
+                        {opt.icon}
+                        {opt.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <Button
+                  onClick={() => fetchHistoryModal()}
+                  disabled={historyModalLoading}
+                  className="bg-violet-600 hover:bg-violet-700 text-white font-bold rounded-xl px-6 gap-2 shadow-lg shadow-violet-200 dark:shadow-none"
+                >
+                  {historyModalLoading ? <ButtonLoader color="white" /> : <Search className="h-4 w-4" />}
+                  Fetch Records
+                </Button>
+                <Button
+                  onClick={() => {
+                    const today = new Date().toISOString().split('T')[0];
+                    const todayFilters = { fromDate: today, toDate: today, status: '' };
+                    setHistoryModalFilters(todayFilters);
+                    fetchHistoryModal(todayFilters);
+                  }}
+                  variant="outline"
+                  className="border-2 border-slate-200 font-bold rounded-xl gap-2"
+                >
+                  <Clock className="h-4 w-4" />
+                  Today
+                </Button>
+              </div>
+            </div>
+
+            {/* Records Table */}
+            <div className="flex-1 overflow-y-auto">
+              {historyModalLoading ? (
+                <div className="flex flex-col items-center justify-center py-20 gap-4">
+                  <div className="h-12 w-12 border-4 border-violet-600 border-t-transparent rounded-full animate-spin"></div>
+                  <p className="text-sm text-slate-500 font-medium">Loading attendance records...</p>
+                </div>
+              ) : historyModalFetched && historyModalRecords.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 gap-3">
+                  <div className="p-5 bg-slate-100 dark:bg-slate-800 rounded-full">
+                    <Calendar className="h-10 w-10 text-slate-300" />
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-500">No Records Found</h3>
+                  <p className="text-sm text-slate-400">No attendance records found for the selected date range.</p>
+                </div>
+              ) : !historyModalFetched ? (
+                <div className="flex flex-col items-center justify-center py-20 gap-3 text-slate-400">
+                  <Calendar className="h-10 w-10" />
+                  <p className="text-sm font-medium">Select dates and click "Fetch Records"</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-700">
+                        <th className="text-left px-6 py-3 text-xs font-black text-slate-500 uppercase tracking-wider">#</th>
+                        <th className="text-left px-6 py-3 text-xs font-black text-slate-500 uppercase tracking-wider">Date</th>
+                        <th className="text-left px-6 py-3 text-xs font-black text-slate-500 uppercase tracking-wider">Student Name</th>
+                        <th className="text-left px-6 py-3 text-xs font-black text-slate-500 uppercase tracking-wider">GR No</th>
+                        <th className="text-left px-6 py-3 text-xs font-black text-slate-500 uppercase tracking-wider">Status</th>
+                        <th className="text-left px-6 py-3 text-xs font-black text-slate-500 uppercase tracking-wider">Time In</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {historyModalRecords.map((record, idx) => {
+                        const student = record.student;
+                        const studentName = student
+                          ? `${student.first_name || ''} ${student.last_name || ''}`.trim()
+                          : '—';
+                        const grNo = student?.details?.academic_info?.roll_no || student?.details?.student?.roll_no || student?.registration_no || '—';
+                        const timeIn = record.created_at
+                          ? new Date(record.created_at).toLocaleTimeString('en-PK', {
+                              hour: '2-digit',
+                              minute: '2-digit',
+                              hour12: true
+                            })
+                          : '—';
+                        const dateStr = record.date
+                          ? new Date(record.date).toLocaleDateString('en-PK', {
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric'
+                            })
+                          : '—';
+
+                        const statusColors = {
+                          PRESENT: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+                          ABSENT: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+                          LATE: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+                          LEAVE: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
+                          HOLIDAY: 'bg-gray-100 text-gray-700 dark:bg-gray-800 dark:text-gray-400',
+                          HALF_DAY: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+                          EXCUSED: 'bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400',
+                        };
+                        const statusLabel = record.status
+                          ? record.status.charAt(0) + record.status.slice(1).toLowerCase().replace('_', ' ')
+                          : '—';
+
+                        return (
+                          <tr
+                            key={record.id || idx}
+                            className="border-b border-slate-50 dark:border-slate-800 hover:bg-violet-50/30 dark:hover:bg-violet-900/10 transition-colors"
+                          >
+                            <td className="px-6 py-3 text-slate-400 font-mono text-xs">{idx + 1}</td>
+                            <td className="px-6 py-3">
+                              <div className="flex items-center gap-1.5">
+                                <Calendar className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                                <span className="font-medium text-slate-700 dark:text-slate-200">{dateStr}</span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-3">
+                              <div className="flex items-center gap-2">
+                                <div className="h-8 w-8 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center text-violet-600 dark:text-violet-400 text-xs font-bold shrink-0">
+                                  {studentName.charAt(0) || 'S'}
+                                </div>
+                                <span className="font-semibold text-slate-800 dark:text-slate-100">{studentName}</span>
+                              </div>
+                            </td>
+                            <td className="px-6 py-3">
+                              <span className="font-mono text-xs bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-600 dark:text-slate-400">{grNo}</span>
+                            </td>
+                            <td className="px-6 py-3">
+                              <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${statusColors[record.status] || 'bg-gray-100 text-gray-600'}`}>
+                                {statusLabel}
+                              </span>
+                            </td>
+                            <td className="px-6 py-3">
+                              <div className="flex items-center gap-1.5">
+                                <Clock className="h-3.5 w-3.5 text-slate-400 shrink-0" />
+                                <span className="text-slate-600 dark:text-slate-400 font-medium">{timeIn}</span>
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="px-8 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 shrink-0 flex items-center justify-between">
+              <span className="text-sm text-slate-500 font-medium">
+                {historyModalFetched
+                  ? `${historyModalRecords.length} record${historyModalRecords.length !== 1 ? 's' : ''} found`
+                  : 'Select date range to view records'}
+              </span>
+              <div className="flex items-center gap-3">
+                {historyModalRecords.length > 0 && (
+                  <Button
+                    onClick={exportAttendancePDF}
+                    className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl gap-2 shadow-md shadow-emerald-200 dark:shadow-none transition-all active:scale-95"
+                  >
+                    <Download className="h-4 w-4" />
+                    Export PDF
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  onClick={() => setIsHistoryModalOpen(false)}
+                  className="font-bold rounded-xl"
+                >
+                  Close
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Student Search for Manual Marking */}
       <Card>
@@ -1767,7 +2204,6 @@ export default function BranchAdminAttendancePage() {
             tabs={[
               { id: 'manual', label: 'Manual Attendance' }, 
               { id: 'qr', label: 'QR Code Scan' },
-              { id: 'history', label: 'History' }
             ]}
             activeTab={activeTab}
             onChange={setActiveTab}
@@ -1949,140 +2385,7 @@ export default function BranchAdminAttendancePage() {
             </Card>
           </TabPanel>
 
-          <TabPanel value="history" activeTab={activeTab}>
-            <Card>
-              <CardHeader>
-                <CardTitle>Attendance History</CardTitle>
-                <div className="flex gap-4 mt-4">
-                  <div className="space-y-2">
-                    <Label>From Date</Label>
-                    <DatePicker
-                      value={historyFilters.fromDate}
-                      onChange={(e) => setHistoryFilters(prev => ({ ...prev, fromDate: e.target.value }))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>To Date</Label>
-                    <DatePicker
-                      value={historyFilters.toDate}
-                      onChange={(e) => setHistoryFilters(prev => ({ ...prev, toDate: e.target.value }))}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Class</Label>
-                    <Dropdown
-                      value={historyFilters.classId}
-                      onChange={(e) => setHistoryFilters(prev => ({ ...prev, classId: e.target.value }))}
-                      options={[{ value: '', label: 'All classes' }, ...classes.map((c) => ({ value: c._id, label: c.name }))]}
-                      placeholder="All classes"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Type</Label>
-                    <Dropdown
-                      value={historyFilters.attendanceType}
-                      onChange={(e) => setHistoryFilters(prev => ({ ...prev, attendanceType: e.target.value }))}
-                      options={[
-                        { value: '', label: 'All types' },
-                        { value: 'daily', label: 'Daily' },
-                        { value: 'subject', label: 'Subject' },
-                        { value: 'event', label: 'Event' }
-                      ]}
-                      placeholder="All types"
-                    />
-                  </div>
-                  <div className="flex items-end">
-                    <Button onClick={fetchAttendanceHistory} disabled={historyLoading}>
-                      {historyLoading ? <ButtonLoader /> : <Search className="h-4 w-4 mr-2" />}
-                      Search
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {historyLoading ? (
-                  <div className="text-center py-8">Loading attendance history...</div>
-                ) : attendanceHistory.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500">
-                    No attendance records found. Use the filters above to search.
-                  </div>
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Date</TableHead>
-                        <TableHead>Type</TableHead>
-                        <TableHead>Class</TableHead>
-                        <TableHead>Subject/Event</TableHead>
-                        <TableHead>Student</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Marked By</TableHead>
-                        <TableHead>Actions</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {attendanceHistory.flatMap(attendance => 
-                        attendance.records.map(record => (
-                          <TableRow key={`${attendance._id}-${record._id}`}>
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <Calendar className="w-4 h-4 text-gray-500" />
-                                {new Date(attendance.date).toLocaleDateString('en-PK', {
-                                  year: 'numeric',
-                                  month: 'short',
-                                  day: 'numeric'
-                                })}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <Badge variant="outline" className="capitalize">
-                                {attendance.attendanceType}
-                              </Badge>
-                            </TableCell>
-                            <TableCell>{attendance.classId?.name || '—'}</TableCell>
-                            <TableCell>
-                              {attendance.attendanceType === 'subject' && attendance.subjectId?.name}
-                              {attendance.attendanceType === 'event' && attendance.eventId?.title}
-                              {attendance.attendanceType === 'daily' && '—'}
-                            </TableCell>
-                            <TableCell>
-                              <div>
-                                <div className="font-medium">{record.studentId?.fullName || '—'}</div>
-                                <div className="text-xs text-gray-500">{record.studentId?.registrationNumber}</div>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                {getStatusIcon(record.status)}
-                                {getStatusBadge(record.status)}
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <div className="text-sm">
-                                <div>{attendance.markedBy?.fullName || '—'}</div>
-                                <div className="text-xs text-gray-500">
-                                  {attendance.markedBy?.email}
-                                </div>
-                              </div>
-                            </TableCell>
-                            <TableCell>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleEditStatus(record)}
-                              >
-                                <Eye className="w-4 h-4" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
-            </Card>
-          </TabPanel>
+
         </>
       )}
 

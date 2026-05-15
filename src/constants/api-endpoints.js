@@ -807,9 +807,8 @@ export const API_ENDPOINTS = {
 
     // Profile
     PROFILE: {
-      GET: "/student/profile", // GET
-      UPDATE: "/student/profile", // PUT
-      AVATAR: "/student/profile/avatar", // POST
+      GET: "/api/users/profile", // GET
+      UPDATE: "/api/users/profile", // PUT
     },
 
     // Attendance
