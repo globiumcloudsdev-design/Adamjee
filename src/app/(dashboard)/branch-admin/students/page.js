@@ -471,6 +471,14 @@ export default function BranchAdminStudentsPage() {
     const sectionName  = getStudentSectionName(student);
     const photoUrl     = student.avatar_url || '';
 
+    // Academic Session
+    const academicYearId = student.details?.academic_info?.academic_year_id;
+    const academicYearObj = academicYears.find(ay => ay.id === academicYearId);
+    const sessionName = academicYearObj?.name
+      || student.details?.academic_info?.academic_year_name
+      || student.details?.academic_info?.academic_year
+      || 'N/A';
+
     const subjectsArr  = student.details?.academic_info?.subjects || [];
     const subjectsText = subjectsArr.length > 0
       ? subjectsArr.map(s => s?.name || s).filter(Boolean).join(', ')
@@ -495,11 +503,16 @@ export default function BranchAdminStudentsPage() {
 <html>
 <head>
   <meta charset="UTF-8">
-  <title>Print Card – ${studentName}</title>
   <style>
     @page {
       size: 3in 4in;
-      margin: 0;
+      margin: 0mm;
+    }
+    @media print {
+      html, body {
+        margin: 0mm !important;
+        padding: 0mm !important;
+      }
     }
     *, *::before, *::after {
       box-sizing: border-box;
@@ -512,32 +525,32 @@ export default function BranchAdminStudentsPage() {
     html, body {
       width: 3in;
       height: 4in;
+      margin: 0mm;
+      padding: 0mm;
       background: transparent;
     }
-    /* Full card container – transparent so pre-printed design shows */
     .card {
       position: relative;
       width: 3in;
       height: 4in;
+      margin: 0;
       background: transparent;
       overflow: hidden;
     }
-
-    /* ── Photo box ─────────────────────────────────────────────── */
-    /* Sits in the upper-right of the right white area             */
+    /* ── Photo: in white area after 1.68in strip ── */
     .photo-section {
       position: absolute;
-      left: 1.4in;
-      top: 0.25in;
-      width: 0.79in;
-      height: 0.79in;
+      left: 1.90in;
+      top: 0.38in;
+      width: 0.72in;
+      height: 0.82in;
     }
     .photo-box {
-      width: 0.79in;
-      height: 0.79in;
-      border: 1px solid #1f3a93;
+      width: 0.72in;
+      height: 0.82in;
+      border: 1.5px solid #1f3a93;
       overflow: hidden;
-      background: #fff;
+      background: #eee;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -551,59 +564,54 @@ export default function BranchAdminStudentsPage() {
     .photo-placeholder {
       width: 100%;
       height: 100%;
-      background: #f0f0f0;
+      background: #dde;
     }
-
-    /* ── Info fields ────────────────────────────────────────────── */
+    /* ── Info: stacked label above value ── */
     .info-section {
       position: absolute;
-      left: 1.1in;
-      top: 1.15in;
-      right: 0.1in;
-      color: #1f2937;
+      left: 1.90in;
+      top: 1.48in;
+      right: 0.05in;
     }
     .info-field {
-      display: grid;
-      grid-template-columns: 0.72in 1fr;
-      gap: 0.06in;
-      margin-bottom: 0.09in;
-      line-height: 1.2;
-      align-items: start;
+      margin-bottom: 0.1in;
     }
     .field-label {
-      font-size: 7px;
+      font-size: 5.5px;
       font-weight: 700;
       color: #1f3a93;
       text-transform: uppercase;
-      letter-spacing: 0.3px;
+      letter-spacing: 0.4px;
+      line-height: 1;
+      margin-bottom: 0.015in;
     }
     .field-value {
       font-size: 8px;
-      font-weight: 600;
+      font-weight: 700;
       color: #111827;
       word-break: break-word;
       line-height: 1.25;
     }
     .field-value.student-name {
-      font-size: 8px;
+      font-size: 7.5px;
       font-weight: 800;
       text-transform: uppercase;
+      line-height: 1.2;
     }
     .subject-value {
       font-size: 6.5px;
-      line-height: 1.4;
-      max-height: 0.32in;
-      overflow: hidden;
+      font-weight: 600;
+      line-height: 1.3;
+      color: #111827;
       word-break: break-word;
     }
-
-    /* ── QR code ────────────────────────────────────────────────── */
+    /* ── QR: centered at bottom ── */
     .qr-section {
       position: absolute;
-      left: 1.1in;
-      bottom: 0.15in;
-      width: 0.72in;
-      height: 0.72in;
+      left: 1.78in;
+      bottom: 0.12in;
+      width: 0.85in;
+      height: 0.85in;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -613,17 +621,6 @@ export default function BranchAdminStudentsPage() {
       height: 100%;
       object-fit: contain;
     }
-
-    /* Reg no below QR */
-    .reg-text {
-      position: absolute;
-      left: 1.85in;
-      bottom: 0.15in;
-      font-size: 6px;
-      color: #1f3a93;
-      font-weight: 700;
-    }
-
     @media print {
       html, body { background: transparent; }
       .card { border: none; }
@@ -643,22 +640,26 @@ export default function BranchAdminStudentsPage() {
       </div>
     </div>
 
-    <!-- Info fields -->
+    <!-- Info fields (stacked: small label above bold value) -->
     <div class="info-section">
       <div class="info-field">
-        <div class="field-label">Name:</div>
+        <div class="field-label">Name</div>
         <div class="field-value student-name">${studentName}</div>
       </div>
       <div class="info-field">
-        <div class="field-label">GR No.:</div>
+        <div class="field-label">GR No.</div>
         <div class="field-value">${grNo}</div>
       </div>
       <div class="info-field">
-        <div class="field-label">Class:</div>
-        <div class="field-value">${className} – ${sectionName}</div>
+        <div class="field-label">Class</div>
+        <div class="field-value">${className} \u2013 ${sectionName}</div>
       </div>
       <div class="info-field">
-        <div class="field-label">Subject:</div>
+        <div class="field-label">Session</div>
+        <div class="field-value">${sessionName}</div>
+      </div>
+      <div class="info-field">
+        <div class="field-label">Subject</div>
         <div class="field-value subject-value">${subjectsText}</div>
       </div>
     </div>
@@ -667,9 +668,6 @@ export default function BranchAdminStudentsPage() {
     <div class="qr-section">
       <img src="${qrUrl}" alt="QR" />
     </div>
-
-    <!-- Reg no -->
-    <div class="reg-text">${student.registration_no || ''}</div>
 
   </div>
 
@@ -721,9 +719,6 @@ export default function BranchAdminStudentsPage() {
       return null;
     }
   };
-
-
-
 
   return (
     <div className="p-6 space-y-6">
