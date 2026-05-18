@@ -1,7 +1,5 @@
 import { NextResponse } from "next/server";
-import { Op } from "sequelize";
 import { withAuth } from "@/backend/middleware/auth.middleware";
-import { StaffAttendance, sequelize, User } from "@/backend/models/postgres";
 
 function getTodayDateOnly() {
   return new Date().toISOString().split("T")[0];
@@ -47,6 +45,9 @@ function mapAttendanceToUI(att) {
 
 async function staffMeHistoryHandler(request) {
   try {
+    const { Op } = await import('sequelize');
+    const { StaffAttendance } = await import('@/backend/models/postgres');
+
     const { searchParams } = new URL(request.url);
     const filterType = searchParams.get("filterType") || "monthly";
 

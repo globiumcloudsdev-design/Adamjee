@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { withAuth } from "@/backend/middleware/auth.middleware";
-import { StaffAttendance, User } from "@/backend/models/postgres";
 
 function getTodayDateOnly() {
   return new Date().toISOString().split("T")[0];
@@ -10,16 +9,12 @@ function mapStatusToUI(att) {
   const checkInTime = att?.check_in ?? null;
   const checkOutTime = att?.check_out ?? null;
 
-  // UI expects lowercase status strings in history, but this status endpoint uses:
-  // - isCheckedIn boolean
-  // - todayRecord.checkInTime / checkOutTime
   const uiTodayRecord = att
     ? {
         id: att.id,
         date: att.date,
         checkInTime,
         checkOutTime,
-        // Some screens show totalHours/workingHours; not stored currently.
         totalHours: att.check_in && att.check_out ? null : null,
         location: null,
         status: String(att.status || "PRESENT").toLowerCase(),
@@ -34,6 +29,8 @@ function mapStatusToUI(att) {
 
 async function staffMeStatusHandler(request) {
   try {
+    const { StaffAttendance, User } = await import("@/backend/models/postgres");
+
     const staff_id = request.user.id;
     const date = getTodayDateOnly();
 
