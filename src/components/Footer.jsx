@@ -60,6 +60,11 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
+                <Link href="/delete-account-policy" className="text-sm text-slate-200 transition-colors hover:text-[#b5e7ff]">
+                  Account Delete Policy
+                </Link>
+              </li>
+              <li>
                 <Link href="/login" className="text-sm text-slate-200 transition-colors hover:text-[#b5e7ff]">
                   Login
                 </Link>
@@ -91,6 +96,9 @@ export default function Footer() {
           <div className="flex flex-wrap gap-5 text-sm text-slate-500">
             <Link href="/privacy-policy" className="transition-colors hover:text-white">
               Privacy Policy
+            </Link>
+            <Link href="/delete-account-policy" className="transition-colors hover:text-white">
+              Account Delete Policy
             </Link>
             <Link href="#about" className="transition-colors hover:text-white">
               About
