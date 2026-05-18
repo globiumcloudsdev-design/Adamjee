@@ -99,10 +99,7 @@ const buildStudentQrValue = (student) => {
   const fullName = `${student?.first_name || ''} ${student?.last_name || ''}`.trim() || student?.full_name || student?.name || 'Student';
 
   const payload = {
-    id,
-    registrationNumber: regNum,
-    role: 'student',
-    fullName: fullName.trim(),
+    id
   };
 
   const qrValue = JSON.stringify(payload);

@@ -485,10 +485,7 @@ export default function BranchAdminStudentsPage() {
       : 'N/A';
 
     const qrValue = JSON.stringify({
-      id: student.id,
-      registrationNumber: student.registration_no || grNo,
-      role: 'student',
-      fullName: studentName
+      id: student.id
     });
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qrValue)}&size=200x200&margin=2`;
 

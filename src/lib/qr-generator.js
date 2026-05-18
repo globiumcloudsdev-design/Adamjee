@@ -54,7 +54,6 @@ export async function generateTeacherQR(teacher) {
 export async function generateStudentQR(student) {
   const qrData = JSON.stringify({
     id: student.id,
-    registrationNumber: student.registration_no,
   });
 
   return generateQRCode(qrData, {
