@@ -12,6 +12,7 @@ import { format } from 'date-fns';
 import { useRouter } from 'next/navigation';
 import apiClient from '@/lib/api-client';
 import Tooltip from '@/components/ui/tooltip';
+import StaffAttendanceHistoryModal from './StaffAttendanceHistoryModal';
 
 import React from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
@@ -66,6 +67,9 @@ export default function StaffAttendanceManager({ isBranchAdmin = false, defaultB
         staffId: '',
         searchQuery: '',
     });
+
+    // Standalone History Modal state
+    const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
 
 
     useEffect(() => { setMounted(true); }, []);
@@ -278,6 +282,8 @@ export default function StaffAttendanceManager({ isBranchAdmin = false, defaultB
     };
 
 
+
+
     const filteredRecords = useMemo(() => {
         return attendanceRecords.filter(record => {
             const staffName = `${record.staff?.first_name} ${record.staff?.last_name}`.toLowerCase();
@@ -290,8 +296,8 @@ export default function StaffAttendanceManager({ isBranchAdmin = false, defaultB
     if (!mounted) return null;
 
     return (
-        <div className="space-y-6">
-            {/* Stats Header */}
+        <div className="space-y-5">
+            {/* Stats Cards */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                 <Card className="bg-white border-blue-100 ring-1 ring-blue-50">
                     <CardContent className="p-4 flex items-center gap-4">
@@ -339,172 +345,256 @@ export default function StaffAttendanceManager({ isBranchAdmin = false, defaultB
                 </Card>
             </div>
 
-            {/* Controls */}
-            <div className="flex flex-col lg:flex-row gap-4 bg-white p-4 rounded-xl border border-gray-200 shadow-sm items-start lg:items-center justify-between">
-                <div className="flex flex-wrap gap-3 items-center">
-                    <div className="relative">
-                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                        <input
-                            type="date"
-                            disabled={!!filters.staffId || !!filters.searchQuery}
+            {/* ── Controls Bar ─────────────────────────────────────────────── */}
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
 
-                            value={filters.date}
-                            onChange={(e) => setFilters(prev => ({ ...prev, date: e.target.value }))}
-                            className="pl-10 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none w-44 disabled:opacity-50"
+                {/* ── Top Row: Filters ── */}
+                <div className="flex flex-wrap items-end gap-3 px-5 pt-4 pb-4 border-b border-slate-100 dark:border-slate-800">
 
-                        />
+                    {/* Date */}
+                    <div className="flex flex-col gap-1 min-w-0">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 pl-0.5">Date</span>
+                        <div className="relative">
+                            <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 dark:text-slate-500 pointer-events-none" />
+                            <input
+                                type="date"
+                                disabled={!!filters.staffId || !!filters.searchQuery}
+                                value={filters.date}
+                                onChange={(e) => setFilters(prev => ({ ...prev, date: e.target.value }))}
+                                className="pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none w-40 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
+                            />
+                        </div>
                     </div>
 
+                    {/* Branch (super admin only) */}
                     {!isBranchAdmin && (
-                        <select
-                            value={filters.branchId}
-                            onChange={(e) => setFilters(prev => ({ ...prev, branchId: e.target.value }))}
-                            className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none min-w-[150px]"
-                        >
-                            <option value="">All Branches</option>
-                            {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-                        </select>
+                        <div className="flex flex-col gap-1 min-w-0">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 pl-0.5">Branch</span>
+                            <select
+                                value={filters.branchId}
+                                onChange={(e) => setFilters(prev => ({ ...prev, branchId: e.target.value }))}
+                                className="px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none min-w-[155px] cursor-pointer transition-all"
+                            >
+                                <option value="">All Branches</option>
+                                {branches.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                            </select>
+                        </div>
                     )}
 
-                    <select
-                        value={filters.role}
-                        onChange={(e) => setFilters(prev => ({ ...prev, role: e.target.value }))}
-                        className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none"
-                    >
-                        <option value="">All Roles</option>
-                        <option value="TEACHER">Teachers</option>
-                        <option value="STAFF">Staff</option>
-                    </select>
-
-                    <select
-                        value={filters.staffId}
-                        onChange={(e) => setFilters(prev => ({ ...prev, staffId: e.target.value }))}
-                        className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none min-w-[180px]"
-                    >
-                        <option value="">
-                            {filters.branchId && staffList.length === 0 
-                                ? `${branches.find(b => b.id === filters.branchId || b._id === filters.branchId)?.name || 'Branch'} Employees Not Found` 
-                                : "All Staff (Single Day)"}
-                        </option>
-                        {staffList.map(s => (
-                            <option key={s.id} value={s.id}>
-                                {s.first_name} {s.last_name} ({s.role})
-                            </option>
-                        ))}
-                    </select>
-
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
-                        <input
-                            type="text"
-                            placeholder="Search records..."
-                            value={filters.searchQuery}
-                            onChange={(e) => setFilters(prev => ({ ...prev, searchQuery: e.target.value }))}
-                            className="pl-10 pr-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 outline-none w-64"
-                        />
+                    {/* Role */}
+                    <div className="flex flex-col gap-1 min-w-0">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 pl-0.5">Role</span>
+                        <select
+                            value={filters.role}
+                            onChange={(e) => setFilters(prev => ({ ...prev, role: e.target.value }))}
+                            className="px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none min-w-[130px] cursor-pointer transition-all"
+                        >
+                            <option value="">All Roles</option>
+                            <option value="TEACHER">Teachers</option>
+                            <option value="STAFF">Staff</option>
+                        </select>
                     </div>
+
+                    {/* Staff member */}
+                    <div className="flex flex-col gap-1 min-w-0">
+                        <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500 pl-0.5">Staff Member</span>
+                        <select
+                            value={filters.staffId}
+                            onChange={(e) => setFilters(prev => ({ ...prev, staffId: e.target.value }))}
+                            className="px-3 py-2 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none min-w-[200px] cursor-pointer transition-all"
+                        >
+                            <option value="">
+                                {filters.branchId && staffList.length === 0
+                                    ? `${branches.find(b => b.id === filters.branchId || b._id === filters.branchId)?.name || 'Branch'} — No Staff Found`
+                                    : 'All Staff (Single Day)'}
+                            </option>
+                            {staffList.map(s => (
+                                <option key={s.id} value={s.id}>
+                                    {s.first_name} {s.last_name} ({s.role})
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {/* Refresh */}
+                    <button
+                        onClick={fetchAttendance}
+                        title="Refresh"
+                        className="p-2 bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700 rounded-xl transition-all active:scale-95"
+                    >
+                        <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                    </button>
                 </div>
 
-                <div className="flex gap-2">
+                {/* ── Bottom Row: Search + Actions ── */}
+                <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-3 bg-slate-50/60 dark:bg-slate-800/30">
+
+                    {/* Search */}
+                    <div className="relative flex-1 min-w-[220px] max-w-sm">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-400 dark:text-slate-500 pointer-events-none" />
+                        <input
+                            type="text"
+                            placeholder="Search by name…"
+                            value={filters.searchQuery}
+                            onChange={(e) => setFilters(prev => ({ ...prev, searchQuery: e.target.value }))}
+                            className="pl-9 pr-4 py-2 w-full bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-sm font-semibold text-slate-700 dark:text-slate-200 focus:ring-2 focus:ring-violet-500 focus:border-violet-500 outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500 transition-all"
+                        />
+                    </div>
+
+                    {/* Action Buttons */}
+                    <div className="flex flex-wrap items-center gap-2.5">
                     <button
-                        onClick={() => setIsHolidayModalOpen(true)}
-                        className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg hover:bg-amber-700 transition-all shadow-md font-bold text-sm"
+                        onClick={() => setIsHistoryModalOpen(true)}
+                        className="flex items-center gap-2 px-4 py-2 border-2 border-violet-500 dark:border-violet-600 text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/30 font-bold rounded-xl transition-all active:scale-95 text-sm bg-white dark:bg-transparent"
                     >
                         <Calendar className="h-4 w-4" />
-                        Mark As Holiday
+                        History
                     </button>
+
+                    <button
+                        onClick={() => setIsHolidayModalOpen(true)}
+                        className="flex items-center gap-2 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white rounded-xl transition-all active:scale-95 shadow-sm font-bold text-sm"
+                    >
+                        <Calendar className="h-4 w-4" />
+                        Mark Holiday
+                    </button>
+
                     <button
                         onClick={handleOpenAddModal}
-                        className="flex items-center gap-2 px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all shadow-md font-bold text-sm"
+                        className="flex items-center gap-2 px-5 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-xl transition-all active:scale-95 shadow-sm font-bold text-sm"
                     >
                         <Plus className="h-4 w-4" />
                         Mark Attendance
                     </button>
-
-                    <button
-                        onClick={fetchAttendance}
-                        className="p-2 bg-gray-100 text-gray-600 rounded-lg hover:bg-gray-200 transition-all shadow-sm"
-                    >
-                        <RefreshCw className={`h-5 w-5 ${loading ? 'animate-spin' : ''}`} />
-                    </button>
-                </div>
+                    </div>{/* end Action Buttons */}
+                </div>{/* end Bottom Row */}
             </div>
 
-            {/* Attendance Table */}
-            <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
-                <div className="overflow-x-auto min-h-[400px]">
+            {/* ── Attendance Table ── */}
+            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
+
+                {/* Table header bar */}
+                <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100 dark:border-slate-800">
+                    <div>
+                        <h3 className="text-sm font-black text-slate-700 dark:text-slate-200 uppercase tracking-wider">Attendance Records</h3>
+                        <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">
+                            {filteredRecords.length} {filteredRecords.length === 1 ? 'record' : 'records'} found
+                        </p>
+                    </div>
+                    {filters.searchQuery && (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-violet-50 dark:bg-violet-900/20 text-violet-600 dark:text-violet-400 text-xs font-bold rounded-full border border-violet-200 dark:border-violet-800">
+                            <Search className="h-3 w-3" />
+                            Filtering: &quot;{filters.searchQuery}&quot;
+                        </span>
+                    )}
+                </div>
+
+                <div className="overflow-x-auto min-h-[420px]">
                     {loading ? (
-                        <div className="flex flex-col items-center justify-center h-[400px] gap-3">
-                            <div className="animate-spin rounded-full h-10 w-10 border-4 border-blue-600 border-t-transparent"></div>
-                            <p className="text-gray-500 font-medium">Loading attendance data...</p>
+                        <div className="flex flex-col items-center justify-center h-[420px] gap-4">
+                            <div className="relative">
+                                <div className="h-12 w-12 rounded-full border-4 border-violet-100 dark:border-violet-900" />
+                                <div className="absolute inset-0 h-12 w-12 rounded-full border-4 border-violet-600 border-t-transparent animate-spin" />
+                            </div>
+                            <p className="text-sm font-semibold text-slate-400 dark:text-slate-500">Loading records…</p>
                         </div>
                     ) : filteredRecords.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center h-[400px] text-gray-500 italic">
-                            <Calendar className="h-12 w-12 text-gray-300 mb-2" />
-                            No attendance records found for this date.
+                        <div className="flex flex-col items-center justify-center h-[420px] gap-3">
+                            <div className="p-5 bg-slate-100 dark:bg-slate-800 rounded-full">
+                                <Calendar className="h-10 w-10 text-slate-300 dark:text-slate-600" />
+                            </div>
+                            <p className="text-base font-bold text-slate-500 dark:text-slate-400">No Records Found</p>
+                            <p className="text-sm text-slate-400 dark:text-slate-500">No attendance records match your current filters.</p>
                         </div>
                     ) : (
                         <table className="w-full text-sm">
-                            <thead className="bg-gray-50 border-b border-gray-200 uppercase tracking-wider text-[11px] font-bold text-gray-500">
-                                <tr>
-                                    <th className="px-6 py-4 text-left">Staff Member</th>
-                                    <th className="px-6 py-4 text-left">Role</th>
-                                    <th className="px-6 py-4 text-center">Date</th>
-                                    <th className="px-6 py-4 text-center">Status</th>
-                                    <th className="px-6 py-4 text-center">Check-In</th>
-                                    <th className="px-6 py-4 text-center">Check-Out</th>
-                                    <th className="px-6 py-4 text-right">Actions</th>
+                            <thead>
+                                <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-100 dark:border-slate-700/60">
+                                    <th className="px-6 py-3.5 text-left text-[11px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Staff Member</th>
+                                    <th className="px-6 py-3.5 text-left text-[11px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Role</th>
+                                    <th className="px-6 py-3.5 text-center text-[11px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Date</th>
+                                    <th className="px-6 py-3.5 text-center text-[11px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Status</th>
+                                    <th className="px-6 py-3.5 text-center text-[11px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Check-In</th>
+                                    <th className="px-6 py-3.5 text-center text-[11px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Check-Out</th>
+                                    <th className="px-6 py-3.5 text-right text-[11px] font-black uppercase tracking-widest text-slate-400 dark:text-slate-500">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-gray-100">
-                                {filteredRecords.map(record => {
+                            <tbody className="divide-y divide-slate-50 dark:divide-slate-800">
+                                {filteredRecords.map((record, idx) => {
                                     const status = record.status;
                                     const config = STATUS_CONFIG[status] || STATUS_CONFIG.PRESENT;
+                                    const initials = `${record.staff?.first_name?.[0] || ''}${record.staff?.last_name?.[0] || ''}`;
+                                    const avatarColors = [
+                                        'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400',
+                                        'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+                                        'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+                                        'bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400',
+                                        'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+                                    ];
+                                    const avatarColor = avatarColors[idx % avatarColors.length];
 
                                     return (
-                                        <tr key={record.id} className="hover:bg-gray-50 transition-colors group">
-                                            <td className="px-6 py-4">
+                                        <tr key={record.id} className="hover:bg-slate-50/70 dark:hover:bg-slate-800/40 transition-colors">
+                                            {/* Staff Member */}
+                                            <td className="px-6 py-3.5">
                                                 <div className="flex items-center gap-3">
-                                                    <div className="h-9 w-9 rounded-full bg-blue-100 text-blue-700 flex items-center justify-center font-bold text-xs">
-                                                        {record.staff?.first_name?.[0]}{record.staff?.last_name?.[0]}
+                                                    <div className={`h-9 w-9 rounded-full flex items-center justify-center font-black text-xs shrink-0 ${avatarColor}`}>
+                                                        {initials || 'S'}
                                                     </div>
-                                                    <div>
-                                                        <p 
-                                                            className="font-bold text-gray-900 hover:text-blue-600 hover:underline cursor-pointer transition-all"
+                                                    <div className="min-w-0">
+                                                        <p
+                                                            className="font-bold text-slate-800 dark:text-slate-100 hover:text-violet-600 dark:hover:text-violet-400 cursor-pointer transition-colors truncate"
                                                             onClick={() => router.push(`${isBranchAdmin ? '/branch-admin' : '/super-admin'}/staff/${record.staff_id || record.staff?.id}/attendance`)}
                                                         >
                                                             {record.staff?.first_name} {record.staff?.last_name}
                                                         </p>
-
-                                                        <p className="text-[10px] text-gray-500">{record.staff?.email}</p>
+                                                        <p className="text-[11px] text-slate-400 dark:text-slate-500 truncate">{record.staff?.email}</p>
                                                     </div>
                                                 </div>
                                             </td>
-                                            <td className="px-6 py-4">
-                                                <span className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold bg-indigo-50 text-indigo-700">
+
+                                            {/* Role */}
+                                            <td className="px-6 py-3.5">
+                                                <span className="inline-flex items-center px-2.5 py-1 rounded-lg text-[10px] font-bold bg-indigo-50 dark:bg-indigo-900/20 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-800">
                                                     {record.staff?.role}
                                                 </span>
                                             </td>
-                                            <td className="px-6 py-4 text-center font-medium text-gray-600">
-                                                {format(new Date(record.date), 'MMM dd, yyyy')}
+
+                                            {/* Date */}
+                                            <td className="px-6 py-3.5 text-center">
+                                                <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">
+                                                    {format(new Date(record.date), 'MMM dd, yyyy')}
+                                                </span>
                                             </td>
-                                            <td className="px-6 py-4 text-center">
-                                                <span className={`px-3 py-1 rounded-full text-[10px] font-bold border ${config.color}`}>
+
+                                            {/* Status */}
+                                            <td className="px-6 py-3.5 text-center">
+                                                <span className={`inline-flex items-center px-3 py-1 rounded-full text-[11px] font-bold border ${config.color}`}>
                                                     {config.label}
                                                 </span>
                                             </td>
-                                            <td className="px-6 py-4 text-center text-gray-500 font-medium">
-                                                {record.check_in ? format(new Date(record.check_in), 'hh:mm a') : '—'}
+
+                                            {/* Check-In */}
+                                            <td className="px-6 py-3.5 text-center">
+                                                <span className="text-sm font-semibold text-slate-500 dark:text-slate-400 font-mono">
+                                                    {record.check_in ? format(new Date(record.check_in), 'hh:mm a') : <span className="text-slate-300 dark:text-slate-600">—</span>}
+                                                </span>
                                             </td>
-                                            <td className="px-6 py-4 text-center text-gray-500 font-medium">
-                                                {record.check_out ? format(new Date(record.check_out), 'hh:mm a') : '—'}
+
+                                            {/* Check-Out */}
+                                            <td className="px-6 py-3.5 text-center">
+                                                <span className="text-sm font-semibold text-slate-500 dark:text-slate-400 font-mono">
+                                                    {record.check_out ? format(new Date(record.check_out), 'hh:mm a') : <span className="text-slate-300 dark:text-slate-600">—</span>}
+                                                </span>
                                             </td>
-                                            <td className="px-6 py-4 text-right">
-                                                <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+
+                                            {/* Actions */}
+                                            <td className="px-6 py-3.5 text-right">
+                                                <div className="flex justify-end items-center gap-1.5">
                                                     <Tooltip content="Edit Attendance">
                                                         <button
                                                             onClick={() => handleOpenEditModal(record)}
-                                                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-md transition-colors"
+                                                            className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 dark:hover:text-blue-400 rounded-lg transition-all"
                                                         >
                                                             <Edit className="h-4 w-4" />
                                                         </button>
@@ -512,7 +602,7 @@ export default function StaffAttendanceManager({ isBranchAdmin = false, defaultB
                                                     <Tooltip content="Delete Record">
                                                         <button
                                                             onClick={() => handleDelete(record.id)}
-                                                            className="p-1.5 text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                                                            className="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 dark:hover:text-red-400 rounded-lg transition-all"
                                                         >
                                                             <Trash2 className="h-4 w-4" />
                                                         </button>
@@ -747,7 +837,14 @@ export default function StaffAttendanceManager({ isBranchAdmin = false, defaultB
                     </div>
                 </div>
             )}
+
+            {/* ============ HISTORY MODAL ============ */}
+            <StaffAttendanceHistoryModal
+                isOpen={isHistoryModalOpen}
+                onClose={() => setIsHistoryModalOpen(false)}
+                defaultBranchId={filters.branchId || defaultBranchId}
+                isBranchAdmin={isBranchAdmin}
+            />
         </div>
     );
 }
-
