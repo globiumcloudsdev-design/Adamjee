@@ -714,15 +714,15 @@ export default function BranchAdminStudentsPage() {
       ? subjectsArr.map(s => s?.name || s).filter(Boolean).join(', ')
       : 'N/A';
 
-    // INCREASED QR RESOLUTION TO 400x400 FOR HIGH-DPI SHARP LASER PRINTING
+    // 400x400 High resolution for dark laser print
     const qrValue = JSON.stringify({
       id: student.id
     });
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qrValue)}&size=400x400&margin=1`;
 
     /*
-     * RE-OPTIMIZED HIGH-CONTRAST PRINT LAYOUT
-     * Forces solid black values and sharp image rendering to fix the fading/ink issue.
+     * RESTORED TO YOUR ORIGINAL PERFECT 3x4 PORTRAIT LAYOUT
+     * Just finely tuned the left alignment and forced high-contrast solid black ink.
      */
     const printHTML = `<!DOCTYPE html>
 <html>
@@ -730,17 +730,15 @@ export default function BranchAdminStudentsPage() {
   <meta charset="UTF-8">
   <style>
     @page {
-      size: 5.2in 4in;
+      size: 3in 4in;
       margin: 0mm;
     }
     @media print {
       html, body {
         margin: 0mm !important;
         padding: 0mm !important;
-        background-color: #ffffff !important;
       }
-      /* Anti-fading fixes for laser printers */
-      .field-value, .student-name, .subject-value {
+      .field-value, .student-name, .subject-value, .field-label {
         color: #000000 !important;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
@@ -755,24 +753,24 @@ export default function BranchAdminStudentsPage() {
       font-family: 'Segoe UI', Arial, sans-serif;
     }
     html, body {
-      width: 5.2in;
+      width: 3in;
       height: 4in;
       margin: 0mm;
       padding: 0mm;
-      background-color: #ffffff;
+      background: transparent;
     }
     .card {
       position: relative;
-      width: 5.2in;
+      width: 3in;
       height: 4in;
       margin: 0;
       background: transparent;
       overflow: hidden;
     }
-    /* ── Photo Section with Sharp Rendering ── */
+    /* ── Photo Section ── */
     .photo-section {
       position: absolute;
-      left: 3.85in; 
+      left: 1.80in; /* Pushed into the clear white box */
       top: 0.38in;
       width: 0.72in;
       height: 0.82in;
@@ -792,7 +790,7 @@ export default function BranchAdminStudentsPage() {
       width: 100%;
       height: 100%;
       object-fit: cover;
-      image-rendering: -webkit-optimize-contrast; /* Sharpens images for print */
+      image-rendering: -webkit-optimize-contrast;
       image-rendering: crisp-edges;
     }
     .photo-placeholder {
@@ -800,20 +798,20 @@ export default function BranchAdminStudentsPage() {
       height: 100%;
       background: #eee;
     }
-    /* ── Info Section: Forced Heavy Pure Black Text ── */
+    /* ── Info Section ── */
     .info-section {
       position: absolute;
-      left: 3.42in; 
+      left: 1.70in; /* Adjusted to keep text strictly on the white area */
       top: 1.48in;
-      right: 0.1in; 
+      right: 0.05in;
     }
     .info-field {
-      margin-bottom: 0.08in;
+      margin-bottom: 0.1in;
     }
     .field-label {
       font-size: 5.5px;
       font-weight: 800;
-      color: #000000 !important; /* Changed from blue to solid black to prevent dithering dots */
+      color: #000000 !important;
       text-transform: uppercase;
       letter-spacing: 0.4px;
       line-height: 1;
@@ -840,10 +838,10 @@ export default function BranchAdminStudentsPage() {
       color: #000000 !important;
       word-break: break-word;
     }
-    /* ── QR Section with High-Contrast Sharp Rendering ── */
+    /* ── QR Section ── */
     .qr-section {
       position: absolute;
-      left: 3.68in; 
+      left: 1.75in; /* Aligned vertically right under the photo and text column */
       bottom: 0.15in;
       width: 0.85in;
       height: 0.85in;
@@ -917,7 +915,7 @@ export default function BranchAdminStudentsPage() {
 </body>
 </html>`;
 
-    const pw = window.open('', '_blank', 'width=600,height=600');
+    const pw = window.open('', '_blank', 'width=400,height=600');
     if (!pw) {
       toast.error('Popup blocked! Allow popups for this site and try again.');
       return;
