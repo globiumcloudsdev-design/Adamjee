@@ -693,6 +693,244 @@ export default function BranchAdminStudentsPage() {
 //     pw.document.close();
 //   };
 
+// // ---- Print Card on Pre-Printed Card (matches download card exactly) ----
+//   const handlePrintCard = (student) => {
+//     if (!student) {
+//       toast.error('No student data found');
+//       return;
+//     }
+
+//     const studentName  = `${student.first_name || ''} ${student.last_name || ''}`.trim();
+//     const grNo         = student.details?.academic_info?.roll_no || student.registration_no || 'N/A';
+//     const className    = getStudentClassName(student);
+//     const sectionName  = getStudentSectionName(student);
+//     const photoUrl     = student.avatar_url || '';
+
+//     // Academic Session
+//     const academicYearId = student.details?.academic_info?.academic_year_id;
+//     const academicYearObj = academicYears.find(ay => ay.id === academicYearId);
+//     const sessionName = academicYearObj?.name
+//       || student.details?.academic_info?.academic_year_name
+//       || student.details?.academic_info?.academic_year
+//       || 'N/A';
+
+//     const subjectsArr  = student.details?.academic_info?.subjects || [];
+//     const subjectsText = subjectsArr.length > 0
+//       ? subjectsArr.map(s => s?.name || s).filter(Boolean).join(', ')
+//       : 'N/A';
+
+//     const qrValue = JSON.stringify({
+//       id: student.id
+//     });
+    
+//     // SWITCHED TO FORMAT=SVG TO FORCE SHARP VECTOR IMAGING ON LASER PRINTERS
+//     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qrValue)}&size=300x300&margin=0&color=0-0-0&bgcolor=255-255-255&format=svg`;
+
+//     /*
+//      * SOLID INK OVERRIDE PRINT CANVAS
+//      * Explicitly forces heavy stroke vectors for printing to destroy dithering dots.
+//      */
+//     const printHTML = `<!DOCTYPE html>
+// <html>
+// <head>
+//   <meta charset="UTF-8">
+//   <style>
+//     @page {
+//       size: A4 portrait;
+//       margin: 0mm;
+//     }
+//     @media print {
+//       html, body {
+//         margin: 0mm !important;
+//         padding: 0mm !important;
+//         background-color: #ffffff !important;
+//         -webkit-print-color-adjust: exact !important;
+//         print-color-adjust: exact !important;
+//       }
+//       .field-value, .student-name, .subject-value, .field-label {
+//         color: #000000 !important;
+//         -webkit-text-fill-color: #000000 !important; /* Hard override for deep color filling */
+//       }
+//     }
+//     *, *::before, *::after {
+//       box-sizing: border-box;
+//       margin: 0;
+//       padding: 0;
+//       -webkit-print-color-adjust: exact;
+//       print-color-adjust: exact;
+//     }
+//     html, body {
+//       width: 100%;
+//       background-color: #ffffff;
+//       font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+//     }
+//     .card {
+//       position: relative;
+//       width: 5.2in;
+//       height: 4in;
+//       margin: 0;
+//       background: transparent;
+//       overflow: hidden;
+//     }
+//     /* ── Photo Section ── */
+//     .photo-section {
+//       position: absolute;
+//       left: 3.85in; 
+//       top: 0.25in; 
+//       width: 0.72in;
+//       height: 0.82in;
+//     }
+//     .photo-box {
+//       width: 100%;
+//       height: 100%;
+//       border: 2px solid #000000 !important;
+//       overflow: hidden;
+//       background: #ffffff;
+//       display: flex;
+//       align-items: center;
+//       justify-content: center;
+//       border-radius: 2px;
+//     }
+//     .photo-box img {
+//       width: 100%;
+//       height: 100%;
+//       object-fit: cover;
+//       image-rendering: -webkit-optimize-contrast;
+//       image-rendering: crisp-edges;
+//     }
+//     .photo-placeholder {
+//       width: 100%;
+//       height: 100%;
+//       background: #eee;
+//     }
+//     /* ── Info Section: Solid Raw Vector Text ── */
+//     .info-section {
+//       position: absolute;
+//       left: 3.42in; 
+//       top: 1.32in; 
+//       right: 0.1in; 
+//     }
+//     .info-field {
+//       margin-bottom: 0.08in;
+//     }
+//     .field-label {
+//       font-size: 7px;
+//       font-weight: 800;
+//       color: #000000 !important;
+//       -webkit-text-fill-color: #000000 !important;
+//       text-transform: uppercase;
+//       letter-spacing: 0.2px;
+//       line-height: 1;
+//       margin-bottom: 0.01in;
+//     }
+//     .field-value {
+//       font-size: 9.5px;
+//       font-weight: 700;
+//       color: #000000 !important;
+//       -webkit-text-fill-color: #000000 !important;
+//       word-break: break-word;
+//       line-height: 1.2;
+//     }
+//     .field-value.student-name {
+//       font-size: 10px;
+//       font-weight: 800;
+//       text-transform: uppercase;
+//       line-height: 1.2;
+//     }
+//     .subject-value {
+//       font-size: 8px;
+//       font-weight: 700;
+//       line-height: 1.2;
+//       color: #000000 !important;
+//       -webkit-text-fill-color: #000000 !important;
+//       word-break: break-word;
+//     }
+//     /* ── QR Section ── */
+//     .qr-section {
+//       position: absolute;
+//       left: 3.68in; 
+//       bottom: 0.28in; 
+//       width: 0.85in;
+//       height: 0.85in;
+//       display: flex;
+//       align-items: center;
+//       justify-content: center;
+//       background: #ffffff;
+//     }
+//     .qr-section img {
+//       width: 100%;
+//       height: 100%;
+//       object-fit: contain;
+//       image-rendering: -webkit-optimize-contrast;
+//       image-rendering: crisp-edges;
+//     }
+//   </style>
+// </head>
+// <body>
+//   <div class="card">
+
+//     <div class="photo-section">
+//       <div class="photo-box">
+//         ${photoUrl
+//           ? `<img src="${photoUrl}" alt="photo" />`
+//           : `<div class="photo-placeholder"></div>`
+//         }
+//       </div>
+//     </div>
+
+//     <div class="info-section">
+//       <div class="info-field">
+//         <div class="field-label">Name</div>
+//         <div class="field-value student-name">${studentName}</div>
+//       </div>
+//       <div class="info-field">
+//         <div class="field-label">GR No.</div>
+//         <div class="field-value">${grNo}</div>
+//       </div>
+//       <div class="info-field">
+//         <div class="field-label">Class</div>
+//         <div class="field-value">${className} \u2013 ${sectionName}</div>
+//       </div>
+//       <div class="info-field">
+//         <div class="field-label">Session</div>
+//         <div class="field-value">${sessionName}</div>
+//       </div>
+//       <div class="info-field">
+//         <div class="field-label">Subject</div>
+//         <div class="field-value subject-value">${subjectsText}</div>
+//       </div>
+//     </div>
+
+//     <div class="qr-section">
+//       <img src="${qrUrl}" alt="QR" />
+//     </div>
+
+//   </div>
+
+//   <script>
+//     window.addEventListener('load', function () {
+//       var images = document.querySelectorAll('img');
+//       var total = images.length;
+//       if (total === 0) { setTimeout(function(){ window.print(); window.close(); }, 300); return; }
+//       var loaded = 0;
+//       function onDone() { loaded++; if (loaded >= total) { setTimeout(function(){ window.print(); window.close(); }, 300); } }
+//       images.forEach(function(img) {
+//         if (img.complete) { onDone(); } else { img.addEventListener('load', onDone); img.addEventListener('error', onDone); }
+//       });
+//     });
+//   </script>
+// </body>
+// </html>`;
+
+//     const pw = window.open('', '_blank', 'width=600,height=600');
+//     if (!pw) {
+//       toast.error('Popup blocked! Allow popups for this site and try again.');
+//       return;
+//     }
+//     pw.document.write(printHTML);
+//     pw.document.close();
+//   };
+
 // ---- Print Card on Pre-Printed Card (matches download card exactly) ----
   const handlePrintCard = (student) => {
     if (!student) {
@@ -704,7 +942,6 @@ export default function BranchAdminStudentsPage() {
     const grNo         = student.details?.academic_info?.roll_no || student.registration_no || 'N/A';
     const className    = getStudentClassName(student);
     const sectionName  = getStudentSectionName(student);
-    const photoUrl     = student.avatar_url || '';
 
     // Academic Session
     const academicYearId = student.details?.academic_info?.academic_year_id;
@@ -723,12 +960,13 @@ export default function BranchAdminStudentsPage() {
       id: student.id
     });
     
-    // SWITCHED TO FORMAT=SVG TO FORCE SHARP VECTOR IMAGING ON LASER PRINTERS
+    // SVG Format for maximum clear vector layout
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qrValue)}&size=300x300&margin=0&color=0-0-0&bgcolor=255-255-255&format=svg`;
 
     /*
-     * SOLID INK OVERRIDE PRINT CANVAS
-     * Explicitly forces heavy stroke vectors for printing to destroy dithering dots.
+     * FIXED POSITION SAFE LAYOUT
+     * Back to absolute positions to prevent flex-squeezing the QR code.
+     * Calculated coordinates perfectly spaced to allow text and manual photos.
      */
     const printHTML = `<!DOCTYPE html>
 <html>
@@ -749,7 +987,7 @@ export default function BranchAdminStudentsPage() {
       }
       .field-value, .student-name, .subject-value, .field-label {
         color: #000000 !important;
-        -webkit-text-fill-color: #000000 !important; /* Hard override for deep color filling */
+        -webkit-text-fill-color: #000000 !important;
       }
     }
     *, *::before, *::after {
@@ -762,7 +1000,7 @@ export default function BranchAdminStudentsPage() {
     html, body {
       width: 100%;
       background-color: #ffffff;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+      font-family: 'Arial Black', -apple-system, sans-serif;
     }
     .card {
       position: relative;
@@ -772,85 +1010,51 @@ export default function BranchAdminStudentsPage() {
       background: transparent;
       overflow: hidden;
     }
-    /* ── Photo Section ── */
-    .photo-section {
-      position: absolute;
-      left: 3.85in; 
-      top: 0.25in; 
-      width: 0.72in;
-      height: 0.82in;
-    }
-    .photo-box {
-      width: 100%;
-      height: 100%;
-      border: 2px solid #000000 !important;
-      overflow: hidden;
-      background: #ffffff;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 2px;
-    }
-    .photo-box img {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      image-rendering: -webkit-optimize-contrast;
-      image-rendering: crisp-edges;
-    }
-    .photo-placeholder {
-      width: 100%;
-      height: 100%;
-      background: #eee;
-    }
-    /* ── Info Section: Solid Raw Vector Text ── */
+    /* ── Info Section: Locked at 1.45in top to leave pure space for manual image ── */
     .info-section {
       position: absolute;
       left: 3.42in; 
-      top: 1.32in; 
+      top: 1.45in; 
       right: 0.1in; 
     }
     .info-field {
-      margin-bottom: 0.08in;
+      margin-bottom: 0.05in; /* Slightly tight spacing to avoid bleeding into QR */
     }
     .field-label {
-      font-size: 7px;
-      font-weight: 800;
+      font-size: 8px;
+      font-weight: 900;
       color: #000000 !important;
-      -webkit-text-fill-color: #000000 !important;
       text-transform: uppercase;
-      letter-spacing: 0.2px;
+      letter-spacing: 0.3px;
       line-height: 1;
       margin-bottom: 0.01in;
     }
     .field-value {
-      font-size: 9.5px;
-      font-weight: 700;
+      font-size: 11px;
+      font-weight: 900;
       color: #000000 !important;
-      -webkit-text-fill-color: #000000 !important;
       word-break: break-word;
-      line-height: 1.2;
+      line-height: 1.1;
     }
     .field-value.student-name {
-      font-size: 10px;
-      font-weight: 800;
+      font-size: 12px;
+      font-weight: 900;
       text-transform: uppercase;
-      line-height: 1.2;
+      line-height: 1.1;
     }
     .subject-value {
-      font-size: 8px;
-      font-weight: 700;
-      line-height: 1.2;
+      font-size: 9px;
+      font-weight: 900;
+      line-height: 1.1;
       color: #000000 !important;
-      -webkit-text-fill-color: #000000 !important;
       word-break: break-word;
     }
-    /* ── QR Section ── */
+    /* ── QR Section: Absolute bottom placement ensuring 100% full rendering ── */
     .qr-section {
       position: absolute;
       left: 3.68in; 
-      bottom: 0.28in; 
-      width: 0.85in;
+      bottom: 0.15in; /* Grounded to the lower safe zone */
+      width: 0.85in;  /* Perfectly proportioned box */
       height: 0.85in;
       display: flex;
       align-items: center;
@@ -868,15 +1072,6 @@ export default function BranchAdminStudentsPage() {
 </head>
 <body>
   <div class="card">
-
-    <div class="photo-section">
-      <div class="photo-box">
-        ${photoUrl
-          ? `<img src="${photoUrl}" alt="photo" />`
-          : `<div class="photo-placeholder"></div>`
-        }
-      </div>
-    </div>
 
     <div class="info-section">
       <div class="info-field">
