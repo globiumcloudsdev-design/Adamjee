@@ -714,15 +714,14 @@ export default function BranchAdminStudentsPage() {
       ? subjectsArr.map(s => s?.name || s).filter(Boolean).join(', ')
       : 'N/A';
 
-    // 400x400 High resolution for dark laser print
     const qrValue = JSON.stringify({
       id: student.id
     });
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qrValue)}&size=400x400&margin=1`;
 
     /*
-     * RESTORED TO YOUR ORIGINAL PERFECT 3x4 PORTRAIT LAYOUT
-     * Just finely tuned the left alignment and forced high-contrast solid black ink.
+     * FIXED ORIENTATION LAYOUT
+     * Explicitly forces portrait mode at page level while keeping the virtual 5.2in layout width.
      */
     const printHTML = `<!DOCTYPE html>
 <html>
@@ -730,13 +729,14 @@ export default function BranchAdminStudentsPage() {
   <meta charset="UTF-8">
   <style>
     @page {
-      size: 3in 4in;
+      size: A4 portrait; /* Forces the print dialog to strictly stay in Portrait mode */
       margin: 0mm;
     }
     @media print {
       html, body {
         margin: 0mm !important;
         padding: 0mm !important;
+        background-color: #ffffff !important;
       }
       .field-value, .student-name, .subject-value, .field-label {
         color: #000000 !important;
@@ -753,15 +753,13 @@ export default function BranchAdminStudentsPage() {
       font-family: 'Segoe UI', Arial, sans-serif;
     }
     html, body {
-      width: 3in;
-      height: 4in;
-      margin: 0mm;
-      padding: 0mm;
-      background: transparent;
+      width: 100%;
+      background-color: #ffffff;
     }
+    /* Keep the layout bounds exactly matching your previous running layout */
     .card {
       position: relative;
-      width: 3in;
+      width: 5.2in;
       height: 4in;
       margin: 0;
       background: transparent;
@@ -770,7 +768,7 @@ export default function BranchAdminStudentsPage() {
     /* ── Photo Section ── */
     .photo-section {
       position: absolute;
-      left: 1.80in; /* Pushed into the clear white box */
+      left: 3.85in; 
       top: 0.38in;
       width: 0.72in;
       height: 0.82in;
@@ -801,12 +799,12 @@ export default function BranchAdminStudentsPage() {
     /* ── Info Section ── */
     .info-section {
       position: absolute;
-      left: 1.70in; /* Adjusted to keep text strictly on the white area */
+      left: 3.42in; 
       top: 1.48in;
-      right: 0.05in;
+      right: 0.1in; 
     }
     .info-field {
-      margin-bottom: 0.1in;
+      margin-bottom: 0.08in;
     }
     .field-label {
       font-size: 5.5px;
@@ -841,7 +839,7 @@ export default function BranchAdminStudentsPage() {
     /* ── QR Section ── */
     .qr-section {
       position: absolute;
-      left: 1.75in; /* Aligned vertically right under the photo and text column */
+      left: 3.68in; 
       bottom: 0.15in;
       width: 0.85in;
       height: 0.85in;
@@ -915,7 +913,7 @@ export default function BranchAdminStudentsPage() {
 </body>
 </html>`;
 
-    const pw = window.open('', '_blank', 'width=400,height=600');
+    const pw = window.open('', '_blank', 'width=600,height=600');
     if (!pw) {
       toast.error('Popup blocked! Allow popups for this site and try again.');
       return;
