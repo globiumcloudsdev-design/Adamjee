@@ -725,8 +725,8 @@ export default function BranchAdminStudentsPage() {
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qrValue)}&size=200x200&margin=2`;
 
     /*
-     * HYBRID CENTERING: FORCES HORIZONTAL CENTER ON A4 WHILE LOCKING AT THE TOP
-     * Resolves the left-sticking issue while avoiding massive top padding.
+     * VIRTUAL CANVAS EXPANSION METHOD
+     * Automatically offsets layout to line up perfectly with a center-fed printer tray.
      */
     const printHTML = `<!DOCTYPE html>
 <html>
@@ -734,15 +734,13 @@ export default function BranchAdminStudentsPage() {
   <meta charset="UTF-8">
   <style>
     @page {
-      size: A4 portrait;
+      size: 5.2in 4in; /* Expanded width to simulate the center tray shift */
       margin: 0mm;
     }
     @media print {
       html, body {
         margin: 0mm !important;
         padding: 0mm !important;
-        width: 210mm;
-        height: 297mm;
       }
     }
     *, *::before, *::after {
@@ -754,27 +752,26 @@ export default function BranchAdminStudentsPage() {
       font-family: 'Segoe UI', Arial, sans-serif;
     }
     html, body {
-      width: 210mm;
-      height: 297mm;
+      width: 5.2in;
+      height: 4in;
+      margin: 0mm;
+      padding: 0mm;
       background: transparent;
-      display: flex;
-      justify-content: center; /* Horizontally centers the card content */
-      align-items: flex-start;  /* Latches the card tight to the top edge */
     }
-    /* The 3x4 card wrapper sits at the top-center of the A4 canvas */
+    /* Sits directly on the extended virtual canvas */
     .card {
       position: relative;
-      width: 3in;
+      width: 5.2in;
       height: 4in;
+      margin: 0;
       background: transparent;
       overflow: hidden;
-      margin-top: 0mm;
     }
-    /* ── Photo: Perfectly inline within the printable column ── */
+    /* ── Photo: Offset precisely into the card's right boundary ── */
     .photo-section {
       position: absolute;
-      left: 1.65in; 
-      top: 0.35in;
+      left: 3.85in; 
+      top: 0.38in;
       width: 0.72in;
       height: 0.82in;
     }
@@ -799,11 +796,11 @@ export default function BranchAdminStudentsPage() {
       height: 100%;
       background: #dde;
     }
-    /* ── Info Section: Centered correctly inside the white gap ── */
+    /* ── Info Section: Centered on the printable side column ── */
     .info-section {
       position: absolute;
-      left: 1.22in; 
-      top: 1.42in;
+      left: 3.42in; 
+      top: 1.48in;
       right: 0.1in; 
     }
     .info-field {
@@ -838,11 +835,11 @@ export default function BranchAdminStudentsPage() {
       color: #111827;
       word-break: break-word;
     }
-    /* ── QR Section: Placed properly on the right white bounds ── */
+    /* ── QR Section: Positioned beneath the metadata fields ── */
     .qr-section {
       position: absolute;
-      left: 1.48in; 
-      bottom: 0.12in;
+      left: 3.68in; 
+      bottom: 0.15in;
       width: 0.85in;
       height: 0.85in;
       display: flex;
@@ -916,7 +913,7 @@ export default function BranchAdminStudentsPage() {
 </body>
 </html>`;
 
-    const pw = window.open('', '_blank', 'width=600,height=800');
+    const pw = window.open('', '_blank', 'width=600,height=600');
     if (!pw) {
       toast.error('Popup blocked! Allow popups for this site and try again.');
       return;
@@ -924,7 +921,6 @@ export default function BranchAdminStudentsPage() {
     pw.document.write(printHTML);
     pw.document.close();
   };
-  
   const generateQRCode = async (data) => {
     try {
       const qrCodeData = JSON.stringify({
