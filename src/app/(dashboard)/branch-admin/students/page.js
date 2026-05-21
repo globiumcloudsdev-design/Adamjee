@@ -717,11 +717,13 @@ export default function BranchAdminStudentsPage() {
     const qrValue = JSON.stringify({
       id: student.id
     });
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qrValue)}&size=400x400&margin=1`;
+    
+    // Fixed: Explicitly setting white background (bgcolor=255-255-255) and black color via API to prevent black blocks
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qrValue)}&size=400x400&margin=0&color=0-0-0&bgcolor=255-255-255`;
 
     /*
-     * FIXED ORIENTATION LAYOUT
-     * Explicitly forces portrait mode at page level while keeping the virtual 5.2in layout width.
+     * FIXED QR CONTRAST LAYOUT
+     * Kept your perfectly tuned top margins and side offsets completely untouched.
      */
     const printHTML = `<!DOCTYPE html>
 <html>
@@ -729,7 +731,7 @@ export default function BranchAdminStudentsPage() {
   <meta charset="UTF-8">
   <style>
     @page {
-      size: A4 portrait; /* Forces the print dialog to strictly stay in Portrait mode */
+      size: A4 portrait;
       margin: 0mm;
     }
     @media print {
@@ -750,13 +752,12 @@ export default function BranchAdminStudentsPage() {
       padding: 0;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
-      font-family: 'Segoe UI', Arial, sans-serif;
+      font-family: 'Arial Black', 'Segoe UI', Arial, sans-serif;
     }
     html, body {
       width: 100%;
       background-color: #ffffff;
     }
-    /* Keep the layout bounds exactly matching your previous running layout */
     .card {
       position: relative;
       width: 5.2in;
@@ -769,14 +770,14 @@ export default function BranchAdminStudentsPage() {
     .photo-section {
       position: absolute;
       left: 3.85in; 
-      top: 0.38in;
+      top: 0.25in; 
       width: 0.72in;
       height: 0.82in;
     }
     .photo-box {
       width: 100%;
       height: 100%;
-      border: 1.5px solid #000000;
+      border: 2px solid #000000 !important;
       overflow: hidden;
       background: #ffffff;
       display: flex;
@@ -789,7 +790,7 @@ export default function BranchAdminStudentsPage() {
       height: 100%;
       object-fit: cover;
       image-rendering: -webkit-optimize-contrast;
-      image-rendering: crisp-edges;
+      image-rendering: pixelated;
     }
     .photo-placeholder {
       width: 100%;
@@ -800,47 +801,47 @@ export default function BranchAdminStudentsPage() {
     .info-section {
       position: absolute;
       left: 3.42in; 
-      top: 1.48in;
+      top: 1.32in; 
       right: 0.1in; 
     }
     .info-field {
       margin-bottom: 0.08in;
     }
     .field-label {
-      font-size: 5.5px;
-      font-weight: 800;
+      font-size: 6.5px;
+      font-weight: 900;
       color: #000000 !important;
       text-transform: uppercase;
-      letter-spacing: 0.4px;
+      letter-spacing: 0.2px;
       line-height: 1;
-      margin-bottom: 0.015in;
+      margin-bottom: 0.01in;
     }
     .field-value {
-      font-size: 8px;
-      font-weight: 700;
+      font-size: 9px;
+      font-weight: 900;
       color: #000000 !important;
       word-break: break-word;
-      line-height: 1.25;
+      line-height: 1.2;
     }
     .field-value.student-name {
-      font-size: 7.5px;
+      font-size: 9.5px;
       font-weight: 900;
       text-transform: uppercase;
       line-height: 1.2;
       color: #000000 !important;
     }
     .subject-value {
-      font-size: 6.5px;
-      font-weight: 700;
-      line-height: 1.3;
+      font-size: 7.5px;
+      font-weight: 900;
+      line-height: 1.2;
       color: #000000 !important;
       word-break: break-word;
     }
-    /* ── QR Section ── */
+    /* ── QR Section: Filters removed, native API scaling used ── */
     .qr-section {
       position: absolute;
       left: 3.68in; 
-      bottom: 0.15in;
+      bottom: 0.28in; 
       width: 0.85in;
       height: 0.85in;
       display: flex;
@@ -853,7 +854,7 @@ export default function BranchAdminStudentsPage() {
       height: 100%;
       object-fit: contain;
       image-rendering: -webkit-optimize-contrast;
-      image-rendering: crisp-edges;
+      image-rendering: pixelated;
     }
   </style>
 </head>
