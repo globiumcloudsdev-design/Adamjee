@@ -458,7 +458,6 @@ export default function BranchAdminStudentsPage() {
     }
   };
 
-
 // // ---- Print Card on Pre-Printed Card (matches download card exactly) ----
 //   const handlePrintCard = (student) => {
 //     if (!student) {
@@ -488,11 +487,13 @@ export default function BranchAdminStudentsPage() {
 //     const qrValue = JSON.stringify({
 //       id: student.id
 //     });
-//     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qrValue)}&size=200x200&margin=2`;
+    
+//     // Fixed: Explicitly setting white background (bgcolor=255-255-255) and black color via API to prevent black blocks
+//     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qrValue)}&size=400x400&margin=0&color=0-0-0&bgcolor=255-255-255`;
 
 //     /*
-//      * VIRTUAL CANVAS EXPANSION METHOD
-//      * Automatically offsets layout to line up perfectly with a center-fed printer tray.
+//      * FIXED QR CONTRAST LAYOUT
+//      * Kept your perfectly tuned top margins and side offsets completely untouched.
 //      */
 //     const printHTML = `<!DOCTYPE html>
 // <html>
@@ -500,13 +501,19 @@ export default function BranchAdminStudentsPage() {
 //   <meta charset="UTF-8">
 //   <style>
 //     @page {
-//       size: 5.2in 4in; /* Expanded width to simulate the center tray shift */
+//       size: A4 portrait;
 //       margin: 0mm;
 //     }
 //     @media print {
 //       html, body {
 //         margin: 0mm !important;
 //         padding: 0mm !important;
+//         background-color: #ffffff !important;
+//       }
+//       .field-value, .student-name, .subject-value, .field-label {
+//         color: #000000 !important;
+//         -webkit-print-color-adjust: exact !important;
+//         print-color-adjust: exact !important;
 //       }
 //     }
 //     *, *::before, *::after {
@@ -515,16 +522,12 @@ export default function BranchAdminStudentsPage() {
 //       padding: 0;
 //       -webkit-print-color-adjust: exact;
 //       print-color-adjust: exact;
-//       font-family: 'Segoe UI', Arial, sans-serif;
+//       font-family: 'Arial Black', 'Segoe UI', Arial, sans-serif;
 //     }
 //     html, body {
-//       width: 5.2in;
-//       height: 4in;
-//       margin: 0mm;
-//       padding: 0mm;
-//       background: transparent;
+//       width: 100%;
+//       background-color: #ffffff;
 //     }
-//     /* Sits directly on the extended virtual canvas */
 //     .card {
 //       position: relative;
 //       width: 5.2in;
@@ -533,20 +536,20 @@ export default function BranchAdminStudentsPage() {
 //       background: transparent;
 //       overflow: hidden;
 //     }
-//     /* ── Photo: Offset precisely into the card's right boundary ── */
+//     /* ── Photo Section ── */
 //     .photo-section {
 //       position: absolute;
 //       left: 3.85in; 
-//       top: 0.38in;
+//       top: 0.25in; 
 //       width: 0.72in;
 //       height: 0.82in;
 //     }
 //     .photo-box {
 //       width: 100%;
 //       height: 100%;
-//       border: 1.5px solid #1f3a93;
+//       border: 2px solid #000000 !important;
 //       overflow: hidden;
-//       background: #eee;
+//       background: #ffffff;
 //       display: flex;
 //       align-items: center;
 //       justify-content: center;
@@ -556,70 +559,72 @@ export default function BranchAdminStudentsPage() {
 //       width: 100%;
 //       height: 100%;
 //       object-fit: cover;
+//       image-rendering: -webkit-optimize-contrast;
+//       image-rendering: pixelated;
 //     }
 //     .photo-placeholder {
 //       width: 100%;
 //       height: 100%;
-//       background: #dde;
+//       background: #eee;
 //     }
-//     /* ── Info Section: Centered on the printable side column ── */
+//     /* ── Info Section ── */
 //     .info-section {
 //       position: absolute;
 //       left: 3.42in; 
-//       top: 1.48in;
+//       top: 1.32in; 
 //       right: 0.1in; 
 //     }
 //     .info-field {
 //       margin-bottom: 0.08in;
 //     }
 //     .field-label {
-//       font-size: 5.5px;
-//       font-weight: 700;
-//       color: #1f3a93;
+//       font-size: 6.5px;
+//       font-weight: 900;
+//       color: #000000 !important;
 //       text-transform: uppercase;
-//       letter-spacing: 0.4px;
+//       letter-spacing: 0.2px;
 //       line-height: 1;
-//       margin-bottom: 0.015in;
+//       margin-bottom: 0.01in;
 //     }
 //     .field-value {
-//       font-size: 8px;
-//       font-weight: 700;
-//       color: #111827;
+//       font-size: 9px;
+//       font-weight: 900;
+//       color: #000000 !important;
 //       word-break: break-word;
-//       line-height: 1.25;
-//     }
-//     .field-value.student-name {
-//       font-size: 7.5px;
-//       font-weight: 800;
-//       text-transform: uppercase;
 //       line-height: 1.2;
 //     }
+//     .field-value.student-name {
+//       font-size: 9.5px;
+//       font-weight: 900;
+//       text-transform: uppercase;
+//       line-height: 1.2;
+//       color: #000000 !important;
+//     }
 //     .subject-value {
-//       font-size: 6.5px;
-//       font-weight: 600;
-//       line-height: 1.3;
-//       color: #111827;
+//       font-size: 7.5px;
+//       font-weight: 900;
+//       line-height: 1.2;
+//       color: #000000 !important;
 //       word-break: break-word;
 //     }
-//     /* ── QR Section: Positioned beneath the metadata fields ── */
+//     /* ── QR Section: Filters removed, native API scaling used ── */
 //     .qr-section {
 //       position: absolute;
 //       left: 3.68in; 
-//       bottom: 0.15in;
+//       bottom: 0.28in; 
 //       width: 0.85in;
 //       height: 0.85in;
 //       display: flex;
 //       align-items: center;
 //       justify-content: center;
+//       background: #ffffff;
 //     }
 //     .qr-section img {
 //       width: 100%;
 //       height: 100%;
 //       object-fit: contain;
-//     }
-//     @media print {
-//       html, body { background: transparent; }
-//       .card { border: none; }
+//       image-rendering: -webkit-optimize-contrast;
+//       image-rendering: pixelated;
 //     }
 //   </style>
 // </head>
@@ -718,12 +723,12 @@ export default function BranchAdminStudentsPage() {
       id: student.id
     });
     
-    // Fixed: Explicitly setting white background (bgcolor=255-255-255) and black color via API to prevent black blocks
-    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qrValue)}&size=400x400&margin=0&color=0-0-0&bgcolor=255-255-255`;
+    // SWITCHED TO FORMAT=SVG TO FORCE SHARP VECTOR IMAGING ON LASER PRINTERS
+    const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qrValue)}&size=300x300&margin=0&color=0-0-0&bgcolor=255-255-255&format=svg`;
 
     /*
-     * FIXED QR CONTRAST LAYOUT
-     * Kept your perfectly tuned top margins and side offsets completely untouched.
+     * SOLID INK OVERRIDE PRINT CANVAS
+     * Explicitly forces heavy stroke vectors for printing to destroy dithering dots.
      */
     const printHTML = `<!DOCTYPE html>
 <html>
@@ -739,11 +744,12 @@ export default function BranchAdminStudentsPage() {
         margin: 0mm !important;
         padding: 0mm !important;
         background-color: #ffffff !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
       }
       .field-value, .student-name, .subject-value, .field-label {
         color: #000000 !important;
-        -webkit-print-color-adjust: exact !important;
-        print-color-adjust: exact !important;
+        -webkit-text-fill-color: #000000 !important; /* Hard override for deep color filling */
       }
     }
     *, *::before, *::after {
@@ -752,11 +758,11 @@ export default function BranchAdminStudentsPage() {
       padding: 0;
       -webkit-print-color-adjust: exact;
       print-color-adjust: exact;
-      font-family: 'Arial Black', 'Segoe UI', Arial, sans-serif;
     }
     html, body {
       width: 100%;
       background-color: #ffffff;
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
     }
     .card {
       position: relative;
@@ -790,14 +796,14 @@ export default function BranchAdminStudentsPage() {
       height: 100%;
       object-fit: cover;
       image-rendering: -webkit-optimize-contrast;
-      image-rendering: pixelated;
+      image-rendering: crisp-edges;
     }
     .photo-placeholder {
       width: 100%;
       height: 100%;
       background: #eee;
     }
-    /* ── Info Section ── */
+    /* ── Info Section: Solid Raw Vector Text ── */
     .info-section {
       position: absolute;
       left: 3.42in; 
@@ -808,36 +814,38 @@ export default function BranchAdminStudentsPage() {
       margin-bottom: 0.08in;
     }
     .field-label {
-      font-size: 6.5px;
-      font-weight: 900;
+      font-size: 7px;
+      font-weight: 800;
       color: #000000 !important;
+      -webkit-text-fill-color: #000000 !important;
       text-transform: uppercase;
       letter-spacing: 0.2px;
       line-height: 1;
       margin-bottom: 0.01in;
     }
     .field-value {
-      font-size: 9px;
-      font-weight: 900;
+      font-size: 9.5px;
+      font-weight: 700;
       color: #000000 !important;
+      -webkit-text-fill-color: #000000 !important;
       word-break: break-word;
       line-height: 1.2;
     }
     .field-value.student-name {
-      font-size: 9.5px;
-      font-weight: 900;
+      font-size: 10px;
+      font-weight: 800;
       text-transform: uppercase;
       line-height: 1.2;
-      color: #000000 !important;
     }
     .subject-value {
-      font-size: 7.5px;
-      font-weight: 900;
+      font-size: 8px;
+      font-weight: 700;
       line-height: 1.2;
       color: #000000 !important;
+      -webkit-text-fill-color: #000000 !important;
       word-break: break-word;
     }
-    /* ── QR Section: Filters removed, native API scaling used ── */
+    /* ── QR Section ── */
     .qr-section {
       position: absolute;
       left: 3.68in; 
@@ -854,7 +862,7 @@ export default function BranchAdminStudentsPage() {
       height: 100%;
       object-fit: contain;
       image-rendering: -webkit-optimize-contrast;
-      image-rendering: pixelated;
+      image-rendering: crisp-edges;
     }
   </style>
 </head>
@@ -923,7 +931,7 @@ export default function BranchAdminStudentsPage() {
     pw.document.close();
   };
 
-  const generateQRCode = async (data) => {
+const generateQRCode = async (data) => {
     try {
       const qrCodeData = JSON.stringify({
         studentId: data.id,
