@@ -458,7 +458,242 @@ export default function BranchAdminStudentsPage() {
     }
   };
 
-  // ---- Print Card on Pre-Printed Card (matches download card exactly) ----
+//   // ---- Print Card on Pre-Printed Card (matches download card exactly) ----
+//   const handlePrintCard = (student) => {
+//     if (!student) {
+//       toast.error('No student data found');
+//       return;
+//     }
+
+//     const studentName  = `${student.first_name || ''} ${student.last_name || ''}`.trim();
+//     const grNo         = student.details?.academic_info?.roll_no || student.registration_no || 'N/A';
+//     const className    = getStudentClassName(student);
+//     const sectionName  = getStudentSectionName(student);
+//     const photoUrl     = student.avatar_url || '';
+
+//     // Academic Session
+//     const academicYearId = student.details?.academic_info?.academic_year_id;
+//     const academicYearObj = academicYears.find(ay => ay.id === academicYearId);
+//     const sessionName = academicYearObj?.name
+//       || student.details?.academic_info?.academic_year_name
+//       || student.details?.academic_info?.academic_year
+//       || 'N/A';
+
+//     const subjectsArr  = student.details?.academic_info?.subjects || [];
+//     const subjectsText = subjectsArr.length > 0
+//       ? subjectsArr.map(s => s?.name || s).filter(Boolean).join(', ')
+//       : 'N/A';
+
+//     const qrValue = JSON.stringify({
+//       id: student.id
+//     });
+//     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qrValue)}&size=200x200&margin=2`;
+
+//     /*
+//      * Card is 3in × 4in portrait  — same as idCardGenerator.js
+//      * Left 1.1in = Adamjee pre-printed strip  → leave blank
+//      * Photo  : absolute, left:1.4in, top:0.25in,  0.79in × 0.79in
+//      * Info   : absolute, left:1.1in, top:1.15in,  right:0.1in
+//      * QR     : absolute, left:1.1in, bottom:0.15in, 0.7in × 0.7in
+//      */
+//     const printHTML = `<!DOCTYPE html>
+// <html>
+// <head>
+//   <meta charset="UTF-8">
+//   <style>
+//     @page {
+//       size: 3in 4in;
+//       margin: 0mm;
+//     }
+//     @media print {
+//       html, body {
+//         margin: 0mm !important;
+//         padding: 0mm !important;
+//       }
+//     }
+//     *, *::before, *::after {
+//       box-sizing: border-box;
+//       margin: 0;
+//       padding: 0;
+//       -webkit-print-color-adjust: exact;
+//       print-color-adjust: exact;
+//       font-family: 'Segoe UI', Arial, sans-serif;
+//     }
+//     html, body {
+//       width: 3in;
+//       height: 4in;
+//       margin: 0mm;
+//       padding: 0mm;
+//       background: transparent;
+//     }
+//     .card {
+//       position: relative;
+//       width: 3in;
+//       height: 4in;
+//       margin: 0;
+//       background: transparent;
+//       overflow: hidden;
+//     }
+//     /* ── Photo: in white area after 1.68in strip ── */
+//     .photo-section {
+//       position: absolute;
+//       left: 1.90in;
+//       top: 0.38in;
+//       width: 0.72in;
+//       height: 0.82in;
+//     }
+//     .photo-box {
+//       width: 0.72in;
+//       height: 0.82in;
+//       border: 1.5px solid #1f3a93;
+//       overflow: hidden;
+//       background: #eee;
+//       display: flex;
+//       align-items: center;
+//       justify-content: center;
+//       border-radius: 2px;
+//     }
+//     .photo-box img {
+//       width: 100%;
+//       height: 100%;
+//       object-fit: cover;
+//     }
+//     .photo-placeholder {
+//       width: 100%;
+//       height: 100%;
+//       background: #dde;
+//     }
+//     /* ── Info: stacked label above value ── */
+//     .info-section {
+//       position: absolute;
+//       left: 1.90in;
+//       top: 1.48in;
+//       right: 0.05in;
+//     }
+//     .info-field {
+//       margin-bottom: 0.1in;
+//     }
+//     .field-label {
+//       font-size: 5.5px;
+//       font-weight: 700;
+//       color: #1f3a93;
+//       text-transform: uppercase;
+//       letter-spacing: 0.4px;
+//       line-height: 1;
+//       margin-bottom: 0.015in;
+//     }
+//     .field-value {
+//       font-size: 8px;
+//       font-weight: 700;
+//       color: #111827;
+//       word-break: break-word;
+//       line-height: 1.25;
+//     }
+//     .field-value.student-name {
+//       font-size: 7.5px;
+//       font-weight: 800;
+//       text-transform: uppercase;
+//       line-height: 1.2;
+//     }
+//     .subject-value {
+//       font-size: 6.5px;
+//       font-weight: 600;
+//       line-height: 1.3;
+//       color: #111827;
+//       word-break: break-word;
+//     }
+//     /* ── QR: centered at bottom ── */
+//     .qr-section {
+//       position: absolute;
+//       left: 1.78in;
+//       bottom: 0.12in;
+//       width: 0.85in;
+//       height: 0.85in;
+//       display: flex;
+//       align-items: center;
+//       justify-content: center;
+//     }
+//     .qr-section img {
+//       width: 100%;
+//       height: 100%;
+//       object-fit: contain;
+//     }
+//     @media print {
+//       html, body { background: transparent; }
+//       .card { border: none; }
+//     }
+//   </style>
+// </head>
+// <body>
+//   <div class="card">
+
+//     <!-- Photo -->
+//     <div class="photo-section">
+//       <div class="photo-box">
+//         ${photoUrl
+//           ? `<img src="${photoUrl}" alt="photo" />`
+//           : `<div class="photo-placeholder"></div>`
+//         }
+//       </div>
+//     </div>
+
+//     <!-- Info fields (stacked: small label above bold value) -->
+//     <div class="info-section">
+//       <div class="info-field">
+//         <div class="field-label">Name</div>
+//         <div class="field-value student-name">${studentName}</div>
+//       </div>
+//       <div class="info-field">
+//         <div class="field-label">GR No.</div>
+//         <div class="field-value">${grNo}</div>
+//       </div>
+//       <div class="info-field">
+//         <div class="field-label">Class</div>
+//         <div class="field-value">${className} \u2013 ${sectionName}</div>
+//       </div>
+//       <div class="info-field">
+//         <div class="field-label">Session</div>
+//         <div class="field-value">${sessionName}</div>
+//       </div>
+//       <div class="info-field">
+//         <div class="field-label">Subject</div>
+//         <div class="field-value subject-value">${subjectsText}</div>
+//       </div>
+//     </div>
+
+//     <!-- QR code -->
+//     <div class="qr-section">
+//       <img src="${qrUrl}" alt="QR" />
+//     </div>
+
+//   </div>
+
+//   <script>
+//     // Wait for all images (photo + QR) then auto-print
+//     window.addEventListener('load', function () {
+//       var images = document.querySelectorAll('img');
+//       var total = images.length;
+//       if (total === 0) { setTimeout(function(){ window.print(); window.close(); }, 300); return; }
+//       var loaded = 0;
+//       function onDone() { loaded++; if (loaded >= total) { setTimeout(function(){ window.print(); window.close(); }, 300); } }
+//       images.forEach(function(img) {
+//         if (img.complete) { onDone(); } else { img.addEventListener('load', onDone); img.addEventListener('error', onDone); }
+//       });
+//     });
+//   <\/script>
+// </body>
+// </html>`;
+
+//     const pw = window.open('', '_blank', 'width=400,height=600');
+//     if (!pw) {
+//       toast.error('Popup blocked! Allow popups for this site and try again.');
+//       return;
+//     }
+//     pw.document.write(printHTML);
+//     pw.document.close();
+//   };
+
+// ---- Print Card on Pre-Printed Card (matches download card exactly) ----
   const handlePrintCard = (student) => {
     if (!student) {
       toast.error('No student data found');
@@ -490,11 +725,8 @@ export default function BranchAdminStudentsPage() {
     const qrUrl = `https://api.qrserver.com/v1/create-qr-code/?data=${encodeURIComponent(qrValue)}&size=200x200&margin=2`;
 
     /*
-     * Card is 3in × 4in portrait  — same as idCardGenerator.js
-     * Left 1.1in = Adamjee pre-printed strip  → leave blank
-     * Photo  : absolute, left:1.4in, top:0.25in,  0.79in × 0.79in
-     * Info   : absolute, left:1.1in, top:1.15in,  right:0.1in
-     * QR     : absolute, left:1.1in, bottom:0.15in, 0.7in × 0.7in
+     * FIXED: FULLY CENTERED LAYOUT FOR CARD PRINTER TRAY
+     * Puts the 3in x 4in card layout exactly in the center of the print canvas
      */
     const printHTML = `<!DOCTYPE html>
 <html>
@@ -525,26 +757,28 @@ export default function BranchAdminStudentsPage() {
       margin: 0mm;
       padding: 0mm;
       background: transparent;
+      display: flex;
+      justify-content: center; /* Horizontally centers the card content */
     }
     .card {
       position: relative;
       width: 3in;
       height: 4in;
-      margin: 0;
+      margin: 0 auto;
       background: transparent;
       overflow: hidden;
     }
-    /* ── Photo: in white area after 1.68in strip ── */
+    /* ── Photo: Centered on the blank printable column ── */
     .photo-section {
       position: absolute;
-      left: 1.90in;
+      left: 1.75in;
       top: 0.38in;
       width: 0.72in;
       height: 0.82in;
     }
     .photo-box {
-      width: 0.72in;
-      height: 0.82in;
+      width: 100%;
+      height: 100%;
       border: 1.5px solid #1f3a93;
       overflow: hidden;
       background: #eee;
@@ -563,15 +797,15 @@ export default function BranchAdminStudentsPage() {
       height: 100%;
       background: #dde;
     }
-    /* ── Info: stacked label above value ── */
+    /* ── Info Section: Aligned perfectly inline ── */
     .info-section {
       position: absolute;
-      left: 1.90in;
-      top: 1.48in;
+      left: 1.68in;
+      top: 1.45in;
       right: 0.05in;
     }
     .info-field {
-      margin-bottom: 0.1in;
+      margin-bottom: 0.08in;
     }
     .field-label {
       font-size: 5.5px;
@@ -602,11 +836,11 @@ export default function BranchAdminStudentsPage() {
       color: #111827;
       word-break: break-word;
     }
-    /* ── QR: centered at bottom ── */
+    /* ── QR Section: Centered down inside the printable bounds ── */
     .qr-section {
       position: absolute;
-      left: 1.78in;
-      bottom: 0.12in;
+      left: 1.68in;
+      bottom: 0.15in;
       width: 0.85in;
       height: 0.85in;
       display: flex;
@@ -627,7 +861,6 @@ export default function BranchAdminStudentsPage() {
 <body>
   <div class="card">
 
-    <!-- Photo -->
     <div class="photo-section">
       <div class="photo-box">
         ${photoUrl
@@ -637,7 +870,6 @@ export default function BranchAdminStudentsPage() {
       </div>
     </div>
 
-    <!-- Info fields (stacked: small label above bold value) -->
     <div class="info-section">
       <div class="info-field">
         <div class="field-label">Name</div>
@@ -661,7 +893,6 @@ export default function BranchAdminStudentsPage() {
       </div>
     </div>
 
-    <!-- QR code -->
     <div class="qr-section">
       <img src="${qrUrl}" alt="QR" />
     </div>
@@ -669,7 +900,6 @@ export default function BranchAdminStudentsPage() {
   </div>
 
   <script>
-    // Wait for all images (photo + QR) then auto-print
     window.addEventListener('load', function () {
       var images = document.querySelectorAll('img');
       var total = images.length;
@@ -680,7 +910,7 @@ export default function BranchAdminStudentsPage() {
         if (img.complete) { onDone(); } else { img.addEventListener('load', onDone); img.addEventListener('error', onDone); }
       });
     });
-  <\/script>
+  </script>
 </body>
 </html>`;
 
