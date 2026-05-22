@@ -267,45 +267,12 @@ const createCompleteCardHTML = async (student, institute, policyConfig) => {
       overflow:hidden;
     }
 
-  
 
- .photo-section {
-  position:absolute;
-  top:0.15in;
-  left:1.4in;
-  width:0.79in;
-  height:0.79in;
-}
-
-    .photo-box {
-      width:0.79in;
-      height:0.79in;
-      border:1px solid #1f3a93;
-      overflow:hidden;
-      background:#fff;
-      display:flex;
-      align-items:center;
-      justify-content:center;
-      border-radius:2px;
-      box-shadow:0 1px 4px rgba(0,0,0,0.1);
-    }
-
-    .photo-box img {
-      width:100%;
-      height:100%;
-      object-fit:cover;
-    }
-
-    .avatar-placeholder {
-      width:100%;
-      height:100%;
-      background:#ffffff;
-    }
 
 .info-section {
   position:absolute;
   left:1in;
-  top:0.28in;
+  top:0.1in;
   right:0.15in;
   color:#1f2937;
   font-size:10px;
@@ -397,14 +364,6 @@ const createCompleteCardHTML = async (student, institute, policyConfig) => {
 <body>
   <div class="card">
 
-    <div class="photo-section">
-      <div class="photo-box">
-        ${student.photo_url
-      ? `<img src="${student.photo_url}" />`
-      : `<div class="avatar-placeholder"></div>`
-    }
-      </div>
-    </div>
 
     <div class="info-section">
       <div class="info-field">
@@ -494,15 +453,17 @@ export const generateAndDownloadIdCard = async ({ role, person, institute, polic
     const renderScale = Math.min(PRINT_DPI / CSS_DPI, 4);
 
     const canvas = await html2canvas(sheet, {
-      allowTaint: true,
-      useCORS: true,
-      backgroundColor: '#ffffff',
-      scale: renderScale,
-      logging: false,
-      imageTimeout: 0,
-      windowWidth: 280,
-      windowHeight: 397,
-    });
+  allowTaint: true,
+  useCORS: true,
+  backgroundColor: '#ffffff',
+  scale: renderScale,
+  logging: false,
+  imageTimeout: 0,
+  windowWidth: sheet.scrollWidth,
+  windowHeight: sheet.scrollHeight,
+  scrollX: 0,
+  scrollY: 0
+});
 
     const CR100_MM = { width: 102, height: 76 }; // CR100 card size in mm
     const A7_MM = { width: 74, height: 105 }; // A7 size: 74mm × 105mm
