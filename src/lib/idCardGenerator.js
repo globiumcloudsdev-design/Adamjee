@@ -302,14 +302,14 @@ const createCompleteCardHTML = async (student, institute, policyConfig) => {
       background:#ffffff;
     }
 
-    .info-section {
-      position:absolute;
-      left:1in;
-      top:0.5in;
-      right:0.15in;
-      color:#1f2937;
-      font-size:10px;
-    }
+.info-section {
+  position:absolute;
+  left:1in;
+  top:0.28in;
+  right:0.15in;
+  color:#1f2937;
+  font-size:10px;
+}
 
 .info-field {
       display: grid;
