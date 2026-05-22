@@ -269,12 +269,13 @@ const createCompleteCardHTML = async (student, institute, policyConfig) => {
 
   
 
-    .photo-section {
-      position:absolute;
-      left:1.4in;
-      width:0.79in;
-      height:0.79in;
-    }
+ .photo-section {
+  position:absolute;
+  top:0.15in;
+  left:1.4in;
+  width:0.79in;
+  height:0.79in;
+}
 
     .photo-box {
       width:0.79in;
