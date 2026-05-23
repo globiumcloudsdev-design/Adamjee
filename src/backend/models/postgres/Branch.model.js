@@ -83,7 +83,7 @@ const Branch = sequelize.define(
     settings: {
       type: DataTypes.JSONB,
       defaultValue: {},
-      comment: "Timings, fee structure, holidays, etc.",
+      comment: "Timings, fee structure, holidays, idCardFormat ('barcode' or 'qrcode'), etc.",
     },
 
     // Audit fields

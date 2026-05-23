@@ -1694,7 +1694,7 @@ export default function BranchAdminAttendancePage() {
             className="flex-1 md:flex-none bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200 dark:shadow-none transition-all active:scale-95 py-6 px-6 rounded-2xl"
           >
             <Scan className="h-5 w-5 mr-2" />
-            <span className="font-bold">Hand Scanner</span>
+            <span className="font-bold">Scanner</span>
           </Button>
           <Button 
             onClick={() => setIsManualModalOpen(true)} 

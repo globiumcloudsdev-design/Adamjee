@@ -200,6 +200,25 @@ const generateQRCodeDataUrl = async (value) => {
   }
 };
 
+const generateBarcodeDataUrl = async (value) => {
+  if (!value) return '';
+
+  try {
+    const JsBarcode = (await import('jsbarcode')).default;
+    const canvas = document.createElement('canvas');
+    JsBarcode(canvas, value, {
+      format: "CODE128",
+      width: 2,
+      height: 40,
+      displayValue: false
+    });
+    return canvas.toDataURL("image/png");
+  } catch (error) {
+    console.error('Barcode fallback generation failed:', error);
+    return '';
+  }
+};
+
 const createCompleteCardHTML = async (student, institute, policyConfig) => {
   const design = policyConfig?.design || DEFAULT_POLICY_CONFIG.design;
   const layout = policyConfig?.layout || 'vertical';
@@ -216,14 +235,19 @@ const createCompleteCardHTML = async (student, institute, policyConfig) => {
   const phone = institute?.phone || '+92 123 4567890';
   const email = institute?.email || 'info@adamjee.edu.pk';
 
+  const idCardFormat = institute?.settings?.idCardFormat || 'barcode';
+  
   const qrFallbackDataUrl = showQr
-    ? await generateQRCodeDataUrl(student.qr_value || student.roll_number)
+    ? (idCardFormat === 'qrcode' 
+        ? await generateQRCodeDataUrl(student.qr_value || student.roll_number)
+        : await generateBarcodeDataUrl(student.registration_no || student.roll_number || student.id))
     : '';
+
   const qrCodeHTML = showQr
     ? student.qr_code_url
-      ? `<img src="${student.qr_code_url}" onerror="this.onerror=null; this.src='${qrFallbackDataUrl}'" style="width:0.7in;height:0.7in;border-radius:4px;background:#fff;" />`
+      ? `<img src="${student.qr_code_url}" onerror="this.onerror=null; this.src='${qrFallbackDataUrl}'" style="max-width:1.5in;max-height:0.8in;border-radius:4px;background:#fff;object-fit:contain;" />`
       : qrFallbackDataUrl
-        ? `<img src="${qrFallbackDataUrl}" style="width:0.7in;height:0.7in;border-radius:4px;background:#fff;" />`
+        ? `<img src="${qrFallbackDataUrl}" style="max-width:1.5in;max-height:0.8in;border-radius:4px;background:#fff;object-fit:contain;" />`
         : ''
     : "";
 
@@ -323,10 +347,10 @@ const createCompleteCardHTML = async (student, institute, policyConfig) => {
 
     .qr-section {
       position:absolute;
-      left:1.4in;
-      bottom:0.2in;
-      width:1in;
-      height:1in;
+      left:1.35in;
+      bottom:0.15in;
+      width:1.4in;
+      height:0.8in;
       display:flex;
       align-items:center;
       justify-content:center;

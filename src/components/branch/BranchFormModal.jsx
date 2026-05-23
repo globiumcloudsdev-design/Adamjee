@@ -170,6 +170,18 @@ const BranchFormModal = ({ open, onClose, editingBranch, formData, setFormData, 
           </div>
 
           <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">ID Card Format</label>
+            <Dropdown
+              value={formData.idCardFormat || 'barcode'}
+              onChange={(e) => setFormData({ ...formData, idCardFormat: e.target.value })}
+              options={[{ value: 'barcode', label: 'Barcode' }, { value: 'qrcode', label: 'QR Code' }]}
+              placeholder={null}
+            />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
+          <div>
             <label className="block text-sm font-medium text-gray-700 mb-2">Status</label>
             <Dropdown
               value={formData.status}

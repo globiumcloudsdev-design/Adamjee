@@ -1,4 +1,5 @@
 import QRCode from 'qrcode';
+import bwipjs from 'bwip-js';
 
 /**
  * Generate QR code as Data URL
@@ -63,6 +64,43 @@ export async function generateStudentQR(student) {
 }
 
 /**
+ * Generate Barcode as Data URL
+ * @param {string} data - Data to encode in Barcode
+ * @param {Object} options - Barcode options
+ * @returns {Promise<string>} Barcode as base64 data URL
+ */
+export async function generateBarcodeURL(data, options = {}) {
+  try {
+    const buffer = await bwipjs.toBuffer({
+      bcid: 'code128',       // Barcode type
+      text: data,            // Text to encode
+      scale: 3,              // 3x scaling factor
+      height: 10,            // Bar height, in millimeters
+      includetext: true,     // Show human-readable text
+      textxalign: 'center',  // Always good to set this
+      ...options
+    });
+    
+    // Convert buffer to data URL
+    return `data:image/png;base64,${buffer.toString('base64')}`;
+  } catch (error) {
+    console.error('Barcode generation error:', error);
+    throw new Error(`Failed to generate Barcode: ${error.message}`);
+  }
+}
+
+/**
+ * Generate Barcode for student
+ * @param {Object} student - Student object
+ * @returns {Promise<string>} Barcode data URL
+ */
+export async function generateStudentBarcode(student) {
+  // Use registration_no because UUID (36 chars) is too long and makes the barcode unscannable
+  const dataToEncode = student.registration_no || student.details?.academic_info?.roll_no || student.id;
+  return generateBarcodeURL(dataToEncode);
+}
+
+/**
  * Generate QR code for staff with encoded data
  * @param {Object} staff - Staff object
  * @returns {Promise<string>} QR code data URL
@@ -97,6 +135,7 @@ export default {
   generateQRCode,
   generateTeacherQR,
   generateStudentQR,
+  generateStudentBarcode,
   generateStaffQR,
   decodeQRData,
 };

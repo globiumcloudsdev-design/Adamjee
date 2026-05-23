@@ -9,7 +9,7 @@ import {
   AcademicYear,
   Subject,
 } from "@/backend/models/postgres";
-import { generateStudentQR } from "@/lib/qr-generator";
+import { generateStudentQR, generateStudentBarcode } from "@/lib/qr-generator";
 import {
   uploadQR,
   uploadProfilePhoto,
@@ -228,9 +228,18 @@ export async function POST(req) {
       }
     }
 
-    // 6. QR Code Generation & Final Update
-    const qrDataUrl = await generateStudentQR(student);
-    const qrResult = await uploadQR(qrDataUrl, student.id, "student");
+    // 6. QR Code or Barcode Generation & Final Update
+    const branch = await Branch.findByPk(targetBranchId);
+    const idCardFormat = branch?.settings?.idCardFormat || 'barcode';
+
+    let codeDataUrl;
+    if (idCardFormat === 'qrcode') {
+      codeDataUrl = await generateStudentQR(student);
+    } else {
+      codeDataUrl = await generateStudentBarcode(student);
+    }
+
+    const qrResult = await uploadQR(codeDataUrl, student.id, "student");
 
     await student.update({
       qr_code_url: qrResult.url,
@@ -418,7 +427,7 @@ export async function GET(req) {
         {
           model: Branch,
           as: "branch",
-          attributes: ["id", "name", "code"],
+          attributes: ["id", "name", "code", "settings"],
         },
       ],
       attributes: { exclude: ["password_hash"] },

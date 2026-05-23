@@ -62,6 +62,7 @@ function BranchesPage() {
     postalCode: '',
     establishedDate: '',
     status: 'active',
+    idCardFormat: 'barcode',
     location: {
       latitude: 33.6844,
       longitude: 73.0479,
@@ -122,6 +123,7 @@ function BranchesPage() {
       postalCode: '',
       establishedDate: '',
       status: 'active',
+      idCardFormat: 'barcode',
       location: {
         latitude: 33.6844,
         longitude: 73.0479,
@@ -172,6 +174,7 @@ function BranchesPage() {
         ? format(new Date(branch.settings.establishedDate), 'yyyy-MM-dd')
         : '',
       status: branch.is_active ? 'active' : 'inactive',
+      idCardFormat: branch.settings?.idCardFormat || 'barcode',
       location: {
         latitude: branch.location?.latitude || 33.6844,
         longitude: branch.location?.longitude || 73.0479,
@@ -205,6 +208,7 @@ function BranchesPage() {
         bankAccounts: formData.bankAccounts,
         settings: {
           establishedDate: formData.establishedDate,
+          idCardFormat: formData.idCardFormat,
         }
       };
 
