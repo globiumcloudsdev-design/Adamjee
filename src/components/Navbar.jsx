@@ -58,7 +58,7 @@ export default function Navbar() {
                 isScrolled ? "text-sky-100/80" : "text-[#5a6b92]"
               }`}
             >
-              Coaching System
+              Coaching Center
             </p>
           </div>
         </Link>

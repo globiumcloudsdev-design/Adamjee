@@ -20,8 +20,8 @@ const poppins = Poppins({
 });
 
 export const metadata = {
-  title: "Adamjee Coaching - Coaching Management System",
-  description: "Complete coaching management system with multi-branch support",
+  title: "Adamjee Coaching - Coaching Management Center",
+  description: "Complete coaching management Center ",
   icons: {
     icon: "/favicon-32x32.png",
   },
