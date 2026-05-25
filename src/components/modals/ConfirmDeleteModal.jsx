@@ -6,7 +6,7 @@ import { AlertTriangle } from 'lucide-react';
 
 export default function ConfirmDeleteModal({ title, message, onConfirm, onCancel, isLoading = false }) {
   return (
-    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4 transition-all duration-300">
+    <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-[9999] p-4 transition-all duration-300">
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow-xl max-w-md w-full">
         <Card className="border-0 shadow-none">
           <CardHeader className="text-center">

@@ -12,7 +12,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 // - className: extra classes
 // - disabled
 // - icon: React node (defaults to ChevronDown)
-export default function Dropdown({ id, name, value, onChange, options = [], placeholder = 'Select an option', className = '', buttonClassName = '', disabled = false, icon = null, label = null, required = false, ...props }) {
+export default function Dropdown({ id, name, value, onChange, options = [], placeholder = 'Select an option', className = '', buttonClassName = '', disabled = false, icon = null, label = null, required = false, openUpward = false, ...props }) {
   const { hideDescription, ...restProps } = props;
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
@@ -103,11 +103,13 @@ export default function Dropdown({ id, name, value, onChange, options = [], plac
       <AnimatePresence>
         {isOpen && !disabled && (
           <motion.div 
-            initial={{ opacity: 0, y: -10, scale: 0.95 }}
+            initial={{ opacity: 0, y: openUpward ? 10 : -10, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -10, scale: 0.95 }}
+            exit={{ opacity: 0, y: openUpward ? 10 : -10, scale: 0.95 }}
             transition={{ duration: 0.15, ease: 'easeOut' }}
-            className="absolute z-50 w-full mt-1 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl overflow-hidden origin-top"
+            className={`absolute z-50 w-full bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-xl overflow-hidden
+              ${openUpward ? 'bottom-full mb-1 origin-bottom' : 'top-full mt-1 origin-top'}
+            `}
           >
             <div className="max-h-60 overflow-y-auto py-1">
               {options.map((opt) => {

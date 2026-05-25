@@ -1,5 +1,5 @@
 "use client";
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -54,26 +54,14 @@ export default function ExamsPage() {
   const [examToDelete, setExamToDelete] = useState(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [generatingAdmitCards, setGeneratingAdmitCards] = useState(false);
 
   // Filters
   const [search, setSearch] = useState("");
   const [classFilter, setClassFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-
-  useEffect(() => {
-    if (user) {
-      fetchInitialData();
-    }
-  }, [user]);
-
-  useEffect(() => {
-    if (user) {
-      fetchExams();
-    }
-  }, [user, classFilter, statusFilter]);
-
-  const fetchInitialData = async () => {
+  const fetchInitialData = useCallback(async () => {
     try {
       console.log("Fetching initial data...");
       const [classesRes, sectionsRes, subjectsRes, groupsRes, academicYearsRes] = await Promise.all([
@@ -123,9 +111,9 @@ export default function ExamsPage() {
     } catch (error) {
       console.error("Error fetching initial data:", error);
     }
-  };
+  }, []);
 
-  const fetchExams = async () => {
+  const fetchExams = useCallback(async () => {
     try {
       setLoading(true);
       const params = {};
@@ -141,7 +129,21 @@ export default function ExamsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [classFilter, statusFilter]);
+
+  useEffect(() => {
+    if (user) {
+      const timer = setTimeout(() => fetchInitialData(), 0);
+      return () => clearTimeout(timer);
+    }
+  }, [user, fetchInitialData]);
+
+  useEffect(() => {
+    if (user) {
+      const timer = setTimeout(() => fetchExams(), 0);
+      return () => clearTimeout(timer);
+    }
+  }, [user, fetchExams]);
 
   const handleCreateOrUpdate = async (formData) => {
     setSubmitting(true);
@@ -174,6 +176,7 @@ export default function ExamsPage() {
   const confirmDelete = async () => {
     if (!examToDelete) return;
     try {
+      setIsDeleting(true);
       const response = await apiClient.delete(API_ENDPOINTS.BRANCH_ADMIN.EXAMS.DELETE(examToDelete));
       if (response.success) {
         toast.success("Exam deleted successfully");
@@ -182,6 +185,7 @@ export default function ExamsPage() {
     } catch (error) {
       toast.error("Failed to delete exam");
     } finally {
+      setIsDeleting(false);
       setIsDeleteModalOpen(false);
       setExamToDelete(null);
     }
@@ -336,6 +340,7 @@ export default function ExamsPage() {
           message="Are you sure you want to delete this exam? This action cannot be undone and will remove all associated marks and student records for this examination."
           onConfirm={confirmDelete}
           onCancel={() => { setIsDeleteModalOpen(false); setExamToDelete(null); }}
+          isLoading={isDeleting}
         />
       )}
     </div>

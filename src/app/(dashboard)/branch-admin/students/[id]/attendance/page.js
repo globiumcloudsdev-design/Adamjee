@@ -110,17 +110,18 @@ export default function StudentAttendanceDetailPage() {
   };
   
   const getStatusIcon = (status) => {
+    const titleText = status ? status.charAt(0).toUpperCase() + status.slice(1).replace('_', ' ') : '';
     switch (status) {
       case 'present':
-        return <CheckCircle className="w-4 h-4 text-green-600" />;
+        return <CheckCircle className="w-4 h-4 text-green-600" title={titleText} />;
       case 'absent':
-        return <XCircle className="w-4 h-4 text-red-600" />;
+        return <XCircle className="w-4 h-4 text-red-600" title={titleText} />;
       case 'late':
-        return <Clock className="w-4 h-4 text-yellow-600" />;
+        return <Clock className="w-4 h-4 text-yellow-600" title={titleText} />;
       case 'leave':
-        return <CalendarDays className="w-4 h-4 text-orange-600" />;
+        return <CalendarDays className="w-4 h-4 text-orange-600" title={titleText} />;
       default:
-        return <User className="w-4 h-4 text-gray-600" />;
+        return <User className="w-4 h-4 text-gray-600" title={titleText} />;
     }
   };
   
@@ -151,7 +152,7 @@ export default function StudentAttendanceDetailPage() {
                     <span>Reg: {student.registrationNumber}</span>
                   )}
                   {student?.rollNumber && (
-                    <span>Roll: {student.rollNumber}</span>
+                    <span>GR No: {student.rollNumber}</span>
                   )}
                   {student?.className && (
                     <span>Class: {student.className}</span>
@@ -172,7 +173,7 @@ export default function StudentAttendanceDetailPage() {
       
       {/* Statistics */}
       {stats && (
-        <div className="grid grid-cols-1 md:grid-cols-7 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <Card>
             <CardContent className="p-4">
               <div className="text-sm text-gray-600">Total Days</div>
@@ -189,24 +190,6 @@ export default function StudentAttendanceDetailPage() {
             <CardContent className="p-4">
               <div className="text-sm text-red-600">Absent</div>
               <div className="text-2xl font-bold text-red-600">{stats.absent}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-sm text-yellow-600">Late</div>
-              <div className="text-2xl font-bold text-yellow-600">{stats.late}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-sm text-purple-600">Excused</div>
-              <div className="text-2xl font-bold text-purple-600">{stats.excused}</div>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="text-sm text-orange-600">Leave</div>
-              <div className="text-2xl font-bold text-orange-600">{stats.leave || 0}</div>
             </CardContent>
           </Card>
           <Card>
@@ -229,8 +212,7 @@ export default function StudentAttendanceDetailPage() {
               <TableRow>
                 <TableHead>Date</TableHead>
                 <TableHead>Type</TableHead>
-                <TableHead>Class</TableHead>
-                <TableHead>Section</TableHead>
+                <TableHead>Class/Section</TableHead>
 
                 <TableHead>Status</TableHead>
                 <TableHead>Remarks</TableHead>
@@ -263,8 +245,7 @@ export default function StudentAttendanceDetailPage() {
                         {record.attendanceType}
                       </Badge>
                     </TableCell>
-                    <TableCell>{record.classId?.name || '—'}</TableCell>
-                    <TableCell>{record.sectionId?.name || '—'}</TableCell>
+                    <TableCell title={`${record.classId?.name || '—'} / ${record.sectionId?.name || '—'}`}>{record.classId?.name || '—'} / {record.sectionId?.name || '—'}</TableCell>
 
                     <TableCell>
                       <div className="flex items-center gap-2">
@@ -274,10 +255,12 @@ export default function StudentAttendanceDetailPage() {
                         </Badge>
                       </div>
                     </TableCell>
-                    <TableCell className="max-w-xs truncate">
-                      {record.remarks || '—'}
+                    <TableCell title={record.remarks || undefined}>
+                      <div className="max-w-[150px] truncate">
+                        {record.remarks || '—'}
+                      </div>
                     </TableCell>
-                    <TableCell>
+                    <TableCell title={record.markedBy ? `Marked by: ${record.markedBy.first_name || ''} ${record.markedBy.last_name || ''} (${record.markedBy.email || ''})` : undefined}>
                       <div className="text-sm">
                         <div>{record.markedBy?.first_name + ' ' + record.markedBy?.last_name || '—'}</div>
                         <div className="text-xs text-gray-500">
@@ -290,6 +273,7 @@ export default function StudentAttendanceDetailPage() {
                         variant="ghost"
                         size="sm"
                         onClick={() => handleEditStatus(record)}
+                        title="Edit Attendance Status"
                       >
                         <Edit className="w-4 h-4" />
                       </Button>

@@ -5,14 +5,15 @@ import { getCurrentUser } from "@/lib/auth";
 import { Attendance, User, Timetable, Section } from "@/backend/models/postgres";
 import NotificationService from "@/backend/services/NotificationService";
 
-export async function POST(req) {
+export async function GET(req) {
   try {
     const user = await getCurrentUser(req);
     if (!user || !["SUPER_ADMIN", "BRANCH_ADMIN"].includes(user.role)) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { branch_id } = await req.json();
+    const { searchParams } = new URL(req.url);
+    const branch_id = searchParams.get("branch_id");
     const finalBranchId = user.role === "BRANCH_ADMIN" ? user.branch_id : branch_id;
 
     if (!finalBranchId) {
@@ -21,9 +22,95 @@ export async function POST(req) {
 
     const today = new Date();
     const dateStr = format(today, "yyyy-MM-dd");
-    const dayName = format(today, "EEEE"); // e.g. "Monday"
+    const dayName = format(today, "EEEE");
 
-    // 1. Get all students of this branch
+    const students = await User.findAll({
+      where: {
+        branch_id: finalBranchId,
+        role: "STUDENT",
+        is_active: true,
+      },
+      attributes: ["id", "details", "first_name", "last_name", "registration_no", "avatar_url"],
+    });
+
+    const timetables = await Timetable.findAll({
+      where: { branch_id: finalBranchId },
+    });
+
+    const activeSectionsToday = new Map();
+    timetables.forEach(tt => {
+      const periods = Array.isArray(tt.periods) ? tt.periods : [];
+      periods.forEach(p => {
+        if (p.day === dayName && p.subjectId) {
+          if (!activeSectionsToday.has(tt.section_id)) {
+            activeSectionsToday.set(tt.section_id, new Set());
+          }
+          activeSectionsToday.get(tt.section_id).add(String(p.subjectId));
+        }
+      });
+    });
+
+    const studentsWithClassesToday = students.filter(student => {
+      const subjects = student.details?.academic_info?.subjects || [];
+      return subjects.some(s => {
+        const activeSubjectsInThisSection = activeSectionsToday.get(String(s.section_id));
+        return activeSubjectsInThisSection && activeSubjectsInThisSection.has(String(s.id));
+      });
+    });
+
+    if (studentsWithClassesToday.length === 0) {
+      return NextResponse.json({ success: true, students: [] });
+    }
+
+    const existingAttendances = await Attendance.findAll({
+      where: {
+        date: dateStr,
+        student_id: studentsWithClassesToday.map(s => s.id),
+      },
+      attributes: ["student_id"],
+    });
+
+    const attendedStudentIds = new Set(existingAttendances.map(a => a.student_id));
+    const absentStudents = studentsWithClassesToday.filter(s => !attendedStudentIds.has(s.id));
+
+    return NextResponse.json({
+      success: true,
+      students: absentStudents.map(s => ({
+        id: s.id,
+        first_name: s.first_name,
+        last_name: s.last_name,
+        registration_no: s.registration_no,
+        class_id: s.details?.academic_info?.class_id,
+        section_id: s.details?.academic_info?.section_id,
+        avatar_url: s.avatar_url
+      }))
+    });
+
+  } catch (error) {
+    console.error("Auto-Mark Absent Preview Error:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+export async function POST(req) {
+  try {
+    const user = await getCurrentUser(req);
+    if (!user || !["SUPER_ADMIN", "BRANCH_ADMIN"].includes(user.role)) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { branch_id, student_ids } = await req.json();
+    const finalBranchId = user.role === "BRANCH_ADMIN" ? user.branch_id : branch_id;
+
+    if (!finalBranchId) {
+      return NextResponse.json({ error: "Branch ID is required" }, { status: 400 });
+    }
+
+    const today = new Date();
+    const dateStr = format(today, "yyyy-MM-dd");
+    const dayName = format(today, "EEEE"); 
+
+    // 1. Get students of this branch
     const students = await User.findAll({
       where: {
         branch_id: finalBranchId,
@@ -33,14 +120,11 @@ export async function POST(req) {
       attributes: ["id", "details", "first_name", "last_name"],
     });
 
-    // 2. Get all timetables of this branch to identify active sections today
+    // 2. Identify active sections today
     const timetables = await Timetable.findAll({
-      where: {
-        branch_id: finalBranchId,
-      },
+      where: { branch_id: finalBranchId },
     });
 
-    // Map: section_id -> Set of subjectIds active today
     const activeSectionsToday = new Map();
     timetables.forEach(tt => {
       const periods = Array.isArray(tt.periods) ? tt.periods : [];
@@ -71,7 +155,7 @@ export async function POST(req) {
       });
     }
 
-    // 4. Check existing attendance for these students today
+    // 4. Check existing attendance
     const existingAttendances = await Attendance.findAll({
       where: {
         date: dateStr,
@@ -83,12 +167,16 @@ export async function POST(req) {
     const attendedStudentIds = new Set(existingAttendances.map(a => a.student_id));
     
     // 5. Identify students who are ABSENT (scheduled but no record)
-    const absentStudents = studentsWithClassesToday.filter(s => !attendedStudentIds.has(s.id));
+    let absentStudents = studentsWithClassesToday.filter(s => !attendedStudentIds.has(s.id));
+
+    if (student_ids && Array.isArray(student_ids)) {
+      absentStudents = absentStudents.filter(s => student_ids.includes(s.id));
+    }
 
     if (absentStudents.length === 0) {
       return NextResponse.json({
         success: true,
-        message: "All scheduled students already have attendance marked.",
+        message: "No eligible students to mark absent based on selection.",
         processedCount: 0
       });
     }
@@ -134,3 +222,4 @@ export async function POST(req) {
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
+

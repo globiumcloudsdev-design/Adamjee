@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import { 
   format, 
@@ -32,6 +32,7 @@ export default function DatePicker({
   max,
   disableFuture = true,
   disablePast = false,
+  openUpward = false,
   ...props
 }) {
   const [isOpen, setIsOpen] = useState(false);
@@ -39,23 +40,30 @@ export default function DatePicker({
   const containerRef = useRef(null);
 
   // Parse value to Date object
-  const selectedDate = value ? (typeof value === 'string' ? parseISO(value) : value) : null;
+  const selectedDate = useMemo(() => {
+    return value ? (typeof value === 'string' ? parseISO(value) : value) : null;
+  }, [value]);
 
   useEffect(() => {
     if (selectedDate && isFinite(selectedDate)) {
-      setCurrentMonth(selectedDate);
+      const timer = setTimeout(() => {
+        setCurrentMonth(selectedDate);
+      }, 0);
+      return () => clearTimeout(timer);
     }
-  }, [value]);
+  }, [selectedDate]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (containerRef.current && !containerRef.current.contains(event.target)) {
-        setIsOpen(false);
+        if (selectedDate) {
+          setIsOpen(false);
+        }
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+  }, [selectedDate]);
 
   const handleDateClick = (day) => {
     // Check if future dates are disabled
@@ -244,11 +252,11 @@ export default function DatePicker({
         <AnimatePresence>
           {isOpen && (
             <motion.div
-              initial={{ opacity: 0, y: 10, scale: 0.95 }}
-              animate={{ opacity: 1, y: 5, scale: 1 }}
-              exit={{ opacity: 0, y: 10, scale: 0.95 }}
+              initial={{ opacity: 0, y: openUpward ? -10 : 10, scale: 0.95 }}
+              animate={{ opacity: 1, y: openUpward ? -5 : 5, scale: 1 }}
+              exit={{ opacity: 0, y: openUpward ? -10 : 10, scale: 0.95 }}
               transition={{ duration: 0.15, ease: "easeOut" }}
-              className="absolute z-[9999] mt-2 bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden min-w-[280px]"
+              className={`absolute z-[9999] ${openUpward ? 'bottom-full mb-2' : 'mt-2'} bg-white border border-slate-200 rounded-xl shadow-xl overflow-hidden min-w-[280px]`}
               style={{ left: 0 }}
             >
               {renderHeader()}

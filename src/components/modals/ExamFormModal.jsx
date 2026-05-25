@@ -25,7 +25,7 @@ export default function ExamFormModal({
 }) {
   const [formData, setFormData] = useState({
     title: "",
-    exam_type: "mid",
+    exam_type: "midterm",
     branch_id: "",
     class_id: "",
     section_id: "",
@@ -39,37 +39,40 @@ export default function ExamFormModal({
   const [errors, setErrors] = useState({});
 
   useEffect(() => {
-    if (exam) {
-      setFormData({
-        title: exam.title || "",
-        exam_type: exam.exam_type || "mid",
-        branch_id: exam.branch_id || "",
-        class_id: exam.class_id || "",
-        section_id: exam.section_id || "",
-        group_id: exam.group_id || "",
-        academic_year_id: exam.academic_year_id || "",
-        status: exam.status || "scheduled",
-        subjects: exam.subjects || [],
-        description: exam.description || "",
-      });
-    } else {
-      // Set defaults for new exam
-      setFormData((prev) => ({
-        ...prev,
-        branch_id: branches[0]?.id || "",
-        academic_year_id: academicYears.find((y) => y.is_current)?.id || "",
-        subjects: [
-          {
-            subject_id: "",
-            date: "",
-            start_time: "09:00",
-            end_time: "11:00",
-            total_marks: 100,
-            passing_marks: 40,
-          },
-        ],
-      }));
-    }
+    const timer = setTimeout(() => {
+      if (exam) {
+        setFormData({
+          title: exam.title || "",
+          exam_type: exam.exam_type || "midterm",
+          branch_id: exam.branch_id || "",
+          class_id: exam.class_id || "",
+          section_id: exam.section_id || "",
+          group_id: exam.group_id || "",
+          academic_year_id: exam.academic_year_id || "",
+          status: exam.status || "scheduled",
+          subjects: exam.subjects || [],
+          description: exam.description || "",
+        });
+      } else {
+        // Set defaults for new exam
+        setFormData((prev) => ({
+          ...prev,
+          branch_id: branches[0]?.id || "",
+          academic_year_id: academicYears.find((y) => y.is_current)?.id || "",
+          subjects: [
+            {
+              subject_id: "",
+              date: "",
+              start_time: "09:00",
+              end_time: "11:00",
+              total_marks: 100,
+              passing_marks: 40,
+            },
+          ],
+        }));
+      }
+    }, 0);
+    return () => clearTimeout(timer);
   }, [exam, branches, academicYears]);
 
   const handleInputChange = (field, value) => {
@@ -129,7 +132,12 @@ export default function ExamFormModal({
     });
 
     setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    
+    if (Object.keys(newErrors).length > 0) {
+      toast.error("Please fill in all required fields before submitting.");
+      return false;
+    }
+    return true;
   };
 
   const handleSubmit = (e) => {
@@ -143,6 +151,7 @@ export default function ExamFormModal({
   const filteredClasses = classes.filter(
     (c) => c.group_id === formData.group_id,
   );
+  
   const selectedClassObj = classes.find((c) => c.id === formData.class_id);
   const filteredSections =
     selectedClassObj?.sections ||
@@ -316,9 +325,9 @@ export default function ExamFormModal({
               value={formData.exam_type}
               onChange={(e) => handleInputChange("exam_type", e.target.value)}
               options={[
-                { value: "weekly", label: "Weekly" },
-                { value: "mid", label: "Mid" },
-                { value: "final/annual", label: "Final/Annual" },
+                { value: "quiz", label: "Weekly" },
+                { value: "midterm", label: "Mid" },
+                { value: "final", label: "Final/Annual" },
               ]}
               placeholder="Select Exam Type"
             />
@@ -429,6 +438,7 @@ export default function ExamFormModal({
                         }
                         disablePast={true}
                         disableFuture={false}
+                        openUpward={true}
                         className="h-10"
                       />
                     </div>

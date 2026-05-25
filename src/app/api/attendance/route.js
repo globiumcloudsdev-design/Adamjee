@@ -126,6 +126,8 @@ export async function GET(req) {
     const toDate = searchParams.get("toDate");
     const status = searchParams.get("status");
     const branchId = searchParams.get("branch_id") || searchParams.get("branchId");
+    const classId = searchParams.get("classId") || searchParams.get("class_id");
+    const sectionId = searchParams.get("sectionId") || searchParams.get("section_id");
 
     let finalBranchId = user.role === "BRANCH_ADMIN" ? user.branch_id : branchId;
 
@@ -144,16 +146,41 @@ export async function GET(req) {
     // Status filter
     if (status) whereClause.status = status.toUpperCase();
 
+    // Prepare student model association filter for Class/Section
+    const studentInclude = {
+      model: User,
+      as: "student",
+      attributes: ["id", "first_name", "last_name", "registration_no", "details"],
+    };
+
+    const academicInfoFilter = {};
+    let hasAcademicFilter = false;
+
+    if (classId) {
+      const numValue = Number(classId);
+      academicInfoFilter.class_id = isNaN(numValue) ? classId : numValue;
+      hasAcademicFilter = true;
+    }
+    if (sectionId) {
+      const numValue = Number(sectionId);
+      academicInfoFilter.section_id = isNaN(numValue) ? sectionId : numValue;
+      hasAcademicFilter = true;
+    }
+
+    if (hasAcademicFilter) {
+      studentInclude.where = {
+        details: {
+          [Op.contains]: {
+            academic_info: academicInfoFilter,
+          },
+        },
+      };
+    }
+
     const attendances = await Attendance.findAll({
       where: whereClause,
       attributes: ["id", "date", "status", "remarks", "created_at", "student_id", "branch_id", "marked_by"],
-      include: [
-        {
-          model: User,
-          as: "student",
-          attributes: ["id", "first_name", "last_name", "registration_no", "details"],
-        },
-      ],
+      include: [studentInclude],
       order: [["date", "DESC"], ["created_at", "DESC"]],
     });
 

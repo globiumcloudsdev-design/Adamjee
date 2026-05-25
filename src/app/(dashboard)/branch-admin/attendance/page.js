@@ -18,9 +18,11 @@ import LiveJsQRScanner from '@/components/LiveJsQRScanner';
 import apiClient from '@/lib/api-client';
 import API_ENDPOINTS from '@/constants/api-endpoints';
 import { toast } from 'sonner';
-import { Camera, Search, Save, CheckCircle, XCircle, Clock, UserSearch, Eye, DollarSign, Calendar, X, Scan, Upload, FileText, QrCode, Download } from 'lucide-react';
+import { Camera, Search, Save, CheckCircle, XCircle, Clock, UserSearch, Eye, DollarSign, Calendar, X, Scan, Upload, FileText, QrCode, Download, Users } from 'lucide-react';
 import ButtonLoader from '@/components/ui/button-loader';
 import { Checkbox } from '@/components/ui/checkbox';
+import { TableSkeleton } from '@/components/ui/skeleton';
+import ConfirmDeleteModal from '@/components/modals/ConfirmDeleteModal';
 
 const STATUS_OPTIONS = [
   { value: 'present', label: 'Present' },
@@ -81,6 +83,12 @@ export default function BranchAdminAttendancePage() {
   const [scanningStatus, setScanningStatus] = useState('idle'); // idle, checking, marking, success, error
   const [studentsCache, setStudentsCache] = useState({});
   const [isProcessingAutoAbsent, setIsProcessingAutoAbsent] = useState(false);
+  const [isAutoAbsentModalOpen, setIsAutoAbsentModalOpen] = useState(false);
+  const [autoAbsentPreview, setAutoAbsentPreview] = useState([]);
+  const [autoAbsentSelected, setAutoAbsentSelected] = useState([]);
+  const [fetchingAutoAbsent, setFetchingAutoAbsent] = useState(false);
+  const [deleteRecord, setDeleteRecord] = useState(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const scannerInputRef = useRef(null);
 
   const playBuzzer = (type = 'success') => {
@@ -155,8 +163,11 @@ export default function BranchAdminAttendancePage() {
   const [historyModalFilters, setHistoryModalFilters] = useState({
     fromDate: todayStr,
     toDate: todayStr,
-    status: ''
+    status: '',
+    classId: '',
+    sectionId: ''
   });
+  const [historySearchQuery, setHistorySearchQuery] = useState('');
   const [historyModalRecords, setHistoryModalRecords] = useState([]);
   const [historyModalLoading, setHistoryModalLoading] = useState(false);
   const [historyModalFetched, setHistoryModalFetched] = useState(false);
@@ -277,6 +288,16 @@ export default function BranchAdminAttendancePage() {
       fetchEvents();
     }
   }, [attendanceType]);
+
+  const handleClearFilters = () => {
+    setSelectedClass('');
+    setSelectedSection('');
+    setAttendanceDate(new Date().toISOString().split('T')[0]);
+    setAttendanceType('daily');
+    setStudentSearchQuery('');
+    setSearchQuery('');
+    toast.success('Filters cleared successfully');
+  };
 
   const fetchClasses = async () => {
     try {
@@ -459,17 +480,45 @@ export default function BranchAdminAttendancePage() {
     }
   };
 
+  const fetchAutoAbsentPreview = async () => {
+    try {
+      setFetchingAutoAbsent(true);
+      const res = await apiClient.get('/api/attendance/auto-absent', {
+        branch_id: user?.branch_id || user?.branchId
+      });
+      if (res.success) {
+        setAutoAbsentPreview(res.students || []);
+        setAutoAbsentSelected(res.students ? res.students.map(s => s.id) : []);
+        setIsAutoAbsentModalOpen(true);
+      } else {
+        toast.error(res.error || "Failed to fetch auto-absent preview");
+      }
+    } catch (err) {
+      console.error("Auto-Absent Preview Error:", err);
+      toast.error("An error occurred while fetching preview");
+    } finally {
+      setFetchingAutoAbsent(false);
+    }
+  };
+
   const handleAutoMarkAbsent = async () => {
+    if (autoAbsentSelected.length === 0) {
+      toast.error("Please select at least one student to mark absent.");
+      return;
+    }
     try {
       setIsProcessingAutoAbsent(true);
       const res = await apiClient.post('/api/attendance/auto-absent', {
-        branch_id: user?.branch_id
+        branch_id: user?.branch_id || user?.branchId,
+        student_ids: autoAbsentSelected
       });
       
       if (res.success) {
         toast.success(res.message);
+        setIsAutoAbsentModalOpen(false);
         if (res.processedCount > 0) {
           fetchStudents();
+          fetchTodayAttendance();
         }
       } else {
         toast.error(res.error || "Failed to process auto-absent");
@@ -945,8 +994,35 @@ export default function BranchAdminAttendancePage() {
 
   const getSelectedClass = () => classes.find(c => c.id === selectedClass || c._id === selectedClass);
 
+  const sections = allSections.filter(s => {
+    const rawClassId = s.class_id || s.classId || s.class?.id || s.class?._id;
+    if (!rawClassId || !selectedClass) return false;
+    const classIdStr = String(typeof rawClassId === 'object' ? (rawClassId.id || rawClassId._id) : rawClassId);
+    const targetIdStr = String(selectedClass);
+    return classIdStr === targetIdStr;
+  });
 
-  const sections = getSelectedClass()?.sections || [];
+  const getHistorySelectedClass = () => classes.find(c => c.id === historyModalFilters.classId || c._id === historyModalFilters.classId);
+  
+  const historySections = allSections.filter(s => {
+    const rawClassId = s.class_id || s.classId || s.class?.id || s.class?._id;
+    if (!rawClassId || !historyModalFilters.classId) return false;
+    const classIdStr = String(typeof rawClassId === 'object' ? (rawClassId.id || rawClassId._id) : rawClassId);
+    const targetIdStr = String(historyModalFilters.classId);
+    return classIdStr === targetIdStr;
+  });
+
+  const getFilteredHistoryRecords = () => {
+    return historyModalRecords.filter(record => {
+      if (!historySearchQuery) return true;
+      const student = record.student;
+      if (!student) return false;
+      const name = `${student.first_name || ''} ${student.last_name || ''}`.toLowerCase();
+      const grNo = (student?.details?.academic_info?.roll_no || student?.details?.student?.roll_no || student?.registration_no || '').toLowerCase();
+      const query = historySearchQuery.toLowerCase();
+      return name.includes(query) || grNo.includes(query);
+    });
+  };
 
   const getSectionName = (sectionId) => {
     if (!sectionId) return '—';
@@ -1033,6 +1109,8 @@ export default function BranchAdminAttendancePage() {
       if (filters.fromDate) params.fromDate = filters.fromDate;
       if (filters.toDate) params.toDate = filters.toDate;
       if (filters.status) params.status = filters.status;
+      if (filters.classId) params.classId = filters.classId;
+      if (filters.sectionId) params.sectionId = filters.sectionId;
       
       const response = await apiClient.get('/api/attendance', params);
       
@@ -1052,7 +1130,8 @@ export default function BranchAdminAttendancePage() {
   };
 
   const exportAttendancePDF = async () => {
-    if (!historyModalRecords.length) {
+    const recordsToExport = getFilteredHistoryRecords();
+    if (!recordsToExport.length) {
       toast.error('No records to export');
       return;
     }
@@ -1112,31 +1191,34 @@ export default function BranchAdminAttendancePage() {
       doc.text(`Status Filter:  ${statusLabel}`, 14, 57);
       doc.setTextColor(109, 40, 217);
       doc.setFont('helvetica', 'bold');
-      const totalTxt = `Total Records: ${historyModalRecords.length}`;
+      const totalTxt = `Total Records: ${recordsToExport.length}`;
       doc.text(totalTxt, pageWidth - 14, 51, { align: 'right' });
 
       // Count present/absent
-      const presentCount = historyModalRecords.filter(r => r.status === 'PRESENT').length;
-      const absentCount = historyModalRecords.filter(r => r.status === 'ABSENT').length;
+      const presentCount = recordsToExport.filter(r => r.status === 'PRESENT').length;
+      const absentCount = recordsToExport.filter(r => r.status === 'ABSENT').length;
       doc.setFontSize(7.5);
       doc.setTextColor(22, 163, 74);
       doc.text(`Present: ${presentCount}`, pageWidth - 14, 57, { align: 'right' });
       doc.setTextColor(220, 38, 38);
 
       // ── TABLE ────────────────────────────────────────────────────────
-      const tableData = historyModalRecords.map((record, idx) => {
+      const tableData = recordsToExport.map((record, idx) => {
         const student = record.student;
         const name = student ? `${student.first_name || ''} ${student.last_name || ''}`.trim() : '—';
         const grNo = student?.details?.academic_info?.roll_no || student?.details?.student?.roll_no || student?.registration_no || '—';
+        const className = getClassName(student?.details?.academic_info?.class_id);
+        const sectionName = getSectionName(student?.details?.academic_info?.section_id || student?.section);
+        const classSection = `${className} - ${sectionName}`;
         const date = record.date ? new Date(record.date).toLocaleDateString('en-PK', { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
         const timeIn = record.created_at ? new Date(record.created_at).toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit', hour12: true }) : '—';
         const status = record.status ? record.status.charAt(0) + record.status.slice(1).toLowerCase() : '—';
-        return [idx + 1, date, name, grNo, status, timeIn];
+        return [idx + 1, date, name, grNo, classSection, status, timeIn];
       });
 
       autoTable(doc, {
         startY: 64,
-        head: [['#', 'Date', 'Student Name', 'GR No', 'Status', 'Time In']],
+        head: [['#', 'Date', 'Student Name', 'GR No', 'Class / Section', 'Status', 'Time In']],
         body: tableData,
         styles: {
           fontSize: 8.5,
@@ -1156,17 +1238,18 @@ export default function BranchAdminAttendancePage() {
         alternateRowStyles: { fillColor: [248, 245, 255] },
         columnStyles: {
           0: { halign: 'center', cellWidth: 10 },
-          1: { cellWidth: 30 },
-          2: { cellWidth: 55 },
-          3: { halign: 'center', cellWidth: 25 },
-          4: {
-            halign: 'center', cellWidth: 22,
+          1: { cellWidth: 25 },
+          2: { cellWidth: 40 },
+          3: { halign: 'center', cellWidth: 20 },
+          4: { cellWidth: 35 },
+          5: {
+            halign: 'center', cellWidth: 20,
             didDrawCell: undefined,
           },
-          5: { halign: 'center', cellWidth: 25 },
+          6: { halign: 'center', cellWidth: 24 },
         },
         didDrawCell: (data) => {
-          if (data.column.index === 4 && data.section === 'body') {
+          if (data.column.index === 5 && data.section === 'body') {
             const status = data.cell.raw;
             if (status === 'Present') {
               doc.setTextColor(22, 163, 74);
@@ -1211,8 +1294,9 @@ export default function BranchAdminAttendancePage() {
 
   const openHistoryModal = () => {
     const today = new Date().toISOString().split('T')[0];
-    const todayFilters = { fromDate: today, toDate: today, status: '' };
+    const todayFilters = { fromDate: today, toDate: today, status: '', classId: '', sectionId: '' };
     setHistoryModalFilters(todayFilters);
+    setHistorySearchQuery('');
     setHistoryModalRecords([]);
     setHistoryModalFetched(false);
     setIsHistoryModalOpen(true);
@@ -1254,6 +1338,22 @@ export default function BranchAdminAttendancePage() {
       toast.error(error.message || 'Failed to update attendance');
     } finally {
       setUpdating(false);
+    }
+  };
+
+  const handleDeleteAttendance = async () => {
+    if (!deleteRecord) return;
+    try {
+      setIsDeleting(true);
+      await apiClient.delete(`/api/attendance/${deleteRecord.id}`);
+      toast.success(`Attendance for ${deleteRecord.studentName} deleted successfully`);
+      setDeleteRecord(null);
+      fetchHistoryModal();
+      fetchTodayAttendance();
+    } catch (error) {
+      toast.error(error.response?.data?.message || error.message || 'Failed to delete attendance');
+    } finally {
+      setIsDeleting(false);
     }
   };
   
@@ -1324,7 +1424,6 @@ export default function BranchAdminAttendancePage() {
                     <TableRow>
                       <TableHead className="w-12"></TableHead>
                       <TableHead>Name</TableHead>
-                      <TableHead>Reg #</TableHead>
                       <TableHead>Class / Section</TableHead>
                     </TableRow>
                   </TableHeader>
@@ -1344,7 +1443,6 @@ export default function BranchAdminAttendancePage() {
                           />
                         </TableCell>
                         <TableCell className="font-medium">{student.first_name} {student.last_name}</TableCell>
-                        <TableCell>{student.registration_no}</TableCell>
                         <TableCell>
                           {getClassName(student.details?.academic_info?.class_id)} - {getSectionName(student.details?.academic_info?.section_id || student.section)}
                         </TableCell>
@@ -1530,7 +1628,7 @@ export default function BranchAdminAttendancePage() {
                           <Badge variant="secondary" className="bg-indigo-50 text-indigo-700 font-mono text-xs">REG: {lastScannedStudent.registrationNumber || lastScannedStudent.registration_no}</Badge>
                         </div>
                         <div className="flex items-center gap-1.5 text-gray-600 dark:text-gray-400">
-                          <Badge variant="secondary" className="bg-purple-50 text-purple-700 font-mono text-xs">ROLL: {lastScannedStudent.rollNumber || 'N/A'}</Badge>
+                          <Badge variant="secondary" className="bg-purple-50 text-purple-700 font-mono text-xs">GR NO: {lastScannedStudent.rollNumber || 'N/A'}</Badge>
                         </div>
                       </div>
                       <div className="mt-4 flex flex-wrap justify-center sm:justify-start gap-3">
@@ -1681,125 +1779,435 @@ export default function BranchAdminAttendancePage() {
           </div>
         </form>
       </Modal>
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-8">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-5 border-slate-100 dark:border-slate-800">
         <div>
-          <h1 className="text-2xl md:text-3xl font-black tracking-tight text-gray-900 dark:text-white">Mark Attendance</h1>
+          <h1 className="text-2xl md:text-3xl font-black tracking-tight text-gray-900 dark:text-white flex items-center gap-2">
+            <UserSearch className="h-8 w-8 text-indigo-600 dark:text-indigo-400" />
+            Student Attendance
+          </h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Manage student attendance and session tracking
+            Manage daily student attendance, QR scanning, manual registry, and holidays.
           </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-          <Button 
-            onClick={handleOpenScanner}
-            className="flex-1 md:flex-none bg-indigo-600 hover:bg-indigo-700 text-white shadow-lg shadow-indigo-200 dark:shadow-none transition-all active:scale-95 py-6 px-6 rounded-2xl"
-          >
-            <Scan className="h-5 w-5 mr-2" />
-            <span className="font-bold">Scanner</span>
-          </Button>
-          <Button 
-            onClick={() => setIsManualModalOpen(true)} 
-            variant="outline"
-            className="flex-1 md:flex-none border-2 border-slate-200 hover:border-slate-300 dark:border-slate-700 dark:hover:border-slate-600 transition-all active:scale-95 py-6 px-6 rounded-2xl gap-2 font-bold text-slate-700 dark:text-slate-200"
-          >
-            <UserSearch className="h-5 w-5" />
-            <span className="text-sm">Manual</span>
-          </Button>
-          <Button
-            onClick={() => setIsBulkUploadModalOpen(true)}
-            variant="outline"
-            className="flex-1 md:flex-none border-2 border-emerald-600 text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/20 transition-all active:scale-95 py-6 px-6 rounded-2xl font-bold"
-          >
-            <Upload className="h-5 w-5 mr-2" />
-            <span className="text-sm">Bulk Upload</span>
-          </Button>
-
-          <Button
-            onClick={handleAutoMarkAbsent}
-            disabled={isProcessingAutoAbsent}
-            className="flex-1 md:flex-none bg-rose-600 hover:bg-rose-700 text-white shadow-lg shadow-rose-200 dark:shadow-none transition-all active:scale-95 py-6 px-6 rounded-2xl gap-2 font-bold"
-          >
-            {isProcessingAutoAbsent ? (
-              <ButtonLoader color="white" />
-            ) : (
-              <XCircle className="h-5 w-5" />
-            )}
-            <span className="text-sm">Auto-Absent</span>
-          </Button>
-
-          <Button 
-            onClick={() => setIsHolidayModalOpen(true)} 
-            className="flex-1 md:flex-none bg-amber-500 hover:bg-amber-600 text-white shadow-lg shadow-amber-100 dark:shadow-none transition-all active:scale-95 py-6 px-5 rounded-2xl"
-            title="Mark Holiday"
-          >
-            <Calendar className="h-5 w-5" />
-          </Button>
         </div>
       </div>
 
-      <Card className="border-none shadow-sm rounded-3xl mb-8 relative z-20">
-        <CardHeader className="bg-slate-50/50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-800">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-lg font-semibold flex items-center gap-2">
-              <Search className="h-5 w-5 text-indigo-500" />
-              Attendance Filters
-            </CardTitle>
-            <Button
-              onClick={openHistoryModal}
-              variant="outline"
-              className="border-2 border-violet-500 text-violet-600 hover:bg-violet-50 dark:hover:bg-violet-900/20 font-bold rounded-xl gap-2 transition-all active:scale-95"
-            >
-              <Calendar className="h-4 w-4" />
-              History
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="p-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="space-y-2 relative z-30">
-              <Label>Date</Label>
-              <DatePicker
-                value={attendanceDate}
-                onChange={(e) => setAttendanceDate(e.target.value)}
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label>Class *</Label>
-              <Dropdown
-                name="class"
-                value={selectedClass}
-                onChange={(e) => setSelectedClass(e.target.value)}
-                options={classes.length === 0 ? [{ value: '', label: 'This Branch Classes Not Found' }] : classes.map((c) => ({ value: c.id || c._id, label: c.name }))}
-                placeholder={classes.length === 0 ? "This Branch Classes Not Found" : "Select class"}
-              />
-            </div>
-            
-            <div className="space-y-2">
-              <Label>Section *</Label>
-              <Dropdown
-                name="section"
-                value={selectedSection}
-                onChange={(e) => setSelectedSection(e.target.value)}
-                options={sections.length === 0 && selectedClass ? [{ value: '', label: `${classes.find(c => c.id === selectedClass || c._id === selectedClass)?.name || 'Class'} Sections Not Found` }] : sections.map((s) => ({ value: s.id || s._id || s.name, label: s.name }))}
-                disabled={!selectedClass}
-                placeholder={!selectedClass ? "Select class first" : sections.length === 0 ? `${classes.find(c => c.id === selectedClass || c._id === selectedClass)?.name || 'Class'} Sections Not Found` : "Select section"}
-              />
-            </div>
-             
-            <div className="space-y-2">
-              <Label>Attendance Type</Label>
-              <Dropdown
-                name="attendanceType"
-                value={attendanceType}
-                onChange={(e) => setAttendanceType(e.target.value)}
-                options={[
-                  { value: 'daily', label: 'Daily' },
-                ]}
-              />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* ============ GRID LAYOUT ============ */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+        
+        {/* LEFT COLUMN: Controls & Filters (col-span-4) */}
+        <div className="lg:col-span-4 space-y-6">
+          {/* Quick Operations Card */}
+          <Card className="border-none shadow-sm rounded-3xl overflow-hidden bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-850">
+            <CardHeader className="bg-slate-50/50 dark:bg-slate-800/30 border-b border-slate-100 dark:border-slate-805 py-4">
+              <CardTitle className="text-md font-bold flex items-center gap-2 text-slate-800 dark:text-slate-200">
+                <CheckCircle className="h-4 w-4 text-emerald-500" />
+                Operations Control
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4">
+              <div className="grid grid-cols-2 gap-2">
+                <Button 
+                  onClick={handleOpenScanner}
+                  className="bg-indigo-600 hover:bg-indigo-700 text-white shadow-sm flex flex-col items-center justify-center h-20 rounded-2xl p-2 gap-1"
+                >
+                  <Scan className="h-5 w-5" />
+                  <span className="text-xs font-bold">Scanner</span>
+                </Button>
+                
+                <Button 
+                  onClick={() => setIsManualModalOpen(true)} 
+                  variant="outline"
+                  className="border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 flex flex-col items-center justify-center h-20 rounded-2xl p-2 gap-1 text-slate-700 dark:text-slate-200"
+                >
+                  <UserSearch className="h-5 w-5 text-indigo-500" />
+                  <span className="text-xs font-bold">Manual GR</span>
+                </Button>
+
+                <Button 
+                  onClick={() => setManualAttendanceModalOpen(true)} 
+                  variant="outline"
+                  className="border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 flex flex-col items-center justify-center h-20 rounded-2xl p-2 gap-1 text-slate-700 dark:text-slate-200"
+                >
+                  <Users className="h-5 w-5 text-violet-500" />
+                  <span className="text-xs font-bold">Bulk Manual</span>
+                </Button>
+
+                <Button
+                  onClick={() => setIsBulkUploadModalOpen(true)}
+                  variant="outline"
+                  className="border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 flex flex-col items-center justify-center h-20 rounded-2xl p-2 gap-1 text-slate-700 dark:text-slate-200"
+                >
+                  <Upload className="h-5 w-5 text-emerald-500" />
+                  <span className="text-xs font-bold">Bulk Upload</span>
+                </Button>
+
+                <Button
+                  onClick={fetchAutoAbsentPreview}
+                  disabled={fetchingAutoAbsent || isProcessingAutoAbsent}
+                  variant="outline"
+                  className="border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 flex flex-col items-center justify-center h-20 rounded-2xl p-2 gap-1 text-slate-700 dark:text-slate-200"
+                >
+                  {fetchingAutoAbsent || isProcessingAutoAbsent ? (
+                    <ButtonLoader color="rose" />
+                  ) : (
+                    <XCircle className="h-5 w-5 text-rose-500" />
+                  )}
+                  <span className="text-xs font-bold">Auto Absent</span>
+                </Button>
+
+                <Button 
+                  onClick={() => setIsHolidayModalOpen(true)} 
+                  variant="outline"
+                  className="border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 flex flex-col items-center justify-center h-20 rounded-2xl p-2 gap-1 text-slate-700 dark:text-slate-200"
+                >
+                  <Calendar className="h-5 w-5 text-amber-500" />
+                  <span className="text-xs font-bold">Mark Holiday</span>
+                </Button>
+
+                <Button
+                  onClick={openHistoryModal}
+                  className="col-span-2 bg-violet-600 hover:bg-violet-700 text-white flex items-center justify-center h-10 rounded-xl gap-2 font-bold text-sm shadow-sm"
+                >
+                  <Calendar className="h-4 w-4" />
+                  View Attendance History
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Unified Filters Card */}
+          <Card className="border-none shadow-sm rounded-3xl overflow-hidden bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-850">
+            <CardHeader className="bg-slate-50/50 dark:bg-slate-800/30 border-b border-slate-100 dark:border-slate-805 py-4 flex flex-row items-center justify-between">
+              <CardTitle className="text-md font-bold flex items-center gap-2 text-slate-800 dark:text-slate-200">
+                <Search className="h-4 w-4 text-indigo-500" />
+                Filters
+              </CardTitle>
+              <button
+                type="button"
+                onClick={handleClearFilters}
+                className="text-xs text-rose-600 dark:text-rose-400 hover:text-rose-700 dark:hover:text-rose-300 font-bold transition-colors cursor-pointer flex items-center gap-1 hover:underline"
+              >
+                <X className="h-3 w-3" />
+                Clear Filters
+              </button>
+            </CardHeader>
+            <CardContent className="p-4 space-y-4">
+              <div className="space-y-1 relative z-30">
+                <Label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Date</Label>
+                <DatePicker
+                  value={attendanceDate}
+                  onChange={(e) => setAttendanceDate(e.target.value)}
+                />
+              </div>
+              
+              <div className="space-y-1">
+                <Label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Class *</Label>
+                <Dropdown
+                  name="class"
+                  value={selectedClass}
+                  onChange={(e) => {
+                    setSelectedClass(e.target.value);
+                    setSelectedSection('');
+                  }}
+                  options={classes.length === 0 ? [{ value: '', label: 'This Branch Classes Not Found' }] : classes.map((c) => ({ value: c.id || c._id, label: c.name }))}
+                  placeholder={classes.length === 0 ? "This Branch Classes Not Found" : "Select class"}
+                  openUpward={true}
+                />
+              </div>
+              
+              <div className="space-y-1">
+                <Label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Section *</Label>
+                <Dropdown
+                  name="section"
+                  value={selectedSection}
+                  onChange={(e) => setSelectedSection(e.target.value)}
+                  options={sections.length === 0 && selectedClass ? [{ value: '', label: 'Sections Not Found' }] : sections.map((s) => {
+                    const clsName = classes.find(c => c.id === selectedClass || c._id === selectedClass)?.name || '';
+                    const cleanLabel = s.name.replace(new RegExp(clsName, 'gi'), '').replace(/^[\s\-\/\|]+|[\s\-\/\|]+$/g, '').trim() || s.name;
+                    return { value: s.id || s._id || s.name, label: cleanLabel };
+                  })}
+                  disabled={!selectedClass}
+                  placeholder={!selectedClass ? "Select class first" : sections.length === 0 ? "Sections Not Found" : "Select section"}
+                  openUpward={true}
+                />
+              </div>
+
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* RIGHT COLUMN: Search, Marked List & Class Sheets (col-span-8) */}
+        <div className="lg:col-span-8 space-y-6">
+          {/* Quick Student Search */}
+          <Card className="border-none shadow-sm rounded-3xl overflow-hidden bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-850">
+            <CardHeader className="bg-slate-50/50 dark:bg-slate-800/30 border-b border-slate-100 dark:border-slate-805 py-3 px-5">
+              <CardTitle className="text-sm font-bold flex items-center gap-2 text-slate-800 dark:text-slate-200">
+                <UserSearch className="w-4 h-4 text-indigo-500" />
+                Quick Search & Mark Attendance
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 space-y-3">
+              <div className="relative">
+                <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Search by name, registration #, GR #, email, or phone..."
+                  value={studentSearchQuery}
+                  onChange={(e) => setStudentSearchQuery(e.target.value)}
+                  className="pl-10 h-10 text-sm rounded-xl"
+                />
+                {searching && (
+                  <div className="absolute right-3 top-2">
+                    <ButtonLoader />
+                  </div>
+                )}
+              </div>
+              
+              {searchResults.length > 0 && (
+                <div className="border rounded-2xl overflow-hidden max-h-64 overflow-y-auto shadow-sm">
+                  <Table className="text-xs">
+                    <TableHeader className="bg-slate-50 dark:bg-slate-800/50">
+                      <TableRow>
+                        <TableHead className="py-2">Student</TableHead>
+                        <TableHead className="py-2">GR #</TableHead>
+                        <TableHead className="py-2">Class/Section</TableHead>
+                        <TableHead className="py-2">Fee Status</TableHead>
+                        <TableHead className="py-2 text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {searchResults.map((student) => (
+                        <TableRow key={student.id || student._id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50">
+                          <TableCell className="py-2">
+                            <div>
+                              <div className="font-bold text-slate-800 dark:text-slate-200">{(student.first_name || student.firstName) ? `${student.first_name || student.firstName} ${student.last_name || student.lastName || ''}` : student.fullName}</div>
+                              <div className="text-[10px] text-gray-500">{student.email}</div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="py-2 font-mono">{student.roll_no || student.rollNumber || student.details?.academic_info?.roll_no || '—'}</TableCell>
+                          <TableCell className="py-2" title={`${getClassName(student.classId || student.details?.academic_info?.class_id || student.class)} / ${getSectionName(student.section || student.details?.academic_info?.section_id)}`}>
+                            {getClassName(student.classId || student.details?.academic_info?.class_id || student.class)} / {getSectionName(student.section || student.details?.academic_info?.section_id)}
+                          </TableCell>
+                          <TableCell className="py-2">
+                            <Badge className={`px-2 py-0.5 text-[10px] font-bold ${student.hasPaidFees ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'}`}>
+                              {student.feeStatus || 'unpaid'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="py-2 text-right">
+                            <div className="flex justify-end gap-1.5">
+                              <Button
+                                size="sm"
+                                className="h-7 px-2.5 text-xs bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg gap-1 font-bold"
+                                onClick={() => markStudentAttendance(student, 'present')}
+                                disabled={saving}
+                              >
+                                <CheckCircle className="w-3.5 h-3.5" />
+                                Present
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-7 w-7 p-0 rounded-lg flex items-center justify-center"
+                                onClick={() => viewStudentAttendance(student.id || student._id)}
+                              >
+                                <Eye className="w-3.5 h-3.5 text-slate-500" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Marked Students Today */}
+          {markedStudents.length > 0 && (
+            <Card className="border-none shadow-sm rounded-3xl overflow-hidden bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-850">
+              <CardHeader className="bg-slate-50/50 dark:bg-slate-800/30 border-b border-slate-100 dark:border-slate-805 py-3 px-5">
+                <CardTitle className="text-sm font-bold flex items-center gap-2 text-slate-800 dark:text-slate-200">
+                  <CheckCircle className="w-4 h-4 text-emerald-500" />
+                  Marked Students Today ({markedStudents.length})
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4">
+                <div className="border rounded-2xl overflow-hidden max-h-60 overflow-y-auto shadow-sm">
+                  <Table className="text-xs">
+                    <TableHeader className="bg-slate-50 dark:bg-slate-800/50">
+                      <TableRow>
+                        <TableHead className="py-2">Student</TableHead>
+                        <TableHead className="py-2">GR #</TableHead>
+                        <TableHead className="py-2">Class/Section</TableHead>
+                        <TableHead className="py-2">Fee Status</TableHead>
+                        <TableHead className="py-2">Status</TableHead>
+                        <TableHead className="py-2 text-right">Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {markedStudents.map((student) => (
+                        <TableRow key={student.id || student._id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50">
+                          <TableCell className="py-2">
+                            <div>
+                              <div className="font-bold text-slate-800 dark:text-slate-200">{student.fullName}</div>
+                              <div className="text-[10px] text-gray-500">{student.email}</div>
+                            </div>
+                          </TableCell>
+                          <TableCell className="py-2 font-mono">{student.rollNumber || '—'}</TableCell>
+                          <TableCell className="py-2" title={`${getClassName(student.classId || student.details?.academic_info?.class_id || student.class)} / ${getSectionName(student.section || student.details?.academic_info?.section_id)}`}>
+                            {getClassName(student.classId || student.details?.academic_info?.class_id || student.class)} / {getSectionName(student.section || student.details?.academic_info?.section_id)}
+                          </TableCell>
+                          <TableCell className="py-2">
+                            <Badge className={`px-2 py-0.5 text-[10px] font-bold ${student.hasPaidFees ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400' : 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400'}`}>
+                              {student.feeStatus || 'unpaid'}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="py-2">
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-600 dark:text-emerald-400">
+                              <CheckCircle className="w-3.5 h-3.5" />
+                              Present
+                            </span>
+                          </TableCell>
+                          <TableCell className="py-2 text-right">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 w-7 p-0 rounded-lg flex items-center justify-center ml-auto"
+                              onClick={() => viewStudentAttendance(student.id || student._id)}
+                            >
+                              <Eye className="w-3.5 h-3.5 text-slate-500" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Class Attendance Sheet */}
+          {selectedClass && selectedSection && (
+            <Card className="border-none shadow-sm rounded-3xl overflow-hidden bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-850">
+              <CardHeader className="bg-slate-50/50 dark:bg-slate-800/30 border-b border-slate-100 dark:border-slate-805 py-3 px-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div className="space-y-0.5">
+                  <CardTitle className="text-sm font-bold flex items-center gap-2 text-slate-800 dark:text-slate-200">
+                    <Users className="w-4 h-4 text-indigo-500" />
+                    Attendance Sheet
+                  </CardTitle>
+                  <p className="text-[10px] text-slate-400 dark:text-slate-500">
+                    Class: {getClassName(selectedClass)} | Section: {getSectionName(selectedSection)}
+                  </p>
+                </div>
+              </CardHeader>
+              <CardContent className="p-4">
+                  <div className="space-y-4">
+                    {/* Inner controls */}
+                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+                      <div className="relative w-full sm:w-64">
+                        <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-gray-500" />
+                        <Input
+                          placeholder="Search class students..."
+                          value={searchQuery}
+                          onChange={(e) => setSearchQuery(e.target.value)}
+                          className="pl-8 h-8 text-xs rounded-xl"
+                        />
+                      </div>
+                      <Button 
+                        onClick={handleSubmit} 
+                        disabled={saving}
+                        className="w-full sm:w-auto h-8 px-4 text-xs bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-xl gap-1.5 shadow-sm"
+                      >
+                        {saving ? <ButtonLoader /> : <Save className="h-3.5 w-3.5" />}
+                        Save Attendance Sheet
+                      </Button>
+                    </div>
+
+                    {loading ? (
+                      <div className="border rounded-2xl p-4 bg-white dark:bg-slate-900 shadow-sm">
+                        <TableSkeleton rows={5} />
+                      </div>
+                    ) : filteredStudents.length === 0 ? (
+                      <div className="text-center py-8 text-xs text-gray-500 font-medium">
+                        This Branch Students Not Found
+                      </div>
+                    ) : (
+                      <div className="border rounded-2xl overflow-hidden max-h-[500px] overflow-y-auto shadow-sm">
+                        <Table className="text-xs">
+                          <TableHeader className="bg-slate-50 dark:bg-slate-800/50 sticky top-0 z-10">
+                            <TableRow>
+                              <TableHead className="py-2.5">GR No.</TableHead>
+                              <TableHead className="py-2.5">Student Name</TableHead>
+                              <TableHead className="py-2.5 text-center">Status Selection</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {filteredStudents.map(student => {
+                              const studentId = student.id || student._id;
+                              const currentStatus = attendanceRecords[studentId];
+                              
+                              return (
+                                <TableRow key={studentId} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50">
+                                  <TableCell className="py-2 font-mono font-bold text-slate-600 dark:text-slate-400">
+                                    {student.details?.academic_info?.roll_no || student.rollNumber || student.roll_no || 'N/A'}
+                                  </TableCell>
+                                  <TableCell className="py-2 font-bold text-slate-800 dark:text-slate-200">
+                                    {student.first_name || student.firstName || ''} {student.last_name || student.lastName || ''}
+                                  </TableCell>
+                                  <TableCell className="py-1 text-center">
+                                    <div className="inline-flex rounded-xl border border-slate-200 dark:border-slate-800 p-0.5 bg-slate-50 dark:bg-slate-800 shadow-inner">
+                                      <button
+                                        type="button"
+                                        onClick={() => handleStatusChange(studentId, 'present')}
+                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                          currentStatus === 'present'
+                                            ? 'bg-emerald-500 text-white shadow-sm'
+                                            : 'text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-350'
+                                        }`}
+                                      >
+                                        <CheckCircle className="h-3.5 w-3.5" />
+                                        Present
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleStatusChange(studentId, 'absent')}
+                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                          currentStatus === 'absent'
+                                            ? 'bg-rose-500 text-white shadow-sm'
+                                            : 'text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-350'
+                                        }`}
+                                      >
+                                        <XCircle className="h-3.5 w-3.5" />
+                                        Absent
+                                      </button>
+                                      <button
+                                        type="button"
+                                        onClick={() => handleStatusChange(studentId, 'late')}
+                                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                                          currentStatus === 'late'
+                                            ? 'bg-amber-500 text-white shadow-sm'
+                                            : 'text-slate-400 hover:text-slate-600 dark:text-slate-500 dark:hover:text-slate-350'
+                                        }`}
+                                      >
+                                        <Clock className="h-3.5 w-3.5" />
+                                        Late
+                                      </button>
+                                    </div>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    )}
+                  </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </div>
 
       {/* ============ HISTORY MODAL ============ */}
       {isHistoryModalOpen && (
@@ -1826,25 +2234,94 @@ export default function BranchAdminAttendancePage() {
             </div>
 
             {/* Filters Row */}
-            <div className="px-8 py-5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 shrink-0">
-              <div className="flex flex-wrap items-end gap-4">
-                <div className="space-y-1.5 flex-1 min-w-[160px]">
-                  <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">From Date</Label>
+            <div className="px-8 py-5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 shrink-0 space-y-4">
+              {/* Row 1: Search & Date Filters */}
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                {/* Search Input */}
+                <div className="space-y-1.5 md:col-span-4">
+                  <Label className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Search Student</Label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="Search by name or GR No..."
+                      value={historySearchQuery}
+                      onChange={(e) => setHistorySearchQuery(e.target.value)}
+                      className="w-full pl-9 pr-4 py-2 bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-violet-500/20 focus:border-violet-500 transition-all font-medium text-slate-700 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500"
+                    />
+                  </div>
+                </div>
+
+                {/* From Date */}
+                <div className="space-y-1.5 md:col-span-4">
+                  <Label className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">From Date</Label>
                   <DatePicker
                     value={historyModalFilters.fromDate}
                     onChange={(e) => setHistoryModalFilters(prev => ({ ...prev, fromDate: e.target.value }))}
                   />
                 </div>
-                <div className="space-y-1.5 flex-1 min-w-[160px]">
-                  <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">To Date</Label>
+
+                {/* To Date */}
+                <div className="space-y-1.5 md:col-span-4">
+                  <Label className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">To Date</Label>
                   <DatePicker
                     value={historyModalFilters.toDate}
                     onChange={(e) => setHistoryModalFilters(prev => ({ ...prev, toDate: e.target.value }))}
                   />
                 </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-bold text-slate-500 uppercase tracking-wider">Status</Label>
-                  <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700">
+              </div>
+
+              {/* Row 2: Class, Section, Status, Actions */}
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+                {/* Class */}
+                <div className="space-y-1.5 md:col-span-3">
+                  <Label className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Class</Label>
+                  <Dropdown
+                    name="historyClass"
+                    value={historyModalFilters.classId}
+                    onChange={(e) => {
+                      const newFilters = { ...historyModalFilters, classId: e.target.value, sectionId: '' };
+                      setHistoryModalFilters(newFilters);
+                      fetchHistoryModal(newFilters);
+                    }}
+                    options={[
+                      { value: '', label: 'All Classes' },
+                      ...classes.map((c) => ({ value: c.id || c._id, label: c.name }))
+                    ]}
+                    placeholder="All Classes"
+                    openUpward={true}
+                  />
+                </div>
+
+                {/* Section */}
+                <div className="space-y-1.5 md:col-span-3">
+                  <Label className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Section</Label>
+                  <Dropdown
+                    name="historySection"
+                    value={historyModalFilters.sectionId}
+                    onChange={(e) => {
+                      const newFilters = { ...historyModalFilters, sectionId: e.target.value };
+                      setHistoryModalFilters(newFilters);
+                      fetchHistoryModal(newFilters);
+                    }}
+                    options={[
+                      { value: '', label: 'All Sections' },
+                      ...historySections.map((s) => {
+                        const clsName = classes.find(c => c.id === historyModalFilters.classId || c._id === historyModalFilters.classId)?.name || '';
+                        const cleanLabel = s.name.replace(new RegExp(clsName, 'gi'), '').replace(/^[\s\-\/\|]+|[\s\-\/\|]+$/g, '').trim() || s.name;
+                        return { value: s.id || s._id || s.name, label: cleanLabel };
+                      })
+                    ]}
+                    disabled={!historyModalFilters.classId}
+                    placeholder={!historyModalFilters.classId ? "Select class first" : "All Sections"}
+                    openUpward={true}
+                  />
+                </div>
+
+                {/* Status Pills */}
+                <div className="space-y-1.5 md:col-span-4">
+                  <Label className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Status</Label>
+                  <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700 w-fit">
                     {[
                       { value: '', label: 'All', icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>, activeClass: 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-100 shadow-sm border border-slate-200 dark:border-slate-600' },
                       { value: 'PRESENT', label: 'Present', icon: <CheckCircle className="h-4 w-4" />, activeClass: 'bg-emerald-500 text-white shadow-sm shadow-emerald-200' },
@@ -1861,7 +2338,7 @@ export default function BranchAdminAttendancePage() {
                         className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                           historyModalFilters.status === opt.value
                             ? opt.activeClass
-                            : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-300'
+                            : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-350'
                         }`}
                       >
                         {opt.icon}
@@ -1870,27 +2347,33 @@ export default function BranchAdminAttendancePage() {
                     ))}
                   </div>
                 </div>
-                <Button
-                  onClick={() => fetchHistoryModal()}
-                  disabled={historyModalLoading}
-                  className="bg-violet-600 hover:bg-violet-700 text-white font-bold rounded-xl px-6 gap-2 shadow-lg shadow-violet-200 dark:shadow-none"
-                >
-                  {historyModalLoading ? <ButtonLoader color="white" /> : <Search className="h-4 w-4" />}
-                  Fetch Records
-                </Button>
-                <Button
-                  onClick={() => {
-                    const today = new Date().toISOString().split('T')[0];
-                    const todayFilters = { fromDate: today, toDate: today, status: '' };
-                    setHistoryModalFilters(todayFilters);
-                    fetchHistoryModal(todayFilters);
-                  }}
-                  variant="outline"
-                  className="border-2 border-slate-200 font-bold rounded-xl gap-2"
-                >
-                  <Clock className="h-4 w-4" />
-                  Today
-                </Button>
+
+                {/* Actions */}
+                <div className="flex items-center gap-2 md:col-span-2 justify-end w-full">
+                  <Button
+                    onClick={() => {
+                      const today = new Date().toISOString().split('T')[0];
+                      const todayFilters = { fromDate: today, toDate: today, status: '', classId: '', sectionId: '' };
+                      setHistoryModalFilters(todayFilters);
+                      setHistorySearchQuery('');
+                      fetchHistoryModal(todayFilters);
+                    }}
+                    variant="outline"
+                    className="border-2 border-slate-200 dark:border-slate-700 font-bold rounded-xl gap-2 p-2 hover:bg-slate-50 dark:hover:bg-slate-800 h-10 w-10 justify-center shrink-0"
+                    title="Reset Filters"
+                  >
+                    <Clock className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+                  </Button>
+                  
+                  <Button
+                    onClick={() => fetchHistoryModal()}
+                    disabled={historyModalLoading}
+                    className="bg-violet-600 hover:bg-violet-700 text-white font-bold rounded-xl gap-2 flex-1 h-10 justify-center shadow-lg shadow-violet-200 dark:shadow-none"
+                  >
+                    {historyModalLoading ? <ButtonLoader color="white" /> : <Search className="h-4 w-4" />}
+                    Search
+                  </Button>
+                </div>
               </div>
             </div>
 
@@ -1907,12 +2390,20 @@ export default function BranchAdminAttendancePage() {
                     <Calendar className="h-10 w-10 text-slate-300" />
                   </div>
                   <h3 className="text-lg font-bold text-slate-500">No Records Found</h3>
-                  <p className="text-sm text-slate-400">No attendance records found for the selected date range.</p>
+                  <p className="text-sm text-slate-400">No attendance records found for the selected filters.</p>
+                </div>
+              ) : historyModalFetched && getFilteredHistoryRecords().length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 gap-3">
+                  <div className="p-5 bg-slate-100 dark:bg-slate-800 rounded-full">
+                    <Search className="h-10 w-10 text-slate-300" />
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-500">No Match Found</h3>
+                  <p className="text-sm text-slate-400">Try adjusting your search query or filters.</p>
                 </div>
               ) : !historyModalFetched ? (
                 <div className="flex flex-col items-center justify-center py-20 gap-3 text-slate-400">
                   <Calendar className="h-10 w-10" />
-                  <p className="text-sm font-medium">Select dates and click "Fetch Records"</p>
+                  <p className="text-sm font-medium">Select dates and click &quot;Fetch Records&quot;</p>
                 </div>
               ) : (
                 <div className="overflow-x-auto">
@@ -1923,12 +2414,14 @@ export default function BranchAdminAttendancePage() {
                         <th className="text-left px-6 py-3 text-xs font-black text-slate-500 uppercase tracking-wider">Date</th>
                         <th className="text-left px-6 py-3 text-xs font-black text-slate-500 uppercase tracking-wider">Student Name</th>
                         <th className="text-left px-6 py-3 text-xs font-black text-slate-500 uppercase tracking-wider">GR No</th>
+                        <th className="text-left px-6 py-3 text-xs font-black text-slate-500 uppercase tracking-wider">Class / Section</th>
                         <th className="text-left px-6 py-3 text-xs font-black text-slate-500 uppercase tracking-wider">Status</th>
                         <th className="text-left px-6 py-3 text-xs font-black text-slate-500 uppercase tracking-wider">Time In</th>
+                        <th className="text-right px-6 py-3 text-xs font-black text-slate-500 uppercase tracking-wider">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {historyModalRecords.map((record, idx) => {
+                      {getFilteredHistoryRecords().map((record, idx) => {
                         const student = record.student;
                         const studentName = student
                           ? `${student.first_name || ''} ${student.last_name || ''}`.trim()
@@ -1985,6 +2478,11 @@ export default function BranchAdminAttendancePage() {
                             <td className="px-6 py-3">
                               <span className="font-mono text-xs bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-600 dark:text-slate-400">{grNo}</span>
                             </td>
+                            <td className="px-6 py-3" title={`${getClassName(student?.details?.academic_info?.class_id)} - ${getSectionName(student?.details?.academic_info?.section_id || student?.section)}`}>
+                              <span className="text-slate-600 dark:text-slate-400 font-medium">
+                                {getClassName(student?.details?.academic_info?.class_id)} - {getSectionName(student?.details?.academic_info?.section_id || student?.section)}
+                              </span>
+                            </td>
                             <td className="px-6 py-3">
                               <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${statusColors[record.status] || 'bg-gray-100 text-gray-600'}`}>
                                 {statusLabel}
@@ -1995,6 +2493,19 @@ export default function BranchAdminAttendancePage() {
                                 <Clock className="h-3.5 w-3.5 text-slate-400 shrink-0" />
                                 <span className="text-slate-600 dark:text-slate-400 font-medium">{timeIn}</span>
                               </div>
+                            </td>
+                            <td className="px-6 py-3 text-right">
+                              <button
+                                onClick={() => setDeleteRecord({
+                                  id: record._id || record.id,
+                                  studentName,
+                                  date: dateStr
+                                })}
+                                className="p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-lg transition-colors"
+                                title="Delete Record"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                              </button>
                             </td>
                           </tr>
                         );
@@ -2009,11 +2520,11 @@ export default function BranchAdminAttendancePage() {
             <div className="px-8 py-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 shrink-0 flex items-center justify-between">
               <span className="text-sm text-slate-500 font-medium">
                 {historyModalFetched
-                  ? `${historyModalRecords.length} record${historyModalRecords.length !== 1 ? 's' : ''} found`
-                  : 'Select date range to view records'}
+                  ? `${getFilteredHistoryRecords().length} record${getFilteredHistoryRecords().length !== 1 ? 's' : ''} found`
+                  : 'Select filters to view records'}
               </span>
               <div className="flex items-center gap-3">
-                {historyModalRecords.length > 0 && (
+                {getFilteredHistoryRecords().length > 0 && (
                   <Button
                     onClick={exportAttendancePDF}
                     className="bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl gap-2 shadow-md shadow-emerald-200 dark:shadow-none transition-all active:scale-95"
@@ -2033,360 +2544,6 @@ export default function BranchAdminAttendancePage() {
             </div>
           </div>
         </div>
-      )}
-      
-      {/* Student Search for Manual Marking */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <UserSearch className="w-5 h-5" />
-            Quick Student Search & Mark Attendance
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <div className="relative">
-              <Search className="absolute left-3 top-3 h-4 w-4 text-gray-400" />
-              <Input
-                placeholder="Search by name, registration #, roll #, email, or phone..."
-                value={studentSearchQuery}
-                onChange={(e) => setStudentSearchQuery(e.target.value)}
-                className="pl-10"
-              />
-              {searching && (
-                <div className="absolute right-3 top-3">
-                  <ButtonLoader />
-                </div>
-              )}
-            </div>
-            
-            {searchResults.length > 0 && (
-              <div className="border rounded-lg max-h-96 overflow-y-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Student</TableHead>
-                      <TableHead>Registration #</TableHead>
-                      <TableHead>Roll #</TableHead>
-                      <TableHead>Section</TableHead>
-                      <TableHead>Fee Status</TableHead>
-                      <TableHead>Actions</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {searchResults.map((student) => (
-                      <TableRow key={student.id || student._id}>
-                        <TableCell>
-                          <div>
-                            <div className="font-medium">{(student.first_name || student.firstName) ? `${student.first_name || student.firstName} ${student.last_name || student.lastName || ''}` : student.fullName}</div>
-                            <div className="text-xs text-gray-500">{student.email}</div>
-                          </div>
-                        </TableCell>
-                        <TableCell>{student.registration_no || student.registrationNumber || '—'}</TableCell>
-                        <TableCell>{student.roll_no || student.rollNumber || student.details?.academic_info?.roll_no || '—'}</TableCell>
-                        <TableCell>{getSectionName(student.section || student.details?.academic_info?.section_id)}</TableCell>
-
-                        <TableCell>
-
-                          <div className="flex items-center gap-1">
-                            <DollarSign className="w-4 h-4" />
-                            <Badge className={student.hasPaidFees ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
-                              {student.feeStatus || 'unpaid'}
-                            </Badge>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              onClick={() => markStudentAttendance(student, 'present')}
-                              disabled={saving}
-                            >
-                              {saving ? <ButtonLoader /> : <CheckCircle className="w-4 h-4 mr-1" />}
-                              Present
-                            </Button>
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => viewStudentAttendance(student.id || student._id)}
-                            >
-
-                              <Eye className="w-4 h-4 mr-1" />
-                              View History
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-
-            {searching && searchResults.length === 0 && (
-              <div className="text-center py-8">
-                <ButtonLoader />
-                <p className="text-sm text-gray-500 mt-2">Searching students...</p>
-              </div>
-            )}
-          </div>
-        </CardContent>
-      </Card>
-      
-      {/* Marked Students Today */}
-      {markedStudents.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Marked Students Today ({markedStudents.length})</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Student</TableHead>
-                  <TableHead>Registration #</TableHead>
-                  <TableHead>Roll #</TableHead>
-                  <TableHead>Section</TableHead>
-                  <TableHead>Fee Status</TableHead>
-                  <TableHead>Status</TableHead>
-                  <TableHead>Actions</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {markedStudents.map((student) => (
-                  <TableRow key={student.id || student._id}>
-
-                    <TableCell>
-                      <div>
-                        <div className="font-medium">{student.fullName}</div>
-                        <div className="text-xs text-gray-500">{student.email}</div>
-                      </div>
-                    </TableCell>
-                    <TableCell>{student.registrationNumber || '—'}</TableCell>
-                    <TableCell>{student.rollNumber || '—'}</TableCell>
-                    <TableCell>{getSectionName(student.section || student.details?.academic_info?.section_id)}</TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-1">
-                        <DollarSign className="w-4 h-4" />
-                        <Badge className={student.hasPaidFees ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}>
-                          {student.feeStatus || 'unpaid'}
-                        </Badge>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <div className="flex items-center gap-2">
-                        <CheckCircle className="w-4 h-4 text-green-600" />
-                        <Badge className="bg-green-100 text-green-800">Present</Badge>
-                      </div>
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => viewStudentAttendance(student.id || student._id)}
-                      >
-                        <Eye className="w-4 h-4 mr-1" />
-                        View History
-                      </Button>
-
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
-      )}
-      
-      {selectedClass && selectedSection && (
-        <>
-          <Tabs
-            tabs={[
-              { id: 'manual', label: 'Manual Attendance' }, 
-              { id: 'qr', label: 'QR Code Scan' },
-            ]}
-            activeTab={activeTab}
-            onChange={setActiveTab}
-            className="w-full"
-          />
-
-          <TabPanel value="manual" activeTab={activeTab}>
-            <Card>
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <CardTitle>Students List</CardTitle>
-                  <div className="flex items-center gap-2">
-                    <div className="relative">
-                      <Search className="absolute left-2 top-2.5 h-4 w-4 text-gray-500" />
-                      <Input
-                        placeholder="Search students..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-8 w-64"
-                      />
-                    </div>
-                    <Button onClick={handleSubmit} disabled={saving}>
-                      {saving ? <ButtonLoader /> : <Save className="h-4 w-4 mr-2" />}
-                      Save Attendance
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <div className="text-center py-8">Loading students...</div>
-                ) : filteredStudents.length === 0 ? (
-                  <div className="text-center py-8 text-gray-500 font-medium">
-                    This Branch Students Not Found
-                  </div>
-
-                ) : (
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>GR No.</TableHead>
-                        <TableHead>Reg. No.</TableHead>
-                        <TableHead>Student Name</TableHead>
-                        <TableHead>Status</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredStudents.map(student => {
-                        const studentId = student.id || student._id;
-                        return (
-                          <TableRow key={studentId}>
-                            <TableCell>{student.details?.academic_info?.roll_no || student.rollNumber || student.roll_no || 'N/A'}</TableCell>
-                            <TableCell>{student.registration_no || student.registrationNumber || 'N/A'}</TableCell>
-                            <TableCell className="font-medium">
-                              {student.first_name || student.firstName || ''} {student.last_name || student.lastName || ''}
-                            </TableCell>
-
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                <Button
-                                  variant={attendanceRecords[studentId] === 'present' ? 'default' : 'outline'}
-                                  size="sm"
-                                  onClick={() => handleStatusChange(studentId, 'present')}
-                                >
-                                  <CheckCircle className="h-4 w-4 mr-1" />
-                                  Present
-                                </Button>
-                                <Button
-                                  variant={attendanceRecords[studentId] === 'absent' ? 'default' : 'outline'}
-                                  size="sm"
-                                  onClick={() => handleStatusChange(studentId, 'absent')}
-                                >
-                                  <XCircle className="h-4 w-4 mr-1" />
-                                  Absent
-                                </Button>
-                                <Button
-                                  variant={attendanceRecords[studentId] === 'late' ? 'default' : 'outline'}
-                                  size="sm"
-                                  onClick={() => handleStatusChange(studentId, 'late')}
-                                >
-                                  <Clock className="h-4 w-4 mr-1" />
-                                  Late
-                                </Button>
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        );
-                      })}
-
-                    </TableBody>
-                  </Table>
-                )}
-              </CardContent>
-            </Card>
-          </TabPanel>
-
-          <TabPanel value="qr" activeTab={activeTab}>
-            <Card>
-              <CardHeader>
-                <div className="flex justify-between items-center">
-                  <CardTitle>QR Code Scanner</CardTitle>
-                  <div className="flex items-center gap-2">
-                    <Button onClick={() => setShowScanner(true)}>
-                      <Camera className="h-4 w-4 mr-2" />
-                      Open Scanner
-                    </Button>
-                    <Button onClick={handleSubmit} disabled={saving}>
-                      {saving ? <ButtonLoader /> : <Save className="h-4 w-4 mr-2" />}
-                      Save Attendance
-                    </Button>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="bg-blue-50 dark:bg-blue-900/20 p-4 rounded-lg">
-                    <p className="text-sm text-blue-800 dark:text-blue-200">
-                      Click "Open Scanner" to scan student QR codes. Scanned students will be automatically marked as present.
-                    </p>
-                  </div>
-                  
-                  {scannedStudents.length > 0 && (
-                    <div>
-                      <h3 className="font-semibold mb-2">
-                        Scanned Students ({scannedStudents.length})
-                      </h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-2">
-                        {scannedStudents.map(student => (
-                          <div
-                            key={student._id}
-                            className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-900/20 rounded-lg"
-                          >
-                            <div>
-                              <p className="font-medium">
-                                {student.firstName} {student.lastName}
-                              </p>
-                              <p className="text-sm text-gray-600 dark:text-gray-400">
-                                {student.registrationNumber}
-                              </p>
-                            </div>
-                            <CheckCircle className="h-5 w-5 text-green-600" />
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  
-                  <div className="border rounded-lg">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead>GR No.</TableHead>
-                          <TableHead>Reg. No.</TableHead>
-                          <TableHead>Student Name</TableHead>
-                          <TableHead>Status</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {filteredStudents.map(student => (
-                          <TableRow key={student._id}>
-                            <TableCell>{student.rollNumber || 'N/A'}</TableCell>
-                            <TableCell>{student.registrationNumber}</TableCell>
-                            <TableCell className="font-medium">
-                              {student.firstName} {student.lastName}
-                            </TableCell>
-                            <TableCell>
-                              <div className="flex items-center gap-2">
-                                {getStatusIcon(attendanceRecords[student._id])}
-                                {getStatusBadge(attendanceRecords[student._id])}
-                              </div>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabPanel>
-
-
-        </>
       )}
 
       {showScanner && (
@@ -2651,7 +2808,136 @@ export default function BranchAdminAttendancePage() {
           </div>
         </div>
       )}
-    </div>
 
+      {/* Auto Absent Modal */}
+      <Modal
+        open={isAutoAbsentModalOpen}
+        onClose={() => setIsAutoAbsentModalOpen(false)}
+        title="Process Auto Absent"
+        size="lg"
+      >
+        <div className="space-y-4">
+          <div className="bg-amber-50 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200 p-3 rounded-lg text-sm border border-amber-200 dark:border-amber-800 flex items-start gap-2">
+            <XCircle className="h-5 w-5 shrink-0 mt-0.5" />
+            <p>Review the students below who have scheduled classes today but haven't been marked present. Selected students will be marked Absent.</p>
+          </div>
+
+          <div className="flex justify-between items-center px-1">
+            <span className="font-bold text-sm">{autoAbsentPreview.length} Eligible Students</span>
+            <div className="flex items-center gap-2">
+              <Checkbox 
+                id="select-all-absent" 
+                checked={autoAbsentPreview.length > 0 && autoAbsentSelected.length === autoAbsentPreview.length}
+                onCheckedChange={(checked) => {
+                  if (checked) {
+                    setAutoAbsentSelected(autoAbsentPreview.map(s => s.id));
+                  } else {
+                    setAutoAbsentSelected([]);
+                  }
+                }}
+              />
+              <Label htmlFor="select-all-absent" className="cursor-pointer text-sm font-medium">Select All</Label>
+            </div>
+          </div>
+
+          <div className="border rounded-xl max-h-80 overflow-y-auto shadow-sm">
+            {autoAbsentPreview.length === 0 ? (
+              <div className="p-8 text-center text-gray-500 text-sm">
+                No students need to be marked absent.
+              </div>
+            ) : (
+              <div className="space-y-4 p-4">
+                {(() => {
+                  const grouped = {};
+                  autoAbsentPreview.forEach(student => {
+                    const classId = student.class_id;
+                    const sectionId = student.section_id;
+                    if (!grouped[classId]) {
+                      grouped[classId] = {
+                        name: getClassName(classId),
+                        sections: {}
+                      };
+                    }
+                    if (!grouped[classId].sections[sectionId]) {
+                      grouped[classId].sections[sectionId] = {
+                        name: getSectionName(sectionId),
+                        students: []
+                      };
+                    }
+                    grouped[classId].sections[sectionId].students.push(student);
+                  });
+                  
+                  return Object.entries(grouped).map(([classId, classData]) => (
+                    <div key={classId} className="border rounded-xl overflow-hidden shadow-sm">
+                      <div className="bg-slate-100 dark:bg-slate-800 px-4 py-2 font-bold text-sm text-indigo-700 dark:text-indigo-400">
+                        Class: {classData.name}
+                      </div>
+                      <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                        {Object.entries(classData.sections).map(([sectionId, sectionData]) => {
+                          const sectionStudentIds = sectionData.students.map(s => s.id);
+                          const isAllSelected = sectionStudentIds.length > 0 && sectionStudentIds.every(id => autoAbsentSelected.includes(id));
+
+                          return (
+                            <div key={sectionId} className="p-3 bg-white dark:bg-slate-900">
+                              <div className="flex items-start gap-3">
+                                <Checkbox
+                                  id={`sec-${sectionId}`}
+                                  checked={isAllSelected}
+                                  onCheckedChange={(checked) => {
+                                    if (checked) {
+                                      setAutoAbsentSelected(prev => [...new Set([...prev, ...sectionStudentIds])]);
+                                    } else {
+                                      setAutoAbsentSelected(prev => prev.filter(id => !sectionStudentIds.includes(id)));
+                                    }
+                                  }}
+                                  className="mt-1"
+                                />
+                                <div className="flex-1">
+                                  <Label htmlFor={`sec-${sectionId}`} className="font-semibold text-sm cursor-pointer block">
+                                    Section {sectionData.name} <span className="text-gray-500 font-normal">({sectionData.students.length} students)</span>
+                                  </Label>
+                                  <div className="text-xs text-slate-500 mt-1">
+                                    {sectionData.students.map(s => `${s.first_name} ${s.last_name}`).join(', ')}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  ));
+                })()}
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4 border-t">
+            <Button variant="outline" onClick={() => setIsAutoAbsentModalOpen(false)}>Cancel</Button>
+            <Button
+              onClick={handleAutoMarkAbsent}
+              disabled={isProcessingAutoAbsent || autoAbsentSelected.length === 0}
+              className="bg-rose-600 hover:bg-rose-700 text-white"
+            >
+              {isProcessingAutoAbsent ? <ButtonLoader /> : `Mark Absent (${autoAbsentSelected.length})`}
+            </Button>
+          </div>
+        </div>
+      </Modal>
+
+      {!!deleteRecord && (
+        <ConfirmDeleteModal
+          title="Delete Attendance Record"
+          message={
+            <span>
+              Are you sure you want to delete the attendance record for <strong className="text-gray-900 dark:text-white">{deleteRecord.studentName}</strong> on <strong className="text-gray-900 dark:text-white">{deleteRecord.date}</strong>? This action cannot be undone.
+            </span>
+          }
+          onConfirm={handleDeleteAttendance}
+          onCancel={() => setDeleteRecord(null)}
+          isLoading={isDeleting}
+        />
+      )}
+    </div>
   );
 }
