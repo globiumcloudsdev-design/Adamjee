@@ -188,7 +188,7 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            {adminContacts.length > 0 && (
+            {/* {adminContacts.length > 0 && (
               <div className="rounded-md border border-blue-100 bg-blue-50 p-3">
                 <p className="text-sm font-semibold text-blue-900">Admin Details</p>
                 <div className="mt-2 space-y-1">
@@ -199,7 +199,7 @@ export default function LoginPage() {
                   ))}
                 </div>
               </div>
-            )}
+            )} */}
 
             {/* Demo Accounts */}
             {process.env.NODE_ENV === 'development' && (
