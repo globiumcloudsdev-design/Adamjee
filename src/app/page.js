@@ -1,1234 +1,634 @@
 'use client';
+import "./landing.css";
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
 import Navbar from "@/components/Navbar";
 import Footer from "@/components/Footer";
+import WelcomeScreen from "@/components/WelcomeScreen";
 import { useEffect, useRef, useState } from "react";
 import {
-  ArrowRight,
-  Award,
-  BarChart3,
-  Bell,
-  BookOpen,
-  Camera,
-  Calendar,
-  CheckCircle,
-  Clock,
-  DollarSign,
-  GraduationCap,
-  Mail,
-  MapPin,
-  MessageSquare,
-  Phone,
-  Play,
-  Quote,
-  School,
-  ShieldCheck,
-  Sparkles,
-  Star,
-  LineChart,
-  UserCheck,
-  Users2,
+  ArrowRight, Award, BookOpen, Calendar, CheckCircle, Clock,
+  DollarSign, GraduationCap, Mail, MapPin, Phone, Quote,
+  School, Star, Trophy, UserCheck, Users2, LineChart, Sparkles,
+  Target, Zap, Shield, ChevronRight, Play, Monitor,
+  Pencil, PenTool, Lightbulb, Compass, Ruler, Calculator, Book
 } from "lucide-react";
 
-const features = [
-  {
-    icon: UserCheck,
-    title: "Attendance System",
-    description: "Mark attendance in seconds and track presence across classes and sections.",
-  },
-  {
-    icon: DollarSign,
-    title: "Online Fees",
-    description: "Collect dues, manage challans, and keep payment history organized.",
-  },
-  {
-    icon: Calendar,
-    title: "Exams System",
-    description: "Plan exams, publish schedules, and manage results without manual work.",
-  },
-  {
-    icon: Users2,
-    title: "Parent Portal",
-    description: "Give parents live access to attendance, results, notices, and updates.",
-  },
-  {
-    icon: LineChart,
-    title: "AI Reports",
-    description: "See trends, performance patterns, and actionable insights at a glance.",
-  },
-  {
-    icon: Clock,
-    title: "Timetable System",
-    description: "Build class schedules fast and keep every teacher aligned.",
-  },
+const STATS = [
+  { value: "1200", suffix: "+", label: "Students Enrolled" },
+  { value: "80", suffix: "+", label: "Expert Teachers" },
+  { value: "40", suffix: "+", label: "Classes" },
+  { value: "95", suffix: "%", label: "Success Rate" },
 ];
 
-const statistics = [
-  { value: "1200+", label: "Students" },
-  { value: "80+", label: "Teachers" },
-  { value: "40+", label: "Classes" },
-  { value: "95%", label: "Results" },
+const FEATURES = [
+  { icon: UserCheck, title: "Smart Attendance", desc: "QR-based attendance system with real-time tracking and instant parent notifications.", color: "from-blue-500 to-cyan-400" },
+  { icon: DollarSign, title: "Online Fee Management", desc: "Digital fee collection, automated challans, and complete payment history at a glance.", color: "from-emerald-500 to-teal-400" },
+  { icon: Calendar, title: "Exam Scheduling", desc: "Plan exams, publish timetables, and manage results with zero manual work.", color: "from-violet-500 to-purple-400" },
+  { icon: Users2, title: "Parent Portal", desc: "Parents get live access to attendance, results, notices and fee status 24/7.", color: "from-orange-500 to-amber-400" },
+  { icon: LineChart, title: "AI Analytics", desc: "Smart reports with trends and insights to boost student performance continuously.", color: "from-pink-500 to-rose-400" },
+  { icon: Clock, title: "Timetable Builder", desc: "Build and manage class schedules efficiently to keep teachers and students aligned.", color: "from-indigo-500 to-blue-400" },
+  { icon: BookOpen, title: "Assignment Tracker", desc: "Assign homework, track submissions, and give feedback all in one dashboard.", color: "from-sky-500 to-cyan-400" },
+  { icon: Shield, title: "ID Card Generator", desc: "Auto-generate professional student ID cards with QR codes instantly.", color: "from-red-500 to-pink-400" },
 ];
 
-const achievers = [
-  { 
-    initials: "AK", 
-    name: "Ayesha Khan", 
-    grade: "Grade 10", 
-    achievement: "Top Science Project", 
-    percentage: 98, 
-    description: "Outstanding performance in science fair and consistent academic excellence.",
-    photo: "/student-1.jpg" // Placeholder - add real photo to public/
-  },
-  { 
-    initials: "HA", 
-    name: "Hassan Ali", 
-    grade: "Grade 8", 
-    achievement: "Math Olympiad Winner", 
-    percentage: 96, 
-    description: "National Math Olympiad Gold Medalist with perfect attendance.",
-    photo: "/student-2.jpg"
-  },
-  { 
-    initials: "MN", 
-    name: "Maryam Noor", 
-    grade: "Grade 12", 
-    achievement: "Highest Board Score", 
-    percentage: 99, 
-    description: "Top scorer in board exams across all streams this year.",
-    photo: "/student-3.jpg"
-  },
+const GALLERY = [
+  { label: "Modern Classrooms", img: "https://images.unsplash.com/photo-1577896851231-70ef18881754?q=80&w=800&auto=format&fit=crop", icon: School },
+  { label: "Science Labs", img: "https://images.unsplash.com/photo-1532094349884-543bc11b234d?q=80&w=800&auto=format&fit=crop", icon: Zap },
+  { label: "Sports Events", img: "https://images.unsplash.com/photo-1576085898323-218337e3e43c?q=80&w=800&auto=format&fit=crop", icon: Trophy },
+  { label: "Campus Library", img: "https://images.unsplash.com/photo-1568667256549-094345857637?q=80&w=800&auto=format&fit=crop", icon: BookOpen },
+  { label: "Art Workshops", img: "https://images.unsplash.com/photo-1513364776144-60967b0f800f?q=80&w=800&auto=format&fit=crop", icon: Sparkles },
+  { label: "Annual Award Ceremony", img: "https://images.unsplash.com/photo-1523580494112-071d384e236c?q=80&w=1200&auto=format&fit=crop", icon: Award },
 ];
 
-const announcements = [
-  "Admission open for 2026",
-  "Annual exams schedule released",
-  "Sports week event announced",
+const POSITION_HOLDERS = [
+  { rank: 1, name: "Ayesha Khan", grade: "Class 10 — Science", score: "99%", subject: "Top in Board Exams", bg: "from-yellow-400 to-orange-500", photo: "https://i.pravatar.cc/150?u=ayesha" },
+  { rank: 2, name: "Hassan Ali", grade: "Class 8 — General", score: "97%", subject: "Math Olympiad Gold", bg: "from-slate-400 to-slate-600", photo: "https://i.pravatar.cc/150?u=hassan" },
+  { rank: 3, name: "Maryam Noor", grade: "Class 12 — Pre-Medical", score: "96%", subject: "Highest in Biology", bg: "from-orange-400 to-amber-600", photo: "https://i.pravatar.cc/150?u=maryam" },
+  { rank: 4, name: "Usman Raza", grade: "Class 9 — Science", score: "95%", subject: "Physics Excellence", bg: "from-sky-400 to-blue-600", photo: "https://i.pravatar.cc/150?u=usman" },
+  { rank: 5, name: "Fatima Zahra", grade: "Class 11 — Commerce", score: "94%", subject: "Top Commerce Student", bg: "from-violet-400 to-purple-600", photo: "https://i.pravatar.cc/150?u=fatima" },
+  { rank: 6, name: "Ahmed Siddiq", grade: "Class 7 — General", score: "93%", subject: "English Distinction", bg: "from-emerald-400 to-teal-600", photo: "https://i.pravatar.cc/150?u=ahmed" },
 ];
 
-const testimonials = [
-  {
-    quote: "Very easy system. Attendance and notices are now much faster for our family.",
-    name: "Sara Malik",
-    avatar: "S",
-    rating: 5
-  },
-  {
-    quote: "Best coaching platform we have used. Everything is clear and easy to follow.",
-    name: "Omar Qureshi",
-    avatar: "OQ",
-    rating: 5
-  },
-  {
-    quote: "Great experience. The parent portal keeps us informed every day.",
-    name: "Nadia Khan",
-    avatar: "NK",
-    rating: 5
-  },
-  {
-    quote: "Fee payments and attendance tracking are seamless. Love the real-time updates!",
-    name: "Ahmed Raza",
-    avatar: "AR",
-    rating: 5
-  },
-  {
-    quote: "My child's results and class schedules are always accessible. Highly recommend.",
-    name: "Fatima Ahmed",
-    avatar: "FA",
-    rating: 5
-  },
-  {
-    quote: "Excellent communication between coaching and parents. QR attendance is brilliant.",
-    name: "Bilal Hassan",
-    avatar: "BH",
-    rating: 5
-  },
-  {
-    quote: "Easy to check fees, homework, and teacher feedback all in one place.",
-    name: "Aisha Noor",
-    avatar: "AN",
-    rating: 5
-  },
-  {
-    quote: "The exam results portal and parent-teacher updates work perfectly.",
-    name: "Usman Ali",
-    avatar: "UA",
-    rating: 5
-  },
+const TESTIMONIALS = [
+  { quote: "Best coaching centre in Karachi. My child's result improved dramatically!", name: "Sara Malik", role: "Parent of Class 10 student", avatar: "SM" },
+  { quote: "The parent portal keeps us updated daily. Attendance and fees — all in one place.", name: "Omar Qureshi", role: "Parent of Class 8 student", avatar: "OQ" },
+  { quote: "Teachers are highly qualified and the management system is excellent.", name: "Nadia Khan", role: "Parent of Class 12 student", avatar: "NK" },
+  { quote: "QR attendance is brilliant. I get instant SMS when my child reaches campus.", name: "Ahmed Raza", role: "Parent of Class 9 student", avatar: "AR" },
 ];
 
-const gallery = [
-  "Morning Assembly",
-  "Science Lab",
-  "Sports Ground",
-  "Library Corner",
-  "Art Workshop",
-  "Classroom Activity",
-  "Annual Function",
-  "Award Ceremony",
+const ADMISSION_STEPS = [
+  { step: "01", title: "Submit Inquiry", text: "Fill in your details and the class you require — takes under 2 minutes.", icon: ChevronRight },
+  { step: "02", title: "Campus Visit", text: "Meet our team, tour the facility, and discuss academic roadmap.", icon: ChevronRight },
+  { step: "03", title: "Confirm Enrollment", text: "Complete admission and get instant access to our digital system.", icon: ChevronRight },
 ];
 
-  const blogs = [
-    {
-      title: "How digital attendance improves daily coaching operations",
-      preview: "See how coachings save time with accurate, paperless check-ins.",
-    },
-    {
-      title: "Why parent communication matters more than ever",
-      preview: "A connected parent portal builds trust and reduces missed updates.",
-    },
-    {
-      title: "Using analytics to raise exam performance",
-      preview: "Turn results data into simple steps that help teachers and students.",
-    },
-  ];
-
-  const aboutBullets = [
-    "Modern education system with one dashboard for the whole coaching",
-    "Digital attendance, notices, fees, and academic records in one place",
-    "Smart reporting system designed for teachers, parents, and administrators",
-  ];
-
-  const admissionsSteps = [
-    {
-      step: "01",
-      title: "Submit Inquiry",
-      text: "Fill in your details and tell us which class you need.",
-    },
-    {
-      step: "02",
-      title: "Campus Review",
-      text: "Meet the team, tour the campus, and discuss next steps.",
-    },
-    {
-      step: "03",
-      title: "Confirm Seat",
-      text: "Complete enrollment and receive access to the coaching system.",
-    },
-  ];
-
-  // 3D Tilt Card Hook
-  function use3DTilt() {
-    const ref = useRef(null);
-    const [rotateX, setRotateX] = useState(0);
-    const [rotateY, setRotateY] = useState(0);
-
-    const handleMouseMove = (e) => {
-      if (!ref.current) return;
-      const rect = ref.current.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const y = e.clientY - rect.top;
-      const centerX = rect.width / 2;
-      const centerY = rect.height / 2;
-      const rotateXValue = ((y - centerY) / centerY) * -8;
-      const rotateYValue = ((x - centerX) / centerX) * 8;
-      setRotateX(rotateXValue);
-      setRotateY(rotateYValue);
-    };
-
-    const handleMouseLeave = () => {
-      setRotateX(0);
-      setRotateY(0);
-    };
-
-    return { ref, rotateX, rotateY, handleMouseMove, handleMouseLeave };
-  }
-
-  // Particle Background Component
-  function ParticleBackground() {
-    const canvasRef = useRef(null);
-
-    useEffect(() => {
-      const canvas = canvasRef.current;
-      const ctx = canvas?.getContext("2d");
-      if (!canvas || !ctx) return;
-
-      const setCanvasSize = () => {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-      };
-      setCanvasSize();
-      window.addEventListener("resize", setCanvasSize);
-
-      const particles = [];
-      const particleCount = 80;
-
-      for (let i = 0; i < particleCount; i++) {
-        particles.push({
-          x: Math.random() * canvas.width,
-          y: Math.random() * canvas.height,
-          size: Math.random() * 3 + 1,
-          speedX: (Math.random() - 0.5) * 0.4,
-          speedY: (Math.random() - 0.5) * 0.4,
-          opacity: Math.random() * 0.5 + 0.1,
-        });
-      }
-
-      let animationFrameId;
-      const animate = () => {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        particles.forEach((particle) => {
-          particle.x += particle.speedX;
-          particle.y += particle.speedY;
-
-          if (particle.x < 0 || particle.x > canvas.width) particle.speedX *= -1;
-          if (particle.y < 0 || particle.y > canvas.height) particle.speedY *= -1;
-
-          ctx.beginPath();
-          ctx.arc(particle.x, particle.y, particle.size, 0, Math.PI * 2);
-          ctx.fillStyle = `rgba(59, 130, 246, ${particle.opacity})`;
-          ctx.fill();
-        });
-
-        // Draw connections
-        particles.forEach((p1, i) => {
-          particles.slice(i + 1).forEach((p2) => {
-            const dx = p1.x - p2.x;
-            const dy = p1.y - p2.y;
-            const dist = Math.sqrt(dx * dx + dy * dy);
-            if (dist < 120) {
-              ctx.beginPath();
-              ctx.moveTo(p1.x, p1.y);
-              ctx.lineTo(p2.x, p2.y);
-              ctx.strokeStyle = `rgba(59, 130, 246, ${0.08 * (1 - dist / 120)})`;
-              ctx.stroke();
-            }
-          });
-        });
-
-        animationFrameId = requestAnimationFrame(animate);
-      };
-      animate();
-
-      return () => {
-        window.removeEventListener("resize", setCanvasSize);
-        cancelAnimationFrame(animationFrameId);
-      };
-    }, []);
-
-    return (
-      <canvas
-        ref={canvasRef}
-        className="absolute inset-0 z-0 pointer-events-none"
-        style={{ opacity: 0.6 }}
-      />
-    );
-  }
-
-  // Scroll-triggered animation observer
-  function useScrollAnimation() {
-    const ref = useRef(null);
-    useEffect(() => {
-      const observer = new IntersectionObserver(
-        (entries) => {
-          entries.forEach((entry) => {
-            if (entry.isIntersecting) {
-              entry.target.classList.add("animate-in");
-            }
-          });
-        },
-        { threshold: 0.1 }
-      );
-      if (ref.current) observer.observe(ref.current);
-      return () => observer.disconnect();
-    }, []);
-    return ref;
-  }
-
-function SectionHeading({ eyebrow, title, description, align = "left" }) {
-  return (
-    <div className={`${align === "center" ? "mx-auto text-center" : ""} max-w-3xl`}>
-      <p className="text-sm font-semibold uppercase tracking-[0.3em] text-sky-600">{eyebrow}</p>
-      <h2 className="mt-3 text-3xl font-bold tracking-tight text-slate-900 sm:text-4xl">{title}</h2>
-      <p className="mt-4 text-base leading-7 text-slate-600">{description}</p>
-    </div>
-  );
-}
-
-function AnimatedCounter({ endVal, suffix, duration = 2500, isVisible = false }) {
-  const [count, setCount] = useState(0);
-  const animationRef = useRef(null);
-
+function useCounter(end, isVisible) {
+  const [val, setVal] = useState(0);
   useEffect(() => {
-    if (!isVisible || animationRef.current) return;
-
+    if (!isVisible) return;
+    const target = parseInt(end);
+    let start = 0;
+    const dur = 2000;
     const startTime = performance.now();
-    const target = parseInt(endVal) || 0;
-    const step = (timestamp) => {
-      const elapsed = timestamp - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      const easeProgress = 1 - Math.pow(1 - progress, 3); // easeOutCubic
-      const currentCount = target * easeProgress;
-      setCount(currentCount);
-      if (progress < 1) {
-        animationRef.current = requestAnimationFrame(step);
-      } else {
-        setCount(target);
-        animationRef.current = null;
-      }
+    const tick = (now) => {
+      const p = Math.min((now - startTime) / dur, 1);
+      const ease = 1 - Math.pow(1 - p, 3);
+      setVal(Math.floor(target * ease));
+      if (p < 1) requestAnimationFrame(tick);
+      else setVal(target);
     };
-    animationRef.current = requestAnimationFrame(step);
-
-    return () => {
-      if (animationRef.current) {
-        cancelAnimationFrame(animationRef.current);
-      }
-    };
-  }, [isVisible, endVal, duration]);
-
-  return (
-    <span className="text-4xl font-bold text-slate-950">
-      {Math.floor(count).toLocaleString()}{suffix}
-    </span>
-  );
+    requestAnimationFrame(tick);
+  }, [isVisible, end]);
+  return val;
 }
 
-// Circular Scroll Progress Indicator Component
-function CircularScrollIndicator() {
-  const [scrollProgress, setScrollProgress] = useState(0);
-  const [isVisible, setIsVisible] = useState(false);
-  const [hasAppeared, setHasAppeared] = useState(false);
-
+function useInView() {
+  const ref = useRef(null);
+  const [inView, setInView] = useState(false);
   useEffect(() => {
-    const handleScroll = () => {
-      const scrollHeight = document.documentElement.scrollHeight - window.innerHeight;
-      const scrolled = window.scrollY;
-      const scrollPercent = scrollHeight > 0 ? (scrolled / scrollHeight) * 100 : 0;
-      setScrollProgress(scrollPercent);
-      
-      // Show indicator after scrolling 200px
-      if (scrolled > 200) {
-        setIsVisible(true);
-        setHasAppeared(true);
-      } else {
-        setIsVisible(false);
-      }
-    };
-
-    window.addEventListener("scroll", handleScroll);
-    return () => window.removeEventListener("scroll", handleScroll);
+    const obs = new IntersectionObserver(([e]) => { if (e.isIntersecting) setInView(true); }, { threshold: 0.15 });
+    if (ref.current) obs.observe(ref.current);
+    return () => obs.disconnect();
   }, []);
+  return [ref, inView];
+}
 
-  // Smooth scroll to top
-  const handleScrollToTop = () => {
-    window.scrollTo({
-      top: 0,
-      behavior: "smooth",
-    });
-  };
-
-  // Calculate SVG circle progress
-  const circumference = 251.2; // 2 * PI * 40 (radius 40)
-  const strokeDashoffset = circumference - (scrollProgress / 100) * circumference;
-
+function StatCard({ value, suffix, label }) {
+  const [ref, inView] = useInView();
+  const count = useCounter(value, inView);
   return (
-    <div
-      className={`circular-scroll-container ${
-        isVisible ? "circular-scroll-visible" : ""
-      } ${hasAppeared ? "circular-scroll-appeared" : ""}`}
-      onClick={handleScrollToTop}
-      role="button"
-      tabIndex={0}
-      aria-label="Scroll to top"
-      onKeyDown={(e) => e.key === "Enter" && handleScrollToTop()}
-    >
-      <svg
-        className="circular-progress-svg"
-        viewBox="0 0 100 100"
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <defs>
-          <linearGradient id="circular-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#2563eb" />
-            <stop offset="100%" stopColor="#7c3aed" />
-          </linearGradient>
-        </defs>
-        
-        {/* Background circle */}
-        <circle
-          cx="50"
-          cy="50"
-          r="40"
-          className="circular-progress-circle circular-progress-bg"
-        />
-        
-        {/* Progress circle */}
-        <circle
-          cx="50"
-          cy="50"
-          r="40"
-          className="circular-progress-circle circular-progress-fill"
-          style={{ strokeDashoffset }}
-        />
-      </svg>
-
-      {/* Arrow icon */}
-      <div className="circular-scroll-arrow">
-        <ArrowRight size={20} strokeWidth={2.5} />
-      </div>
-
-      {/* Percentage label */}
-      <div className="circular-scroll-label">
-        <span className="circular-scroll-percent">{Math.round(scrollProgress)}%</span>
-      </div>
+    <div ref={ref} className="lp-stat-card">
+      <div className="lp-stat-number">{count}{suffix}</div>
+      <div className="lp-stat-label">{label}</div>
     </div>
   );
 }
 
-function TestimonialsSlider() {
-  const [currentSlide, setCurrentSlide] = useState(0);
-  const [autoplay, setAutoplay] = useState(true);
-  const autoplayRef = useRef(null);
-
-  useEffect(() => {
-    if (!autoplay) return;
-
-    autoplayRef.current = setInterval(() => {
-      setCurrentSlide((prev) => (prev + 1) % testimonials.length);
-    }, 5000);
-
-    return () => {
-      if (autoplayRef.current) clearInterval(autoplayRef.current);
-    };
-  }, [autoplay]);
-
-  const handleDotClick = (index) => {
-    setCurrentSlide(index);
-    setAutoplay(false);
-    setTimeout(() => setAutoplay(true), 8000);
-  };
-
+function ScrollSection({ children, className = "" }) {
+  const [ref, inView] = useInView();
   return (
-    <div className="testimonials-slider-container">
-      {/* Main Carousel */}
-      <div className="testimonials-carousel-wrapper">
-        <div className="testimonials-carousel">
-          {testimonials.map((item, index) => {
-            const offset = (index - currentSlide + testimonials.length) % testimonials.length;
-            const isCenter = offset === 0;
-            const isPrev = offset === testimonials.length - 1;
-            const isNext = offset === 1;
-
-            return (
-              <Card
-                key={item.name}
-                className={`testimonials-card ${
-                  isCenter
-                    ? "testimonials-card-center"
-                    : isPrev
-                    ? "testimonials-card-prev"
-                    : isNext
-                    ? "testimonials-card-next"
-                    : "testimonials-card-hidden"
-                }`}
-              >
-                <CardContent className="p-6">
-                  <Quote className="h-8 w-8 text-sky-600" />
-                  <p className="mt-4 text-base leading-7 text-slate-700">{item.quote}</p>
-                  <div className="mt-6 flex items-center gap-1 text-amber-500">
-                    {Array.from({ length: 5 }).map((_, idx) => (
-                      <Star key={idx} className="h-4 w-4 fill-current" />
-                    ))}
-                  </div>
-                  <div className="mt-4 flex items-center gap-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-sky-500 to-indigo-500 text-white text-sm font-bold">
-                      {item.avatar}
-                    </div>
-                    <div>
-                      <p className="text-sm font-semibold text-slate-950">{item.name}</p>
-                      <p className="text-xs text-slate-500">Parent</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Navigation Controls */}
-      <div className="testimonials-controls mt-10 flex items-center justify-center">
-        {/* Dots Navigation */}
-        <div className="flex gap-2">
-          {testimonials.map((_, index) => (
-            <button
-              key={index}
-              onClick={() => handleDotClick(index)}
-              className={`testimonials-dot ${
-                index === currentSlide ? "testimonials-dot-active" : ""
-              }`}
-              aria-label={`Go to testimonial ${index + 1}`}
-            />
-          ))}
-        </div>
-      </div>
+    <div ref={ref} className={`lp-scroll-section ${inView ? "lp-scroll-visible" : ""} ${className}`}>
+      {children}
     </div>
   );
 }
 
 export default function Home() {
-  const heroTilt = use3DTilt();
-  const aboutRef = useScrollAnimation();
-  const featuresRef = useScrollAnimation();
-  const statsRef = useScrollAnimation();
-  const [statsVisible, setStatsVisible] = useState(false);
+  const [currentTestimonial, setCurrentTestimonial] = useState(0);
+  const [currentAchiever, setCurrentAchiever] = useState(0);
+  const [testimonialPaused, setTestimonialPaused] = useState(false);
+  const [achieverPaused, setAchieverPaused] = useState(false);
+  const [contactForm, setContactForm] = useState({ name: "", phone: "", message: "" });
+  const [formSent, setFormSent] = useState(false);
+  const [heroLoaded, setHeroLoaded] = useState(false);
 
   useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setStatsVisible(true);
-          entry.target.classList.add("animate-in");
-        }
-      },
-      { threshold: 0.3 }
-    );
-    if (statsRef.current) observer.observe(statsRef.current);
-    return () => observer.disconnect();
-  }, []);
-  const achieversRef = useScrollAnimation();
-  const admissionsRef = useScrollAnimation();
-  const testimonialsRef = useScrollAnimation();
-  const galleryRef = useScrollAnimation();
-  const blogsRef = useScrollAnimation();
-  const contactRef = useScrollAnimation();
-  const [contactForm, setContactForm] = useState({
-    name: "",
-    email: "",
-    message: "",
-  });
-
-  // Testimonials Slider State
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [isPaused, setIsPaused] = useState(false);
+    if (testimonialPaused) return;
+    const iv = setInterval(() => setCurrentTestimonial(p => (p + 1) % TESTIMONIALS.length), 4500);
+    return () => clearInterval(iv);
+  }, [testimonialPaused]);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      if (!isPaused) {
-        setCurrentIndex((prevIndex) => (prevIndex + 1) % testimonials.length);
-      }
-    }, 4000); // Auto-advance every 4 seconds
+    if (achieverPaused) return;
+    const iv = setInterval(() => setCurrentAchiever(p => (p + 1) % POSITION_HOLDERS.length), 3500);
+    return () => clearInterval(iv);
+  }, [achieverPaused]);
 
-    return () => clearInterval(interval);
-  }, [isPaused, testimonials.length]);
-
-  // Pause on hover/focus
-  const handleMouseEnter = () => setIsPaused(true);
-  const handleMouseLeave = () => setIsPaused(false);
-  const [formStatus, setFormStatus] = useState("");
-
-  useEffect(() => {
-    if (!formStatus) return undefined;
-
-    const timeoutId = window.setTimeout(() => {
-      setFormStatus("");
-    }, 4000);
-
-    return () => window.clearTimeout(timeoutId);
-  }, [formStatus]);
-
-  const handleContactSubmit = (event) => {
-    event.preventDefault();
-    setFormStatus("Thanks for reaching out. We will contact you soon.");
-    setContactForm({ name: "", email: "", message: "" });
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    setFormSent(true);
+    setContactForm({ name: "", phone: "", message: "" });
+    setTimeout(() => setFormSent(false), 5000);
   };
 
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(15,23,42,0.11)_0%,_rgba(14,165,233,0.09)_22%,_#f8fafc_48%,_#ffffff_76%)] text-slate-900">
+    <div className="lp-root">
+      <WelcomeScreen onComplete={() => setHeroLoaded(true)} />
+      <div className={`lp-main-layout-wrapper ${heroLoaded ? 'lp-layout-visible' : 'lp-layout-hidden'}`}>
+        <div className="lp-bg-3d-elements">
+        <div className="lp-3d-el lp-3d-el-1 bg-gradient-to-br from-blue-100/50 to-blue-200/50 shadow-blue-500/10"><Book className="text-blue-500 drop-shadow-sm" size={32} /></div>
+        <div className="lp-3d-el lp-3d-el-2 bg-gradient-to-br from-emerald-100/50 to-emerald-200/50 shadow-emerald-500/10"><Pencil className="text-emerald-500 drop-shadow-sm" size={24} /></div>
+        <div className="lp-3d-el lp-3d-el-3 bg-gradient-to-br from-amber-100/50 to-amber-200/50 shadow-amber-500/10"><GraduationCap className="text-amber-500 drop-shadow-sm" size={40} /></div>
+        <div className="lp-3d-el lp-3d-el-4 bg-gradient-to-br from-purple-100/50 to-purple-200/50 shadow-purple-500/10"><Lightbulb className="text-purple-500 drop-shadow-sm" size={28} /></div>
+        <div className="lp-3d-el lp-3d-el-5 bg-gradient-to-br from-cyan-100/50 to-cyan-200/50 shadow-cyan-500/10"><Compass className="text-cyan-500 drop-shadow-sm" size={36} /></div>
+        <div className="lp-3d-el lp-3d-el-6 bg-gradient-to-br from-rose-100/50 to-rose-200/50 shadow-rose-500/10"><Ruler className="text-rose-500 drop-shadow-sm" size={24} /></div>
+        <div className="lp-3d-el lp-3d-el-7 bg-gradient-to-br from-yellow-100/50 to-yellow-200/50 shadow-yellow-500/10"><Calculator className="text-yellow-500 drop-shadow-sm" size={36} /></div>
+      </div>
+
       <Navbar />
-      <CircularScrollIndicator />
 
-      <main>
-        <section id="home" className="relative overflow-hidden">
-          <ParticleBackground />
-          <div className="absolute inset-0 bg-[linear-gradient(140deg,rgba(15,23,42,0.08),rgba(14,165,233,0.09)_36%,rgba(248,250,252,0.7)_72%,transparent)]" />
-          <div className="absolute left-10 top-24 h-40 w-40 rounded-full bg-sky-400/20 blur-3xl hero-glow" />
-          <div className="absolute right-10 top-16 h-56 w-56 rounded-full bg-slate-900/15 blur-3xl hero-glow" style={{ animationDelay: "1.5s" }} />
-
-          <div className="relative mx-auto grid max-w-7xl gap-14 px-4 py-20 sm:px-6 lg:grid-cols-2 lg:items-center lg:px-8 lg:py-28">
-            <div className="reveal-up">
-              <div className="inline-flex items-center gap-2 rounded-full border border-sky-200 bg-white/80 px-4 py-2 text-sm font-medium text-sky-700 shadow-sm backdrop-blur">
-                <School className="h-4 w-4" />
-                Smart Coaching System
+      {/* ── HERO ── */}
+      <section id="home" className="lp-hero">
+        <div className="lp-hero-bg" />
+        <div className="lp-hero-grid-overlay" />
+        <div className={`lp-hero-content ${heroLoaded ? "lp-hero-loaded" : ""}`}>
+          <div className="lp-hero-badge">
+            <School className="h-4 w-4" />
+            Adamjee Coaching Center — Campus 12
+          </div>
+          <h1 className="lp-hero-heading">
+            Shape Your Future at<br />
+            <span className="lp-gradient-text">Adamjee Coaching</span>
+          </h1>
+          <p className="lp-hero-sub">
+            Pakistan's most advanced coaching management platform — smart attendance, digital fees, exam scheduling, and parent communication in one powerful system.
+          </p>
+          <div className="lp-hero-actions">
+            <Link href="/login">
+              <Button className="lp-btn-primary">
+                Get Started <ArrowRight className="h-4 w-4 ml-2" />
+              </Button>
+            </Link>
+            <Link href="#about">
+              <Button variant="outline" className="lp-btn-outline">
+                <Play className="h-4 w-4 mr-2" /> Learn More
+              </Button>
+            </Link>
+          </div>
+          <div className="lp-hero-stats">
+            {STATS.map((s) => (
+              <div key={s.label} className="lp-hero-stat-pill">
+                <span className="lp-hero-stat-val">{s.value}{s.suffix}</span>
+                <span className="lp-hero-stat-lbl">{s.label}</span>
               </div>
-
-              <h1 className="mt-6 max-w-xl text-4xl font-bold tracking-tight text-slate-950 sm:text-5xl lg:text-6xl">
-                Manage Students, Teachers & Exams Easily
-              </h1>
-
-              <p className="mt-6 max-w-xl text-lg leading-8 text-slate-600">
-                A modern coaching platform that keeps admissions, attendance, fee collection, parent communication, and reporting in one place.
-              </p>
-
-              <div className="mt-8 flex flex-wrap gap-4">
-<Button asChild className="rounded-full bg-gradient-to-r from-sky-600 to-slate-900 px-6 py-6 text-white shadow-lg shadow-sky-500/25 hover:from-sky-700 hover:to-slate-950 transition-all duration-300 ease-in-out hover:scale-[1.05] active:scale-[0.97] focus-visible:ring-4 ring-sky-500/50 shadow-depth glow-hover hover-lift hover:shadow-xl hover:brightness-[1.05] pulse-soft">
-                  <Link href="/login">
-                    Get Started
-                    <ArrowRight className="h-4 w-4" />
-                  </Link>
-                </Button>
-<Button asChild variant="outline" className="rounded-full border-slate-300 bg-white px-6 py-6 text-slate-700 hover:bg-slate-50 transition-all duration-300 ease-in-out hover:scale-[1.05] active:scale-[0.97] focus-visible:ring-4 ring-sky-500/50 shadow-depth glow-hover hover-lift hover:shadow-lg hover:brightness-[1.05]">
-                  <Link href="#features">
-                    <Play className="h-4 w-4" />
-                    Watch Demo
-                  </Link>
-                </Button>
-              </div>
-
-              <div className="mt-10 grid max-w-2xl grid-cols-2 gap-4 sm:grid-cols-4">
-                {statistics.map((stat) => (
-                  <div key={stat.label} className="rounded-2xl border border-white/70 bg-white/80 p-4 shadow-sm backdrop-blur">
-                    <div className="text-2xl font-semibold text-slate-950">{stat.value}</div>
-                    <div className="mt-1 text-xs uppercase tracking-[0.22em] text-slate-500">{stat.label}</div>
-                  </div>
-                ))}
+            ))}
+          </div>
+        </div>
+        <div className="lp-hero-visual">
+          <div className="lp-hero-card-stack">
+            <div className="lp-hero-card lp-hero-card-1">
+              <UserCheck className="h-6 w-6 text-blue-600" />
+              <div>
+                <div className="lp-hc-title">QR Attendance</div>
+                <div className="lp-hc-sub">Instant parent alert</div>
               </div>
             </div>
-
-            <div
-              ref={heroTilt.ref}
-              onMouseMove={heroTilt.handleMouseMove}
-              onMouseLeave={heroTilt.handleMouseLeave}
-              className="hero-scene relative mx-auto w-full max-w-[620px] transition-transform duration-200 ease-out"
-              style={{
-                transform: `perspective(1400px) rotateX(${heroTilt.rotateX}deg) rotateY(${heroTilt.rotateY}deg) translateZ(0)`,
-                willChange: "transform",
-              }}
-            >
-              <div className="hero-glow absolute inset-0 rounded-[2.5rem] bg-[radial-gradient(circle_at_top,_rgba(56,189,248,0.35),_transparent_50%),radial-gradient(circle_at_bottom,_rgba(15,23,42,0.2),_transparent_38%)] blur-3xl" />
-
-              <div className="relative overflow-hidden rounded-[2.5rem] border border-white/70 bg-white/60 p-6 shadow-[0_30px_80px_rgba(15,23,42,0.14)] backdrop-blur-2xl">
-                <div className="absolute inset-0 bg-[linear-gradient(rgba(15,23,42,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(15,23,42,0.03)_1px,transparent_1px)] bg-[size:28px_28px] opacity-40" />
-                <div className="absolute -left-6 top-10 h-28 w-28 rounded-full bg-sky-400/20 blur-3xl hero-float" />
-                <div className="absolute -right-8 bottom-8 h-32 w-32 rounded-full bg-slate-900/15 blur-3xl hero-float" style={{ animationDelay: "1.4s" }} />
-                <div className="hero-enter hero-enter-1 absolute left-1/2 top-3 h-40 w-40 -translate-x-1/2 rounded-full border border-sky-200/60" style={{ animation: "heroDepthIn 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards 0.1s, spin 16s linear infinite 0.95s" }} />
-                <div className="hero-enter hero-enter-2 absolute left-1/2 top-3 h-32 w-32 -translate-x-1/2 rounded-full border border-slate-300/70" style={{ animation: "heroDepthIn 0.85s cubic-bezier(0.16, 1, 0.3, 1) forwards 0.22s, spin 11s linear infinite reverse 1.05s" }} />
-
-                <div className="relative h-[420px] preserve-3d">
-                  {/* <div
-                    className="hero-enter-float absolute left-6 top-14 z-30 flex h-14 w-14 items-center justify-center rounded-2xl border border-sky-200/70 bg-sky-100/80 shadow-xl"
-                    style={{
-                      "--hero-enter-delay": "0.30s",
-                      transform: `translateZ(140px) translateX(${heroTilt.rotateY * 1.1}px) translateY(${heroTilt.rotateX * -0.9}px)`,
-                    }}
-                  >
-                    <BookOpen className="h-7 w-7 text-sky-700" />
-                  </div> */}
-
-                  {/* <div
-                    className="hero-enter-float absolute right-7 top-20 z-30 flex h-12 w-12 items-center justify-center rounded-xl border border-emerald-200/70 bg-emerald-100/80 shadow-xl"
-                    style={{
-                      "--hero-enter-delay": "0.52s",
-                      transform: `translateZ(115px) translateX(${heroTilt.rotateY * -0.8}px) translateY(${heroTilt.rotateX * 0.7}px)`,
-                    }}
-                  >
-                    <Bell className="h-6 w-6 text-emerald-700 Coaching-bell-ring" />
-                  </div> */}
-
-                  {/* <div
-                    className="hero-enter-float absolute left-10 bottom-24 z-30 flex h-14 w-14 items-center justify-center rounded-2xl border border-amber-200/70 bg-amber-100/80 shadow-xl"
-                    style={{
-                      "--hero-enter-delay": "0.64s",
-                      transform: `translateZ(120px) translateX(${heroTilt.rotateY * 0.8}px) translateY(${heroTilt.rotateX * -0.65}px)`,
-                    }}
-                  >
-                    <GraduationCap className="h-7 w-7 text-amber-700" />
-                  </div> */}
-
-                  {/* <div
-                    className="hero-enter-float absolute right-12 bottom-20 z-30 flex h-14 w-14 items-center justify-center rounded-2xl border border-indigo-200/70 bg-indigo-100/80 shadow-xl"
-                    style={{
-                      "--hero-enter-delay": "0.74s",
-                      transform: `translateZ(118px) translateX(${heroTilt.rotateY * -0.7}px) translateY(${heroTilt.rotateX * 0.8}px)`,
-                    }}
-                  >
-                    <Calendar className="h-7 w-7 text-indigo-700" />
-                  </div> */}
-
-                  <div
-                    className="hero-enter absolute left-6 top-0 z-20 w-44 rounded-2xl border border-white/80 bg-white/90 p-4 shadow-xl backdrop-blur-lg"
-                    style={{
-                      "--hero-enter-delay": "0.54s",
-                      transform: `translateZ(102px) translateX(${heroTilt.rotateY * 0.95}px) translateY(${heroTilt.rotateX * -0.8}px)`,
-                    }}
-                  >
-                    <p className="text-xs uppercase tracking-[0.28em] text-sky-600">Attendance</p>
-                    <p className="mt-2 text-sm font-semibold text-slate-900">QR Attendence system</p>
-                  </div>
-
-                  <div
-                    className="hero-enter absolute right-5 top-0 z-20 w-44 rounded-2xl border border-white/80 bg-white/90 p-4 shadow-xl backdrop-blur-lg"
-                    style={{
-                      "--hero-enter-delay": "0.64s",
-                      transform: `translateZ(108px) translateX(${heroTilt.rotateY * -0.9}px) translateY(${heroTilt.rotateX * 0.75}px)`,
-                    }}
-                  >
-                    <p className="text-xs uppercase tracking-[0.28em] text-indigo-600">Exams</p>
-                    <p className="mt-2 text-sm font-semibold text-slate-900">Auto schedule and marks flow</p>
-                  </div>
-
-                  <div
-                    className="hero-enter absolute left-8 bottom-12 z-20 w-44 rounded-2xl border border-white/80 bg-white/90 p-4 shadow-xl backdrop-blur-lg"
-                    style={{
-                      "--hero-enter-delay": "0.74s",
-                      transform: `translateZ(100px) translateX(${heroTilt.rotateY * 0.7}px) translateY(${heroTilt.rotateX * -0.7}px)`,
-                    }}
-                  >
-                    <p className="text-xs uppercase tracking-[0.28em] text-emerald-600">Parent Portal</p>
-                    <p className="mt-2 text-sm font-semibold text-slate-900">Daily notices and fee alerts</p>
-                  </div>
-
-                  <div
-                    className="hero-enter absolute right-8 bottom-10 z-20 w-44 rounded-2xl border border-white/80 bg-white/90 p-4 shadow-xl backdrop-blur-lg"
-                    style={{
-                      "--hero-enter-delay": "0.82s",
-                      transform: `translateZ(106px) translateX(${heroTilt.rotateY * -0.8}px) translateY(${heroTilt.rotateX * 0.8}px)`,
-                    }}
-                  >
-                    <p className="text-xs uppercase tracking-[0.28em] text-amber-600">Analytics</p>
-                    <p className="mt-2 text-sm font-semibold text-slate-900">Class trends in one dashboard</p>
-                  </div>
-
-                  <div className="hero-enter coaching-route absolute bottom-3 left-10 right-10 z-30" style={{ "--hero-enter-delay": "0.96s" }}>
-                    <div className="coaching-route__road" />
-                    <div className="coaching-route__bus">
-                      <School className="h-4 w-4 text-white" />
-                    </div>
-                  </div>
-
-                  <div className="hero-enter hero-enter-2 hero-scene__building absolute inset-0 flex items-center justify-center">
-                    <div className="relative h-[300px] w-[320px]">
-                      <div className="absolute left-1/2 top-0 h-14 w-56 -translate-x-1/2 rounded-t-[2rem] bg-gradient-to-r from-slate-900 via-blue-800 to-cyan-600 shadow-2xl" />
-                      <div className="absolute left-1/2 top-12 h-[220px] w-56 -translate-x-1/2 rounded-[2rem] border border-white/70 bg-gradient-to-b from-white via-sky-50 to-emerald-50 shadow-[0_35px_80px_rgba(14,165,233,0.22)]">
-                        <div className="absolute inset-x-6 top-6 grid grid-cols-3 gap-3">
-                          {Array.from({ length: 9 }).map((_, index) => (
-                            <div key={index} className="h-10 rounded-xl bg-sky-200/70 shadow-inner" />
-                          ))}
-                        </div>
-                        <div className="absolute bottom-4 left-1/2 flex h-14 w-20 -translate-x-1/2 items-center justify-center rounded-t-2xl bg-slate-900/90 text-white shadow-lg">
-                          <GraduationCap className="h-8 w-8" />
-                        </div>
-                        <div className="absolute bottom-0 left-1/2 h-7 w-40 -translate-x-1/2 rounded-t-full bg-emerald-500/30 blur-2xl" />
-                      </div>
-                      <div className="absolute left-4 top-[5.5rem] h-40 w-12 rounded-[1.25rem] bg-gradient-to-b from-indigo-800 to-sky-600 shadow-xl" />
-                      <div className="absolute right-4 top-20 h-[9.5rem] w-14 rounded-[1.35rem] bg-gradient-to-b from-sky-700 to-indigo-900 shadow-xl" />
-                      <div className="absolute left-1/2 top-[210px] flex -translate-x-1/2 items-center gap-2 rounded-full border border-white/80 bg-white/90 px-4 py-2 shadow-lg">
-                        <Sparkles className="h-4 w-4 text-sky-600" />
-                        <span className="text-sm font-medium text-slate-700">Connected coaching campus</span>
-                      </div>
-
-                      <div className="coaching-clock absolute -right-5 top-10 flex h-16 w-16 items-center justify-center rounded-full border-4 border-white/80 bg-slate-900 text-white shadow-xl">
-                        <div className="coaching-clock__center" />
-                        <div className="coaching-clock__hand coaching-clock__hand--hour" />
-                        <div className="coaching-clock__hand coaching-clock__hand--minute" />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="absolute left-1/2 top-0 h-full w-full -translate-x-1/2 rounded-full border border-dashed border-sky-200/70 opacity-70" />
+            <div className="lp-hero-card lp-hero-card-2">
+              <Trophy className="h-6 w-6 text-yellow-500" />
+              <div>
+                <div className="lp-hc-title">95% Pass Rate</div>
+                <div className="lp-hc-sub">Board exam results 2025</div>
+              </div>
+            </div>
+            <div className="lp-hero-card lp-hero-card-3">
+              <LineChart className="h-6 w-6 text-emerald-600" />
+              <div>
+                <div className="lp-hc-title">AI Analytics</div>
+                <div className="lp-hc-sub">Real-time insights</div>
+              </div>
+            </div>
+            <div className="lp-hero-card lp-hero-card-4">
+              <DollarSign className="h-6 w-6 text-violet-600" />
+              <div>
+                <div className="lp-hc-title">Online Fees</div>
+                <div className="lp-hc-sub">Auto challan system</div>
+              </div>
+            </div>
+            <div className="lp-cube-scene">
+              <div className="lp-cube">
+                <div className="lp-cube-face lp-cube-front">
+                  <Image src="/logo.png" alt="Adamjee" width={90} height={90} className="object-contain drop-shadow-md" />
+                  <span className="text-xl font-black text-blue-900 mt-2 tracking-wide uppercase">Adamjee</span>
+                </div>
+                <div className="lp-cube-face lp-cube-right bg-gradient-to-br from-emerald-50 to-white">
+                  <Zap className="h-16 w-16 text-emerald-500 drop-shadow-sm mb-2" />
+                  <span className="text-lg font-bold text-emerald-700 tracking-wider uppercase">Science</span>
+                </div>
+                <div className="lp-cube-face lp-cube-back bg-gradient-to-br from-violet-50 to-white">
+                  <LineChart className="h-16 w-16 text-violet-500 drop-shadow-sm mb-2" />
+                  <span className="text-lg font-bold text-violet-700 tracking-wider uppercase">Commerce</span>
+                </div>
+                <div className="lp-cube-face lp-cube-left bg-gradient-to-br from-pink-50 to-white">
+                  <Sparkles className="h-16 w-16 text-pink-500 drop-shadow-sm mb-2" />
+                  <span className="text-lg font-bold text-pink-700 tracking-wider uppercase">Arts</span>
+                </div>
+                <div className="lp-cube-face lp-cube-top bg-gradient-to-br from-blue-50 to-white">
+                  <Monitor className="h-16 w-16 text-blue-500 drop-shadow-sm mb-2" />
+                  <span className="text-lg font-bold text-blue-700 tracking-wider uppercase">Tech</span>
+                </div>
+                <div className="lp-cube-face lp-cube-bottom bg-gradient-to-br from-yellow-50 to-white">
+                  <Trophy className="h-16 w-16 text-yellow-500 drop-shadow-sm mb-2" />
+                  <span className="text-lg font-bold text-yellow-700 tracking-wider uppercase">Top Rank</span>
                 </div>
               </div>
             </div>
           </div>
-        </section>
+        </div>
+      </section>
 
-        <section ref={aboutRef} id="about" className="scroll-section py-24 lg:py-28">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <SectionHeading
-              eyebrow="About Us"
-              title="About Our Coaching System"
-              description="A focused coaching management platform built to support modern teaching, clear communication, and reliable administration."
-            />
+      {/* ── NEWS TICKER ── */}
+      <div className="lp-news-ticker">
+        <div className="lp-ticker-label">Updates</div>
+        <div className="lp-ticker-wrap">
+          <div className="lp-ticker-track">
+            <span className="lp-ticker-item">🌟 Admissions Open for <strong>Session 2026</strong>. Register Now!</span>
+            <span className="lp-ticker-item">🚀 <strong>95% Pass Rate</strong> in Board Exams.</span>
+            <span className="lp-ticker-item">💡 New <strong>AI-Driven Analytics</strong> introduced for parents.</span>
+            <span className="lp-ticker-item">📢 Next Campus 12 Grand Seminar on <strong>28th May</strong>.</span>
+            {/* Duplicated for seamless loop */}
+            <span className="lp-ticker-item">🌟 Admissions Open for <strong>Session 2026</strong>. Register Now!</span>
+            <span className="lp-ticker-item">🚀 <strong>95% Pass Rate</strong> in Board Exams.</span>
+            <span className="lp-ticker-item">💡 New <strong>AI-Driven Analytics</strong> introduced for parents.</span>
+            <span className="lp-ticker-item">📢 Next Campus 12 Grand Seminar on <strong>28th May</strong>.</span>
+          </div>
+        </div>
+      </div>
 
-            <div className="mt-12 grid gap-8 lg:grid-cols-2">
-              <Card className="border-white/70 bg-white/90 shadow-[0_24px_60px_rgba(15,23,42,0.08)] backdrop-blur">
-                <CardHeader>
-                  <CardTitle className="text-2xl text-slate-950">Mission and vision</CardTitle>
-                  <CardDescription className="text-base text-slate-600">
-                    We simplify coaching operations so educators can focus on learning outcomes instead of repetitive paperwork.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {aboutBullets.map((bullet) => (
-                    <div key={bullet} className="flex items-start gap-3 rounded-2xl border border-slate-100 bg-slate-50/80 p-4">
-                      <CheckCircle className="mt-0.5 h-5 w-5 text-emerald-600" />
-                      <p className="text-sm leading-6 text-slate-700">{bullet}</p>
-                    </div>
-                  ))}
-                </CardContent>
-              </Card>
 
-              <Card className="overflow-hidden border-white/70 bg-gradient-to-br from-sky-50 via-white to-indigo-50 shadow-[0_24px_60px_rgba(15,23,42,0.08)]">
-                <CardHeader>
-                  <CardTitle className="text-2xl text-slate-950">Modern education system</CardTitle>
-                  <CardDescription className="text-base text-slate-600">
-                    Designed for transparency, speed, and better communication with every stakeholder.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    {[
-                      { icon: ShieldCheck, label: "Digital Attendance" },
-                      { icon: MessageSquare, label: "Parent Alerts" },
-                      { icon: BarChart3, label: "Smart Reporting" },
-                      { icon: BookOpen, label: "Academic Tracking" },
-                    ].map((item) => (
-                      <div key={item.label} className="rounded-2xl border border-white/70 bg-white/90 p-5 shadow-sm">
-                        <item.icon className="h-6 w-6 text-sky-600" />
-                        <p className="mt-3 text-sm font-semibold text-slate-900">{item.label}</p>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
+      {/* ── ABOUT / DIRECTOR'S VISION ── */}
+      <section id="about" className="lp-section lp-about-section">
+        <ScrollSection className="lp-about-grid">
+          <div className="lp-about-visual">
+            <div className="lp-about-img-wrap" style={{ borderRadius: '2rem', overflow: 'hidden', border: '6px solid white', boxShadow: '0 25px 50px rgba(0,0,0,0.1)' }}>
+              {/* Placeholder for Campus Owner's Picture */}
+              <div style={{ width: '100%', height: '550px', background: 'linear-gradient(135deg, #e2e8f0, #cbd5e1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
+                <UserCheck className="h-20 w-20 text-slate-400 mb-4 drop-shadow-sm" />
+                <span className="text-slate-500 font-bold uppercase tracking-widest text-sm">Campus Owner Picture</span>
+              </div>
+              <div className="lp-about-badge-years" style={{ bottom: '30px', right: '-20px' }}>
+                <span className="lp-about-badge-num" style={{ fontSize: '1.5rem' }}>Vision</span>
+                <span className="lp-about-badge-txt">For 2030 & Beyond</span>
+              </div>
             </div>
           </div>
-        </section>
-
-        <section ref={featuresRef} id="features" className="scroll-section border-y border-slate-100 bg-slate-50/70 py-24 lg:py-28">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <SectionHeading
-              eyebrow="Why Choose Us"
-              title="Features built for daily coaching operations"
-              description="Every feature is designed to reduce manual effort and make the coaching experience simpler for staff and families."
-            />
-
-            <div className="mt-12 grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-              {features.map((feature) => (
-                <Card key={feature.title} className="group border-white/70 bg-white/90 shadow-[0_20px_50px_rgba(15,23,42,0.08)] transition-all duration-300 hover:-translate-y-1 hover:shadow-[0_26px_60px_rgba(15,23,42,0.12)]">
-                  <CardHeader>
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-600 to-indigo-600 text-white shadow-lg shadow-sky-500/25 transition-transform group-hover:scale-105">
-                      <feature.icon className="h-6 w-6" />
-                    </div>
-                    <CardTitle className="mt-4 text-xl text-slate-950">{feature.title}</CardTitle>
-                    <CardDescription className="text-base leading-7 text-slate-600">{feature.description}</CardDescription>
-                  </CardHeader>
-                </Card>
+          <div className="lp-about-text">
+            <p className="lp-eyebrow">Director's Message</p>
+            <h2 className="lp-section-heading">Our Future Scope &<br /><span className="lp-gradient-text">Vision</span></h2>
+            <p className="lp-body-text" style={{ fontStyle: 'italic', color: '#475569', fontSize: '1.1rem', borderLeft: '4px solid #3b82f6', paddingLeft: '1rem', margin: '1.5rem 0' }}>
+              "At Adamjee Coaching Center Campus 12, our vision extends far beyond traditional academics. We are building a future where education is seamlessly integrated with modern technology, empowering students to become global leaders and innovators."
+            </p>
+            <p className="lp-body-text">
+              Our future scope includes expanding our digital ecosystem with AI-driven personalized learning paths, introducing advanced tech bootcamps, and providing a state-of-the-art campus environment that fosters creativity, critical thinking, and unmatched academic excellence.
+            </p>
+            <div className="lp-about-bullets mt-6">
+              {[
+                "AI-Driven Personalized Learning Paths",
+                "Advanced Tech & Robotics Integration",
+                "Holistic Student Development Programs",
+                "State-of-the-art Smart Classrooms",
+              ].map((b) => (
+                <div key={b} className="lp-about-bullet">
+                  <CheckCircle className="h-5 w-5 text-blue-500 shrink-0" />
+                  <span className="font-medium text-slate-700">{b}</span>
+                </div>
               ))}
             </div>
           </div>
-        </section>
+        </ScrollSection>
+      </section>
 
-        <section ref={statsRef} className="scroll-section py-24 lg:py-28">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <SectionHeading
-              eyebrow="Statistics"
-              title="Live coaching numbers that matter"
-              description="The dashboard keeps parents and administrators informed with simple numbers that are easy to scan."
-              align="center"
-            />
+      {/* ── STATS ── */}
+      <section className="lp-stats-section">
+        <div className="lp-stats-grid">
+          {STATS.map((s) => <StatCard key={s.label} {...s} />)}
+        </div>
+      </section>
 
-            <div className="mt-12 grid gap-6 sm:grid-cols-2 xl:grid-cols-4">
-              {statistics.map((stat) => (
-                <Card key={stat.label} className="border-white/70 bg-white/90 text-center shadow-[0_20px_50px_rgba(15,23,42,0.08)]">
-                  <CardContent className="p-8">
-                    <AnimatedCounter endVal={stat.value.replace(/[\+%]/g, '')} suffix={stat.value.includes('+') ? '+' : stat.value.includes('%') ? '%' : ''} isVisible={statsVisible} />
-                    <p className="mt-3 text-sm uppercase tracking-[0.24em] text-slate-500">{stat.label}</p>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+      {/* ── FEATURES ── */}
+      <section id="features" className="lp-section">
+        <ScrollSection>
+          <div className="lp-section-header">
+            <p className="lp-eyebrow">Features</p>
+            <h2 className="lp-section-heading">Everything a Coaching<br /><span className="lp-gradient-text">Centre Needs</span></h2>
+            <p className="lp-section-desc">One powerful platform to manage students, staff, exams, fees, and parents — with zero paperwork.</p>
           </div>
-        </section>
+          <div className="lp-features-grid">
+            {FEATURES.map((f) => (
+              <div key={f.title} className="lp-feature-card">
+                <div className={`lp-feature-icon bg-gradient-to-br ${f.color}`}>
+                  <f.icon className="h-6 w-6 text-white" />
+                </div>
+                <h3 className="lp-feature-title">{f.title}</h3>
+                <p className="lp-feature-desc">{f.desc}</p>
+              </div>
+            ))}
+          </div>
+        </ScrollSection>
+      </section>
 
-        <section ref={achieversRef} className="scroll-section py-24 lg:py-28 bg-slate-50/60 border-y border-slate-100">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <SectionHeading
-              eyebrow="Top Students"
-              title="Top Students and achievers"
-              description="Celebrate performance, behavior, and growth with a clean student spotlight area."
-            />
+      {/* ── GALLERY ── */}
+      <section id="gallery" className="lp-section lp-gallery-section">
+        <ScrollSection>
+          <div className="lp-section-header">
+            <p className="lp-eyebrow">Campus Life</p>
+            <h2 className="lp-section-heading">A Glimpse of Our<br /><span className="lp-gradient-text">Campus Gallery</span></h2>
+            <p className="lp-section-desc">Experience the vibrant and enriching environment at Adamjee Coaching Campus 12.</p>
+          </div>
+          <div className="lp-gallery-grid">
+            {GALLERY.map((item) => (
+              <div key={item.label} className="lp-gallery-card">
+                <img src={item.img} alt={item.label} className="lp-gallery-img" />
+                <div className="lp-gallery-overlay" />
+                <div className="lp-gallery-content">
+                  <item.icon className="h-8 w-8 text-white mb-2" />
+                  <span className="lp-gallery-label">{item.label}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </ScrollSection>
+      </section>
 
-            <div className="mt-12 grid gap-8 md:grid-cols-2 lg:grid-cols-1 xl:grid-cols-3">
-              {achievers.map((student) => (
-                <Card key={student.name} className="border-white/70 bg-white/95 shadow-xl hover:shadow-2xl transition-all duration-300 overflow-hidden max-w-md mx-auto">
-                  <CardContent className="p-8 text-center space-y-6">
-                    {/* Circle Image */}
-                    <div className="relative mx-auto">
-                      <div className="w-32 h-32 rounded-full bg-gradient-to-br from-sky-400 to-blue-500 flex items-center justify-center text-3xl font-bold text-white shadow-2xl border-4 border-white/50 ring-4 ring-sky-100/50 mx-auto">
-                        {student.initials}
-                      </div>
-                      {/* Photo overlay if available */}
-                      {student.photo && (
-                        <Image 
-                          src={student.photo} 
-                          alt={student.name} 
-                          width={128} 
-                          height={128} 
-                          className="absolute inset-0 w-32 h-32 rounded-full object-cover -z-10 opacity-20"
-                        />
+      {/* ── POSITION HOLDERS CAROUSEL ── */}
+      <section id="position-holders" className="lp-section lp-achievers-section">
+        <ScrollSection>
+          <div className="lp-section-header">
+            <p className="lp-eyebrow">Position Holders</p>
+            <h2 className="lp-section-heading">Our Star<br /><span className="lp-gradient-text">Achievers 2025</span></h2>
+            <p className="lp-section-desc">Celebrating the outstanding students who made Adamjee Coaching proud this year.</p>
+          </div>
+          <div className="lp-ph-carousel-wrap"
+            onMouseEnter={() => setAchieverPaused(true)}
+            onMouseLeave={() => setAchieverPaused(false)}
+          >
+            <div className="lp-ph-carousel">
+              {POSITION_HOLDERS.map((p, i) => {
+                const total = POSITION_HOLDERS.length;
+                const offset = (i - currentAchiever + total) % total;
+                const isCenter = offset === 0;
+                const isPrev = offset === total - 1;
+                const isNext = offset === 1;
+                const isFarPrev = offset === total - 2;
+                const isFarNext = offset === 2;
+                return (
+                  <div
+                    key={p.name}
+                    className={`lp-ph-card ${isCenter ? "lp-ph-center" : isPrev ? "lp-ph-prev" : isNext ? "lp-ph-next" : isFarPrev ? "lp-ph-far-prev" : isFarNext ? "lp-ph-far-next" : "lp-ph-hidden"}`}
+                    onClick={() => setCurrentAchiever(i)}
+                  >
+                    <div className={`lp-achiever-avatar bg-gradient-to-br ${p.bg}`}>
+                      {p.photo ? (
+                        <img src={p.photo} alt={p.name} className="w-full h-full rounded-full object-cover" />
+                      ) : (
+                        <>
+                          {p.rank === 1 && <Trophy className="h-8 w-8 text-white" />}
+                          {p.rank !== 1 && <span className="lp-achiever-rank">#{p.rank}</span>}
+                        </>
                       )}
                     </div>
-                    
-                    {/* Name and Grade */}
-                    <div className="space-y-1">
-                      <h3 className="text-xl font-bold text-slate-900">{student.name}</h3>
-                      <p className="text-sm text-slate-500 uppercase tracking-wide">{student.grade}</p>
-                    </div>
-                    
-                    {/* Percentage with Progress */}
-                    <div className="space-y-2">
-                      <div className="flex items-baseline justify-between">
-                        <span className="text-3xl font-black text-emerald-600">{student.percentage}%</span>
-                        <span className="text-xs uppercase tracking-wider text-slate-500">Overall</span>
+                    {p.rank === 1 && (
+                      <div className="lp-achiever-crown">
+                        <Trophy className="h-4 w-4 text-yellow-500" />
+                        <span>Top Achiever</span>
                       </div>
-                      <div className="w-full bg-slate-200 rounded-full h-3">
-                        <div 
-                          className="bg-gradient-to-r from-emerald-500 to-green-600 h-3 rounded-full shadow-md transition-all duration-1000"
-                          style={{width: `${student.percentage}%`}}
-                        />
-                      </div>
-                    </div>
-                    
-                    {/* Description */}
-                    <p className="text-sm text-slate-600 italic leading-relaxed">{student.description}</p>
-                    
-                    {/* Achievement Badge */}
-                    <div className="inline-flex items-center gap-2 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 px-4 py-2 text-xs font-bold text-white shadow-lg">
-                      <Award className="h-4 w-4" />
-                      {student.achievement}
-                    </div>
-                  </CardContent>
-                </Card>
+                    )}
+                    <h3 className="lp-achiever-name">{p.name}</h3>
+                    <p className="lp-achiever-grade">{p.grade}</p>
+                    <div className="lp-achiever-score">{p.score}</div>
+                    <p className="lp-achiever-subject">{p.subject}</p>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="lp-ph-dots">
+              {POSITION_HOLDERS.map((_, i) => (
+                <button key={i} onClick={() => setCurrentAchiever(i)} className={`lp-dot ${i === currentAchiever ? "lp-dot-active" : ""}`} />
               ))}
             </div>
           </div>
-        </section>
+        </ScrollSection>
+      </section>
 
-        <section ref={admissionsRef} id="admissions" className="scroll-section py-24 lg:py-28">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <SectionHeading
-              eyebrow="Admissions"
-              title="Admissions made simple"
-              description="Give families a clear path from inquiry to enrollment with a short, confidence-building process."
-            />
-
-            <div className="mt-12 grid gap-8 lg:grid-cols-[1.1fr_0.9fr]">
-              <Card className="border-white/70 bg-gradient-to-br from-sky-600 via-blue-600 to-indigo-700 text-white shadow-[0_30px_80px_rgba(37,99,235,0.28)]">
-                <CardHeader>
-                  <CardTitle className="text-2xl text-white">Admissions open for 2026</CardTitle>
-                  <CardDescription className="text-base text-sky-100">
-                    Start the process now and secure a place in a connected coaching environment built for the future.
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid gap-4 md:grid-cols-3">
-                    {admissionsSteps.map((step) => (
-                      <div key={step.step} className="rounded-2xl border border-white/15 bg-white/10 p-5 backdrop-blur-sm">
-                        <p className="text-sm font-semibold tracking-[0.24em] text-sky-100">{step.step}</p>
-                        <h3 className="mt-3 text-lg font-bold text-white">{step.title}</h3>
-                        <p className="mt-2 text-sm leading-6 text-sky-50">{step.text}</p>
-                      </div>
-                    ))}
-                  </div>
-                  <div className="mt-8 flex flex-wrap gap-4">
-<Button asChild className="rounded-full bg-white px-6 py-6 text-slate-900 hover:bg-slate-100 transition-all duration-300 ease-in-out hover:scale-[1.05] active:scale-[0.97] focus-visible:ring-4 ring-sky-500/50 shadow-depth glow-hover hover-lift hover:shadow-xl hover:brightness-[1.05] pulse-soft">
-                      <Link href="#contact">
-                        Contact Admissions
-                        <ArrowRight className="h-4 w-4" />
-                      </Link>
-                    </Button>
-<Button asChild variant="ghost" className="rounded-full border-white/30 bg-transparent px-6 py-6 text-white hover:bg-white/10 transition-all duration-300 ease-in-out hover:scale-[1.05] active:scale-[0.97] focus-visible:ring-4 ring-sky-500/50 shadow-depth glow-hover hover-lift hover:shadow-lg hover:brightness-[1.05]">
-                      <Link href="#about">View Coaching Details</Link>
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="border-white/70 bg-white/90 shadow-[0_20px_50px_rgba(15,23,42,0.08)]">
-                <CardHeader>
-                  <CardTitle className="text-2xl text-slate-950">Announcements</CardTitle>
-                  <CardDescription className="text-base text-slate-600">Latest news and coaching updates</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  {announcements.map((item, index) => (
-                    <div key={item} className="flex items-start gap-4 rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
-                      <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-50 text-amber-700">
-                        <Bell className="h-5 w-5" />
-                      </div>
+      {/* ── TESTIMONIALS 3D CAROUSEL ── */}
+      <section className="lp-section lp-testimonials-section">
+        <ScrollSection>
+          <div className="lp-section-header">
+            <p className="lp-eyebrow">Testimonials</p>
+            <h2 className="lp-section-heading">What Parents<br /><span className="lp-gradient-text">Say About Us</span></h2>
+          </div>
+          <div className="lp-test-carousel-wrap"
+            onMouseEnter={() => setTestimonialPaused(true)}
+            onMouseLeave={() => setTestimonialPaused(false)}
+          >
+            <div className="lp-test-carousel">
+              {TESTIMONIALS.map((t, i) => {
+                const total = TESTIMONIALS.length;
+                const offset = (i - currentTestimonial + total) % total;
+                const isCenter = offset === 0;
+                const isPrev = offset === total - 1;
+                const isNext = offset === 1;
+                return (
+                  <div
+                    key={isCenter ? `center-${currentTestimonial}` : t.name}
+                    className={`lp-test-card ${isCenter ? "lp-test-center" : isPrev ? "lp-test-prev" : isNext ? "lp-test-next" : "lp-test-hidden"}`}
+                    onClick={() => setCurrentTestimonial(i)}
+                  >
+                    <Quote className="h-8 w-8 text-blue-400 mb-4" />
+                    <p className="lp-testimonial-quote">{t.quote}</p>
+                    <div className="lp-testimonial-stars">
+                      {[...Array(5)].map((_, idx) => <Star key={idx} className="h-4 w-4 fill-yellow-400 text-yellow-400" />)}
+                    </div>
+                    <div className="lp-testimonial-author">
+                      <div className="lp-testimonial-avatar">{t.avatar}</div>
                       <div>
-                        <p className="text-sm font-semibold text-slate-950">{item}</p>
-                        <p className="mt-1 text-xs uppercase tracking-[0.24em] text-slate-500">Announcement {index + 1}</p>
+                        <div className="lp-testimonial-name">{t.name}</div>
+                        <div className="lp-testimonial-role">{t.role}</div>
                       </div>
                     </div>
-                  ))}
-                </CardContent>
-              </Card>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="lp-testimonial-dots">
+              {TESTIMONIALS.map((_, i) => (
+                <button key={i} onClick={() => setCurrentTestimonial(i)} className={`lp-dot ${i === currentTestimonial ? "lp-dot-active" : ""}`} />
+              ))}
             </div>
           </div>
-        </section>
+        </ScrollSection>
+      </section>
 
-        <section ref={testimonialsRef} className="scroll-section py-24 lg:py-28 bg-slate-50/60 border-y border-slate-100">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <SectionHeading
-              eyebrow="Testimonials"
-              title="What parents say"
-              description="A trustworthy system is built on clear communication and a calm daily experience."
-              align="center"
-            />
-
-              <TestimonialsSlider />
+      {/* ── ADMISSIONS ── */}
+      <section id="admissions" className="lp-section lp-admissions-section">
+        <ScrollSection>
+          <div className="lp-section-header">
+            <p className="lp-eyebrow">Admissions 2026</p>
+            <h2 className="lp-section-heading">Join Adamjee<br /><span className="lp-gradient-text">in 3 Easy Steps</span></h2>
+            <p className="lp-section-desc">Admissions are now open for the 2026 academic year. Secure your seat today!</p>
           </div>
-        </section>
+          <div className="lp-steps-grid">
+            {ADMISSION_STEPS.map((s) => (
+              <div key={s.step} className="lp-step-card">
+                <div className="lp-step-number">{s.step}</div>
+                <h3 className="lp-step-title">{s.title}</h3>
+                <p className="lp-step-text">{s.text}</p>
+              </div>
+            ))}
+          </div>
+          <div className="lp-admissions-cta">
+            <Link href="/login">
+              <Button className="lp-btn-primary lp-btn-lg">
+                Apply Now <ArrowRight className="h-5 w-5 ml-2" />
+              </Button>
+            </Link>
+          </div>
+        </ScrollSection>
+      </section>
 
-        <section ref={galleryRef} className="scroll-section py-24 lg:py-28">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <SectionHeading
-              eyebrow="Gallery"
-              title="Coaching life gallery"
-              description="Use this section to showcase a vibrant campus, activity spaces, and memorable moments."
-            />
-
-            <div className="mt-12 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-              {gallery.map((item, index) => (
-                <div
-                  key={item}
-                  className="group relative aspect-[4/3] overflow-hidden rounded-3xl border border-white/70 bg-gradient-to-br from-sky-500 via-indigo-500 to-emerald-500 shadow-[0_18px_40px_rgba(15,23,42,0.12)]"
-                >
-                  <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(255,255,255,0.35),_transparent_40%)]" />
-                  <div className="absolute inset-0 flex items-center justify-center text-white/90">
-                    <Camera className="h-14 w-14 transition-transform group-hover:scale-110" />
+      {/* ── CONTACT ── */}
+      <section id="contact" className="lp-section lp-contact-section">
+        <ScrollSection>
+          <div className="lp-section-header">
+            <p className="lp-eyebrow">Contact Us</p>
+            <h2 className="lp-section-heading">Get in Touch<br /><span className="lp-gradient-text">With Our Team</span></h2>
+          </div>
+          <div className="lp-contact-grid">
+            <div className="lp-contact-info-container">
+              <div className="lp-contact-cards-grid">
+                
+                <div className="lp-contact-card-premium">
+                  <div className="lp-contact-icon-box bg-gradient-to-br from-blue-500 to-indigo-500 text-white">
+                    <Phone className="h-5 w-5" />
                   </div>
-                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-slate-950/75 to-transparent p-5 text-white">
-                    <p className="text-sm font-semibold">{item}</p>
-                    <p className="mt-1 text-xs uppercase tracking-[0.24em] text-sky-100">Photo {index + 1}</p>
+                  <div className="lp-contact-card-content">
+                    <span className="lp-contact-card-label">Call Us</span>
+                    <a href="tel:+923352778488" className="lp-contact-card-link">+92 335 2778488</a>
+                    <a href="tel:02137520456" className="lp-contact-card-link">021-37520456</a>
                   </div>
                 </div>
-              ))}
-            </div>
-          </div>
-        </section>
 
-        <section ref={blogsRef} className="scroll-section py-24 lg:py-28 bg-slate-50/60 border-y border-slate-100">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <SectionHeading
-              eyebrow="Blog"
-              title="Latest blogs"
-              description="Share short insights, updates, and educational content that keeps your audience engaged."
-            />
+                <div className="lp-contact-card-premium">
+                  <div className="lp-contact-icon-box bg-gradient-to-br from-purple-500 to-pink-500 text-white">
+                    <Mail className="h-5 w-5" />
+                  </div>
+                  <div className="lp-contact-card-content">
+                    <span className="lp-contact-card-label">Email Us</span>
+                    <a href="mailto:globiumclouds@gmail.com" className="lp-contact-card-link">globiumclouds@gmail.com</a>
+                  </div>
+                </div>
 
-            <div className="mt-12 grid gap-6 md:grid-cols-3">
-              {blogs.map((post) => (
-                <Card key={post.title} className="border-white/70 bg-white/90 shadow-[0_20px_50px_rgba(15,23,42,0.08)]">
-                  <CardHeader>
-                    <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-sky-600 to-indigo-600 text-white shadow-lg shadow-sky-500/25">
-                      <BookOpen className="h-6 w-6" />
-                    </div>
-                    <CardTitle className="mt-4 text-xl text-slate-950">{post.title}</CardTitle>
-                    <CardDescription className="text-base leading-7 text-slate-600">{post.preview}</CardDescription>
-                  </CardHeader>
-                </Card>
-              ))}
-            </div>
-          </div>
-        </section>
+                <div className="lp-contact-card-premium">
+                  <div className="lp-contact-icon-box bg-gradient-to-br from-teal-500 to-emerald-500 text-white">
+                    <MapPin className="h-5 w-5" />
+                  </div>
+                  <div className="lp-contact-card-content">
+                    <span className="lp-contact-card-label">Visit Us</span>
+                    <p className="lp-contact-card-text">House R-84, Sector 15-A/4, Buffer Zone, Karachi</p>
+                  </div>
+                </div>
 
-        <section ref={contactRef} id="contact" className="scroll-section py-24 lg:py-28">
-          <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            <SectionHeading
-              eyebrow="Contact"
-              title="Contact us"
-              description="Reach out with questions about admissions, coaching operations, or platform support."
-            />
+                <div className="lp-contact-card-premium">
+                  <div className="lp-contact-icon-box bg-gradient-to-br from-amber-500 to-orange-500 text-white">
+                    <Clock className="h-5 w-5" />
+                  </div>
+                  <div className="lp-contact-card-content">
+                    <span className="lp-contact-card-label">Hours</span>
+                    <p className="lp-contact-card-text">Mon–Sat: 7:00 AM – 8:00 PM</p>
+                  </div>
+                </div>
 
-            <div className="mt-12 grid gap-8 lg:grid-cols-[1.05fr_0.95fr]">
-              <Card className="border-white/70 bg-white/90 shadow-[0_20px_50px_rgba(15,23,42,0.08)]">
-                <CardHeader>
-                  <CardTitle className="text-2xl text-slate-950">Send a message</CardTitle>
-                  <CardDescription className="text-base text-slate-600">We usually reply within one working day.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <form className="grid gap-4" onSubmit={handleContactSubmit}>
-                    <div className="grid gap-4 sm:grid-cols-2">
-                      <input
-                        type="text"
-                        placeholder="Name"
-                        value={contactForm.name}
-                        onChange={(event) => setContactForm((current) => ({ ...current, name: event.target.value }))}
-                        className="h-12 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition focus:border-sky-400 focus:bg-white"
-                      />
-                      <input
-                        type="email"
-                        placeholder="Email"
-                        value={contactForm.email}
-                        onChange={(event) => setContactForm((current) => ({ ...current, email: event.target.value }))}
-                        className="h-12 rounded-2xl border border-slate-200 bg-slate-50 px-4 text-sm outline-none transition focus:border-sky-400 focus:bg-white"
-                      />
-                    </div>
-                    <textarea
-                      rows="6"
-                      placeholder="Message"
-                      value={contactForm.message}
-                      onChange={(event) => setContactForm((current) => ({ ...current, message: event.target.value }))}
-                      className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm outline-none transition focus:border-sky-400 focus:bg-white"
-                    />
-<Button className="w-fit rounded-full bg-gradient-to-r from-sky-600 to-indigo-600 px-6 py-6 text-white shadow-lg shadow-sky-500/25 hover:from-sky-700 hover:to-indigo-700 transition-all duration-300 ease-in-out hover:scale-[1.05] active:scale-[0.97] focus-visible:ring-4 ring-sky-500/50 shadow-depth glow-hover hover-lift hover:shadow-xl hover:brightness-[1.05] pulse-soft">
-                      Send Message
-                    </Button>
-                    {formStatus ? (
-                      <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-medium text-emerald-700">
-                        {formStatus}
-                      </div>
-                    ) : null}
-                  </form>
-                </CardContent>
-              </Card>
+              </div>
 
-              <div className="space-y-6">
-                <Card className="border-white/70 bg-white/90 shadow-[0_20px_50px_rgba(15,23,42,0.08)]">
-                  <CardHeader>
-                    <CardTitle className="text-2xl text-slate-950">Address</CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-4 text-sm text-slate-600">
-                    <p className="flex items-start gap-3">
-                      <MapPin className="mt-0.5 h-5 w-5 text-sky-600" />
-                      <span>C-26, Block I, Behind Imam Clinic, North Nazimabad, Karachi, Pakistan</span>
-                    </p>
-                    <p className="flex items-start gap-3">
-                      <Phone className="mt-0.5 h-5 w-5 text-sky-600" />
-                      <span>0333 2564886</span>
-                    </p>
-                    <p className="flex items-start gap-3">
-                      <Mail className="mt-0.5 h-5 w-5 text-sky-600" />
-                      <span>adamjeecampus12@gmail.com</span>
-                    </p>
-                    <p className="flex items-start gap-3">
-                      <MessageSquare className="mt-0.5 h-5 w-5 text-sky-600" />
-                      <span>Call for campus visits, admissions help, or system support.</span>
-                    </p>
-                  </CardContent>
-                </Card>
-
-                <Card className="overflow-hidden border-white/70 bg-white/90 shadow-[0_20px_50px_rgba(15,23,42,0.08)]">
-                  <CardHeader>
-                    <CardTitle className="text-2xl text-slate-950">Map</CardTitle>
-                  </CardHeader>
-                  <CardContent className="p-0">
-                    <iframe
-                      title="Coaching location map"
-                      src="https://www.google.com/maps?q=C-26%2C%20Block%20I%2C%20Behind%20Imam%20Clinic%2C%20North%20Nazimabad%2C%20Karachi%2C%20Pakistan&output=embed"
-                      className="h-80 w-full border-0"
-                      loading="lazy"
-                      referrerPolicy="no-referrer-when-downgrade"
-                    />
-                  </CardContent>
-                </Card>
+              {/* Map Card */}
+              <div className="lp-contact-map-card">
+                <iframe
+                  title="Adamjee Coaching Campus 12 Location"
+                  src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d3616.1436442651475!2d67.0658763!3d24.9614488!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x3eb340bf1ab9b2ff%3A0x6b4beea77a94d8cb!2sAl%20Habeeb%20Restaurant!5e0!3m2!1sen!2spk!4v1716800000000!5m2!1sen!2spk"
+                  width="100%"
+                  height="100%"
+                  style={{ border: 0 }}
+                  allowFullScreen=""
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                />
               </div>
             </div>
-          </div>
-        </section>
-      </main>
 
+            {/* Form Card */}
+            <form onSubmit={handleSubmit} className="lp-contact-form-premium">
+              <div className="lp-contact-form-header">
+                <h3 className="lp-contact-form-title">Send a Message</h3>
+                <p className="lp-contact-form-subtext">Have questions? We'll reply within 24 hours.</p>
+              </div>
+              {formSent && (
+                <div className="lp-form-success">
+                  <CheckCircle className="h-5 w-5 shrink-0" />
+                  <span>Message sent! We'll contact you soon.</span>
+                </div>
+              )}
+              <div className="lp-form-group">
+                <label className="lp-form-label">Full Name</label>
+                <input
+                  className="lp-form-input"
+                  type="text"
+                  placeholder="Your Name"
+                  required
+                  value={contactForm.name}
+                  onChange={e => setContactForm(p => ({...p, name: e.target.value}))}
+                />
+              </div>
+              <div className="lp-form-group">
+                <label className="lp-form-label">Phone Number</label>
+                <input
+                  className="lp-form-input"
+                  type="tel"
+                  placeholder="03XX-XXXXXXX"
+                  value={contactForm.phone}
+                  onChange={e => setContactForm(p => ({...p, phone: e.target.value}))}
+                />
+              </div>
+              <div className="lp-form-group">
+                <label className="lp-form-label">Message</label>
+                <textarea
+                  className="lp-form-input lp-form-textarea"
+                  placeholder="How can we help you?"
+                  rows={4}
+                  required
+                  value={contactForm.message}
+                  onChange={e => setContactForm(p => ({...p, message: e.target.value}))}
+                />
+              </div>
+              <Button type="submit" className="lp-btn-primary w-full justify-center">
+                Send Message <ArrowRight className="h-4 w-4 ml-2" />
+              </Button>
+            </form>
+          </div>
+        </ScrollSection>
+      </section>
       <Footer />
+      </div>
     </div>
   );
 }
