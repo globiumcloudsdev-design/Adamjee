@@ -77,6 +77,7 @@ export default function BranchAdminAttendancePage() {
   const [isBulkUploadModalOpen, setIsBulkUploadModalOpen] = useState(false);
   const [bulkUploadFile, setBulkUploadFile] = useState(null);
   const [bulkUploadDate, setBulkUploadDate] = useState(new Date().toISOString().split('T')[0]);
+  const [bulkUploadResult, setBulkUploadResult] = useState(null);
   const [scanInput, setScanInput] = useState('');
   const [lastScannedStudent, setLastScannedStudent] = useState(null);
   const [recentScans, setRecentScans] = useState([]);
@@ -608,13 +609,17 @@ export default function BranchAdminAttendancePage() {
         });
 
         if (response.success) {
-          toast.success(`Successfully marked attendance for ${foundStudentIds.length} students.`);
-          if (notFound.length > 0) {
-            toast.warning(`${notFound.length} entries in file were not recognized.`);
-          }
           setIsBulkUploadModalOpen(false);
           setBulkUploadFile(null);
           fetchTodayAttendance();
+          
+          setBulkUploadResult({
+            successCount: foundStudentIds.length,
+            skipped: notFound.map(id => ({
+              id,
+              reason: 'ID not found in current class/branch'
+            }))
+          });
         } else {
           throw new Error(response.error || "Failed to process bulk upload");
         }
@@ -1727,8 +1732,8 @@ export default function BranchAdminAttendancePage() {
             <p className="font-bold mb-1">Instructions:</p>
             <ul className="list-disc ml-4 space-y-1">
               <li>Upload a <b>.txt</b> or <b>.csv</b> file.</li>
-              <li>The file should contain <b>Registration Numbers</b> (one per line or separated by commas).</li>
-              <li>Example: REG-2024-0001, REG-2024-0002</li>
+              <li>The file should contain <b>GR Numbers, Roll Numbers, Registration Numbers, or System IDs</b> (one per line or separated by commas).</li>
+              <li>Example: 1001, REG-2024-0001, 5f8d0d55...</li>
             </ul>
           </div>
 
@@ -2938,6 +2943,54 @@ export default function BranchAdminAttendancePage() {
           isLoading={isDeleting}
         />
       )}
+      {/* Bulk Upload Result Modal */}
+      {bulkUploadResult && (
+        <Modal
+          open={!!bulkUploadResult}
+          onClose={() => setBulkUploadResult(null)}
+          title="Bulk Upload Summary"
+          size="md"
+        >
+          <div className="space-y-4 p-4">
+            <div className="flex items-center justify-between p-3 bg-emerald-50 rounded-lg border border-emerald-100">
+              <span className="font-semibold text-emerald-800">Successfully Marked:</span>
+              <span className="text-xl font-bold text-emerald-600">{bulkUploadResult.successCount}</span>
+            </div>
+            
+            {bulkUploadResult.skipped.length > 0 && (
+              <div className="mt-4">
+                <div className="flex items-center justify-between p-3 bg-amber-50 rounded-t-lg border-x border-t border-amber-100">
+                  <span className="font-semibold text-amber-800">Skipped Records:</span>
+                  <span className="text-lg font-bold text-amber-600">{bulkUploadResult.skipped.length}</span>
+                </div>
+                <div className="border border-amber-100 rounded-b-lg max-h-[300px] overflow-y-auto">
+                  <table className="w-full text-sm">
+                    <thead className="bg-amber-100/50 sticky top-0">
+                      <tr>
+                        <th className="px-3 py-2 text-left text-amber-900 font-semibold">ID Provided</th>
+                        <th className="px-3 py-2 text-left text-amber-900 font-semibold">Reason for Skip</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-amber-100">
+                      {bulkUploadResult.skipped.map((skip, idx) => (
+                        <tr key={idx} className="bg-white">
+                          <td className="px-3 py-2 font-mono text-xs text-slate-600">{skip.id}</td>
+                          <td className="px-3 py-2 text-amber-700">{skip.reason}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+            
+            <div className="pt-4 flex justify-end">
+              <Button onClick={() => setBulkUploadResult(null)}>Close</Button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
     </div>
   );
 }

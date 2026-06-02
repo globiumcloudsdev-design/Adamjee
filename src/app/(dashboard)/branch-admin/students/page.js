@@ -11,6 +11,7 @@ import FullPageLoader from '@/components/ui/full-page-loader';
 import ButtonLoader from '@/components/ui/button-loader';
 import { Plus, Edit, Trash2, Search, Eye, Mail, Phone, User, Download } from 'lucide-react';
 import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import QRCode from 'qrcode';
 import { pdf } from '@react-pdf/renderer';
@@ -54,6 +55,8 @@ export default function BranchAdminStudentsPage() {
   const [grSearch, setGrSearch] = useState('');
   const [debouncedGrSearch, setDebouncedGrSearch] = useState('');
   const [classFilter, setClassFilter] = useState('');
+  const [groupFilter, setGroupFilter] = useState('');
+  const [sectionFilter, setSectionFilter] = useState('');
   const [academicYearFilter, setAcademicYearFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, pages: 0 });
@@ -76,6 +79,8 @@ export default function BranchAdminStudentsPage() {
       setLoading(true);
       const params = {
         class_id: classFilter,
+        group_id: groupFilter,
+        section_id: sectionFilter,
         academic_year_id: academicYearFilter
       };
 
@@ -143,10 +148,13 @@ export default function BranchAdminStudentsPage() {
 
   // Initial load
   useEffect(() => {
-    fetchClasses();
-    fetchSections();
-    fetchGroups();
-    fetchAcademicYears();
+    const timeoutId = setTimeout(() => {
+      fetchClasses();
+      fetchSections();
+      fetchGroups();
+      fetchAcademicYears();
+    }, 0);
+    return () => clearTimeout(timeoutId);
   }, []);
 
   // Debounce search
@@ -167,8 +175,12 @@ export default function BranchAdminStudentsPage() {
 
   // Fetch students when filters change
   useEffect(() => {
-    fetchStudents();
-  }, [debouncedSearch, debouncedGrSearch, classFilter, academicYearFilter, statusFilter]);
+    const timeoutId = setTimeout(() => {
+      fetchStudents();
+    }, 0);
+    return () => clearTimeout(timeoutId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearch, debouncedGrSearch, classFilter, groupFilter, sectionFilter, academicYearFilter, statusFilter]);
 
   // --- Helper: Get display values from PostgreSQL student ---
   const getStudentName = (student) => {
@@ -182,8 +194,8 @@ export default function BranchAdminStudentsPage() {
     return classObj?.name || 'Not Assigned';
   };
 
-  const getStudentRegistrationNo = (student) => {
-    return student.registration_no || 'N/A';
+  const getStudentGrNo = (student) => {
+    return student.details?.academic_info?.roll_no || student.registration_no || 'N/A';
   };
 
   const getStudentSectionName = (student) => {
@@ -198,7 +210,7 @@ export default function BranchAdminStudentsPage() {
   const getStudentGroupName = (student) => {
     const groupId = student.details?.academic_info?.group_id;
     if (!groupId) return '-';
-    const groupObj = groups.find(g => g.id === groupId || g._id === groupId);
+    const groupObj = branchGroups.find(g => g.id === groupId || g._id === groupId);
     return groupObj?.name || '-';
   };
 
@@ -227,12 +239,14 @@ export default function BranchAdminStudentsPage() {
     return matchesStatus; // Server already filtered search if debouncedSearch was provided
   });
 
+  const isFiltering = Boolean(search || grSearch || classFilter || groupFilter || sectionFilter);
+
   // Paginated students
-  const paginatedStudents = filteredStudents.slice(
+  const paginatedStudents = isFiltering ? filteredStudents : filteredStudents.slice(
     (pagination.page - 1) * pagination.limit,
     pagination.page * pagination.limit,
   );
-  const totalPages = Math.ceil(filteredStudents.length / pagination.limit);
+  const totalPages = isFiltering ? 1 : Math.ceil(filteredStudents.length / pagination.limit);
 
   // --- Handlers ---
 
@@ -389,8 +403,10 @@ export default function BranchAdminStudentsPage() {
       const exportData = filteredStudents.map(student => ({
         'Student Name': getStudentName(student),
         'Email': student.email || '',
-        'Registration Number': getStudentRegistrationNo(student),
+        'GR No': getStudentGrNo(student),
         'Class': getStudentClassName(student),
+        'Section': getStudentSectionName(student),
+        'Group': getStudentGroupName(student),
         'Parent Name': getParentInfo(student).name,
         'Parent Phone': getParentInfo(student).phone,
         'Status': student.is_active ? 'Active' : 'Inactive',
@@ -405,6 +421,80 @@ export default function BranchAdminStudentsPage() {
     } catch (error) {
       console.error('Error exporting to Excel:', error);
       toast.error('Failed to export students data.');
+    }
+  };
+
+  const exportToPDF = async () => {
+    try {
+      const doc = new jsPDF('landscape');
+      const pageWidth = doc.internal.pageSize.getWidth();
+
+      // ── HEADER BACKGROUND ──────────────────────────────────────────
+      doc.setFillColor(109, 40, 217); // violet-700
+      doc.rect(0, 0, pageWidth, 38, 'F');
+
+      // Logo
+      try {
+        const img = new Image();
+        img.src = '/logo.png';
+        await new Promise((res) => { img.onload = res; img.onerror = res; });
+        doc.addImage(img, 'PNG', 8, 4, 28, 28);
+      } catch (_) {}
+
+      // School title
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(16);
+      doc.text('Adamjee Coaching Center', 42, 14);
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Campus 12 \u2014 Students Report', 42, 21);
+
+      // Date generated
+      doc.setFontSize(7.5);
+      doc.setTextColor(220, 200, 255);
+      doc.text(`Generated: ${new Date().toLocaleString('en-PK')}`, 42, 27);
+
+      // Reset text color for table
+      doc.setTextColor(0, 0, 0);
+
+      const tableColumn = [
+        "Name", "GR No", "Class", "Section", "Group", 
+        "Parent Name", "Parent Phone", "Student Phone", 
+        "Email", "Status"
+      ];
+      const tableRows = [];
+
+      filteredStudents.forEach(student => {
+        const studentData = [
+          getStudentName(student),
+          getStudentGrNo(student),
+          getStudentClassName(student),
+          getStudentSectionName(student),
+          getStudentGroupName(student),
+          getParentInfo(student).name,
+          getParentInfo(student).phone,
+          student.phone || '-',
+          student.email || '-',
+          student.is_active ? 'Active' : 'Inactive',
+        ];
+        tableRows.push(studentData);
+      });
+
+      autoTable(doc, {
+        head: [tableColumn],
+        body: tableRows,
+        startY: 42,
+        styles: { fontSize: 7, cellPadding: 2 },
+        headStyles: { fillColor: [109, 40, 217] }, // match header background
+      });
+
+      const fileName = `students_export_${new Date().toISOString().split('T')[0]}.pdf`;
+      doc.save(fileName);
+      toast.success('PDF Exported Successfully!');
+    } catch (error) {
+      console.error('Error exporting to PDF:', error);
+      toast.error('Failed to export to PDF');
     }
   };
 
@@ -711,9 +801,13 @@ export default function BranchAdminStudentsPage() {
               <p className="text-sm text-gray-600 mt-1">Manage students in your branch</p>
             </div>
             <div className="flex items-center gap-3">
+              <Button variant="outline" onClick={exportToPDF}>
+                <Download className="w-4 h-4 mr-2" />
+                Export PDF
+              </Button>
               <Button variant="outline" onClick={exportToExcel}>
                 <Download className="w-4 h-4 mr-2" />
-                Export
+                Export Excel
               </Button>
               <Button onClick={handleAddNew}>
                 <Plus className="w-4 h-4 mr-2" />
@@ -725,7 +819,7 @@ export default function BranchAdminStudentsPage() {
 
         <CardContent>
           {/* Filters */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 gap-4 mb-6">
             <Input
               placeholder="Search by Name/Email..."
               value={search}
@@ -754,12 +848,41 @@ export default function BranchAdminStudentsPage() {
               ]}
             />
             <Dropdown
-              placeholder="Filter by class"
+              placeholder="Filter by Group"
+              value={groupFilter}
+              onChange={(e) => {
+                setGroupFilter(e.target.value);
+                setClassFilter(''); // Reset class when group changes
+                setSectionFilter(''); // Reset section when group changes
+              }}
+              options={[
+                { value: '', label: 'All Groups' },
+                ...branchGroups.map(g => ({ value: g.id, label: g.name })),
+              ]}
+            />
+            <Dropdown
+              placeholder="Filter by Class"
               value={classFilter}
-              onChange={(e) => setClassFilter(e.target.value)}
+              onChange={(e) => {
+                setClassFilter(e.target.value);
+                setSectionFilter(''); // Reset section when class changes
+              }}
               options={[
                 { value: '', label: 'All Classes' },
-                ...classes.map(c => ({ value: c.id, label: c.name })),
+                ...classes
+                  .filter(c => !groupFilter || c.group_id === groupFilter || c.groupId === groupFilter)
+                  .map(c => ({ value: c.id, label: c.name })),
+              ]}
+            />
+            <Dropdown
+              placeholder="Filter by Section"
+              value={sectionFilter}
+              onChange={(e) => setSectionFilter(e.target.value)}
+              options={[
+                { value: '', label: 'All Sections' },
+                ...sections
+                  .filter(s => !classFilter || s.class_id === classFilter || s.classId === classFilter)
+                  .map(s => ({ value: s.id, label: s.name })),
               ]}
             />
             <Dropdown
@@ -789,11 +912,14 @@ export default function BranchAdminStudentsPage() {
           />
 
           {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="flex items-center justify-between mt-6">
-              <div className="text-sm text-gray-600">
-                Showing {((pagination.page - 1) * pagination.limit) + 1} to {Math.min(pagination.page * pagination.limit, filteredStudents.length)} of {filteredStudents.length} students
-              </div>
+          <div className="flex items-center justify-between mt-6">
+            <div className="text-sm text-gray-600">
+              {isFiltering 
+                ? `Showing all ${filteredStudents.length} students (Filtered)`
+                : `Showing ${((pagination.page - 1) * pagination.limit) + 1} to ${Math.min(pagination.page * pagination.limit, filteredStudents.length)} of ${filteredStudents.length} students`
+              }
+            </div>
+            {totalPages > 1 && (
               <div className="flex gap-2">
                 <Button
                   variant="outline"
@@ -838,8 +964,8 @@ export default function BranchAdminStudentsPage() {
                   Next
                 </Button>
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </CardContent>
       </Card>
 
