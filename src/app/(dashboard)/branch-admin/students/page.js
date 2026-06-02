@@ -57,6 +57,7 @@ export default function BranchAdminStudentsPage() {
   const [classFilter, setClassFilter] = useState('');
   const [groupFilter, setGroupFilter] = useState('');
   const [sectionFilter, setSectionFilter] = useState('');
+  const [subjectFilter, setSubjectFilter] = useState('');
   const [academicYearFilter, setAcademicYearFilter] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [pagination, setPagination] = useState({ page: 1, limit: 10, total: 0, pages: 0 });
@@ -115,6 +116,18 @@ export default function BranchAdminStudentsPage() {
       console.error('Error fetching classes:', error);
     }
   };
+
+  const [subjectsList, setSubjectsList] = useState([]);
+  useEffect(() => {
+    if (classFilter) {
+      apiClient.get(`/api/subjects?class_id=${classFilter}`)
+        .then(res => setSubjectsList(Array.isArray(res) ? res : []))
+        .catch(console.error);
+    } else {
+      setSubjectsList([]);
+      setSubjectFilter('');
+    }
+  }, [classFilter]);
 
   const fetchGroups = async () => {
     try {
@@ -180,7 +193,7 @@ export default function BranchAdminStudentsPage() {
     }, 0);
     return () => clearTimeout(timeoutId);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [debouncedSearch, debouncedGrSearch, classFilter, groupFilter, sectionFilter, academicYearFilter, statusFilter]);
+  }, [debouncedSearch, debouncedGrSearch, classFilter, groupFilter, sectionFilter, subjectFilter, academicYearFilter, statusFilter]);
 
   // --- Helper: Get display values from PostgreSQL student ---
   const getStudentName = (student) => {
@@ -235,11 +248,20 @@ export default function BranchAdminStudentsPage() {
 
     const matchesSearch = !debouncedSearch || name.includes(debouncedSearch.toLowerCase()) || email.includes(debouncedSearch.toLowerCase()) || regNo.includes(debouncedSearch.toLowerCase());
     const matchesStatus = !statusFilter || student.is_active === (statusFilter === 'active');
+    
+    const matchesSubject = !subjectFilter || (
+      student.details?.academic_info?.subjects &&
+      student.details.academic_info.subjects.some(s => {
+        const idMatch = (s.id === subjectFilter || s._id === subjectFilter);
+        const sectionMatch = !sectionFilter || s.section_id === sectionFilter;
+        return idMatch && sectionMatch;
+      })
+    );
 
-    return matchesStatus; // Server already filtered search if debouncedSearch was provided
+    return matchesStatus && matchesSubject; // Server already filtered search if debouncedSearch was provided
   });
 
-  const isFiltering = Boolean(search || grSearch || classFilter || groupFilter || sectionFilter);
+  const isFiltering = Boolean(search || grSearch || classFilter || groupFilter || sectionFilter || subjectFilter);
 
   // Paginated students
   const paginatedStudents = isFiltering ? filteredStudents : filteredStudents.slice(
@@ -458,10 +480,23 @@ export default function BranchAdminStudentsPage() {
       // Reset text color for table
       doc.setTextColor(0, 0, 0);
 
+      const getStudentSubjectsText = (student) => {
+        const subjectsArr = student.details?.academic_info?.subjects || [];
+        return subjectsArr.map(s => {
+          const sName = s?.name || s;
+          const secId = s?.section_id;
+          let secNameStr = '';
+          if (secId) {
+            const secObj = sections.find(sec => sec.id === secId || sec._id === secId);
+            if (secObj) secNameStr = ` (${secObj.name})`;
+          }
+          return sName ? `${sName}${secNameStr}` : '';
+        }).filter(Boolean).join(', ') || '-';
+      };
+
       const tableColumn = [
         "Name", "GR No", "Class", "Section", "Group", 
-        "Parent Name", "Parent Phone", "Student Phone", 
-        "Email", "Status"
+        "Subjects", "Parent Name", "Parent Phone", "Student Phone"
       ];
       const tableRows = [];
 
@@ -472,11 +507,10 @@ export default function BranchAdminStudentsPage() {
           getStudentClassName(student),
           getStudentSectionName(student),
           getStudentGroupName(student),
+          getStudentSubjectsText(student),
           getParentInfo(student).name,
           getParentInfo(student).phone,
           student.phone || '-',
-          student.email || '-',
-          student.is_active ? 'Active' : 'Inactive',
         ];
         tableRows.push(studentData);
       });
@@ -570,7 +604,16 @@ export default function BranchAdminStudentsPage() {
 
     const subjectsArr = student.details?.academic_info?.subjects || [];
     const subjectsText = subjectsArr.length > 0
-      ? subjectsArr.map(s => s?.name || s).filter(Boolean).join(', ')
+      ? subjectsArr.map(s => {
+          const sName = s?.name || s;
+          const secId = s?.section_id;
+          let secNameStr = '';
+          if (secId) {
+            const secObj = sections.find(sec => sec.id === secId || sec._id === secId);
+            if (secObj) secNameStr = ` (${secObj.name})`;
+          }
+          return sName ? `${sName}${secNameStr}` : '';
+        }).filter(Boolean).join(', ')
       : 'N/A';
 
     const idCardFormat = student.branch?.settings?.idCardFormat || 'barcode';
@@ -884,6 +927,16 @@ export default function BranchAdminStudentsPage() {
                   .filter(s => !classFilter || s.class_id === classFilter || s.classId === classFilter)
                   .map(s => ({ value: s.id, label: s.name })),
               ]}
+            />
+            <Dropdown
+              placeholder="Filter by Subject"
+              value={subjectFilter}
+              onChange={(e) => setSubjectFilter(e.target.value)}
+              options={[
+                { value: '', label: 'All Subjects' },
+                ...subjectsList.map(s => ({ value: s.id || s._id, label: s.name })),
+              ]}
+              disabled={!classFilter}
             />
             <Dropdown
               placeholder="Filter by status"

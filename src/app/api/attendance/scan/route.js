@@ -51,6 +51,10 @@ export async function POST(req) {
       [Op.or]: []
     };
 
+    if (user.role === 'BRANCH_ADMIN' && user.branch_id) {
+      whereClause.branch_id = user.branch_id;
+    }
+
     if (registrationNo) {
       whereClause[Op.or].push({ registration_no: registrationNo });
       
