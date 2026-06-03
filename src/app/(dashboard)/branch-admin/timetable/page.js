@@ -483,7 +483,8 @@ export default function BranchTimetablePage() {
           period.startTime,
           period.endTime,
           editingTimetable?.id,
-          index
+          index,
+          period.subjectId
         );
         if (conflict) {
           toast.error(`Teacher Conflict: This teacher is busy in ${conflict.className} - ${conflict.sectionName}`);
@@ -498,7 +499,8 @@ export default function BranchTimetablePage() {
           period.startTime,
           period.endTime,
           editingTimetable?.id,
-          index
+          index,
+          period.subjectId
         );
         if (conflict) {
           toast.error(`Teacher Conflict: This teacher is busy in ${conflict.className} - ${conflict.sectionName}`);
@@ -544,7 +546,15 @@ export default function BranchTimetablePage() {
     endTime,
     currentTimetableId = null,
     currentPeriodIndex = -1,
+    subjectId = null
   ) => {
+    if (subjectId) {
+      const subject = allSubjects.find(s => String(s.id) === String(subjectId));
+      if (subject?.is_applicable_for_all_groups) {
+        return null;
+      }
+    }
+
     if (!teacherId || !day || !startTime || !endTime) return null;
     
     const normalizedTeacherId = typeof teacherId === "object" ? teacherId.id || teacherId._id || teacherId : teacherId;
@@ -625,6 +635,7 @@ export default function BranchTimetablePage() {
     endTime,
     currentPeriodIndex = -1,
     currentTeacherId = null,
+    subjectId = null
   ) => {
     if (!day || !startTime || !endTime) {
       return teachers.map((t) => ({
@@ -644,6 +655,7 @@ export default function BranchTimetablePage() {
         endTime,
         currentTimetableId,
         currentPeriodIndex,
+        subjectId
       );
 
       const isCurrent = currentTeacherId && (
@@ -847,6 +859,7 @@ export default function BranchTimetablePage() {
         p.endTime,
         editingTimetable?.id,
         i,
+        p.subjectId
       );
 
       if (conflict) {
@@ -1090,7 +1103,7 @@ export default function BranchTimetablePage() {
                 onChange={(e) => setSelectedSubject(e.target.value)}
                 options={[
                   { value: "", label: "All Subjects" },
-                  ...classSubjects.map((s) => ({ value: s.id, label: s.name })),
+                  ...classSubjects.map((s) => ({ value: s.id, label: s.is_applicable_for_all_groups ? `${s.name} (All Group)` : s.name })),
                 ]}
                 disabled={!selectedClass}
                 className="bg-white dark:bg-slate-950 font-medium"
@@ -1516,7 +1529,7 @@ export default function BranchTimetablePage() {
                             { value: "", label: "None" },
                             ...classSubjects.map((s) => ({
                               value: s.id,
-                              label: s.name,
+                              label: s.is_applicable_for_all_groups ? `${s.name} (All Group)` : s.name,
                             })),
                           ]}
                           placeholder="Select subject"
@@ -1538,6 +1551,7 @@ export default function BranchTimetablePage() {
                               period.endTime,
                               index,
                               period.teacherId,
+                              period.subjectId
                             ).map((t) => ({
                               value: t.value,
                               label: t.label,

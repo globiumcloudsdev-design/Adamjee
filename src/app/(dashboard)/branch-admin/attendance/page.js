@@ -18,7 +18,7 @@ import LiveJsQRScanner from '@/components/LiveJsQRScanner';
 import apiClient from '@/lib/api-client';
 import API_ENDPOINTS from '@/constants/api-endpoints';
 import { toast } from 'sonner';
-import { Camera, Search, Save, CheckCircle, XCircle, Clock, UserSearch, Eye, DollarSign, Calendar, X, Scan, Upload, FileText, QrCode, Download, Users } from 'lucide-react';
+import { Camera, Search, Save, CheckCircle, XCircle, Clock, UserSearch, Eye, DollarSign, Calendar, X, Scan, Upload, FileText, QrCode, Download, Users, RefreshCw } from 'lucide-react';
 import ButtonLoader from '@/components/ui/button-loader';
 import { Checkbox } from '@/components/ui/checkbox';
 import { TableSkeleton } from '@/components/ui/skeleton';
@@ -1144,7 +1144,7 @@ export default function BranchAdminAttendancePage() {
       const { default: jsPDF } = await import('jspdf');
       const { default: autoTable } = await import('jspdf-autotable');
 
-      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
       const pageWidth = doc.internal.pageSize.getWidth();
 
       // ── HEADER BACKGROUND ──────────────────────────────────────────
@@ -1226,8 +1226,8 @@ export default function BranchAdminAttendancePage() {
         head: [['#', 'Date', 'Student Name', 'GR No', 'Class / Section', 'Status', 'Time In']],
         body: tableData,
         styles: {
-          fontSize: 8.5,
-          cellPadding: 3.5,
+          fontSize: 7,
+          cellPadding: 1.5,
           font: 'helvetica',
           textColor: [30, 30, 50],
           lineColor: [220, 215, 255],
@@ -1237,21 +1237,18 @@ export default function BranchAdminAttendancePage() {
           fillColor: [109, 40, 217],
           textColor: [255, 255, 255],
           fontStyle: 'bold',
-          fontSize: 9,
+          fontSize: 8,
           halign: 'center',
         },
         alternateRowStyles: { fillColor: [248, 245, 255] },
         columnStyles: {
-          0: { halign: 'center', cellWidth: 10 },
-          1: { cellWidth: 25 },
-          2: { cellWidth: 40 },
-          3: { halign: 'center', cellWidth: 20 },
-          4: { cellWidth: 35 },
-          5: {
-            halign: 'center', cellWidth: 20,
-            didDrawCell: undefined,
-          },
-          6: { halign: 'center', cellWidth: 24 },
+          0: { halign: 'center' },
+          1: {},
+          2: {},
+          3: { halign: 'center' },
+          4: {},
+          5: { halign: 'center' },
+          6: { halign: 'center' },
         },
         didDrawCell: (data) => {
           if (data.column.index === 5 && data.section === 'body') {
@@ -2217,34 +2214,31 @@ export default function BranchAdminAttendancePage() {
       {/* ============ HISTORY MODAL ============ */}
       {isHistoryModalOpen && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[200] p-4 animate-in fade-in duration-200">
-          <div className="bg-white dark:bg-slate-900 rounded-[2rem] shadow-2xl w-full max-w-5xl max-h-[90vh] flex flex-col border border-slate-100 dark:border-slate-800 overflow-hidden">
+          <div className="bg-white dark:bg-slate-900 rounded-[1.5rem] shadow-2xl w-full max-w-7xl max-h-[90vh] flex flex-col border border-slate-100 dark:border-slate-800 overflow-hidden">
             
             {/* Modal Header */}
-            <div className="flex items-center justify-between px-8 py-5 border-b border-slate-100 dark:border-slate-800 bg-gradient-to-r from-violet-600 to-indigo-600 shrink-0">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-white/20 rounded-xl">
-                  <Calendar className="h-6 w-6 text-white" />
+            <div className="flex items-center justify-between px-4 py-2 border-b border-slate-100 dark:border-slate-800 bg-gradient-to-r from-violet-600 to-indigo-600 shrink-0">
+              <div className="flex items-center gap-2">
+                <div className="p-1 bg-white/20 rounded-md">
+                  <Calendar className="h-4 w-4 text-white" />
                 </div>
-                <div>
-                  <h2 className="text-xl font-black text-white tracking-tight">Attendance History</h2>
-                  <p className="text-violet-200 text-xs mt-0.5">View past attendance records by date</p>
-                </div>
+                <h2 className="text-base font-black text-white tracking-tight">Attendance History</h2>
               </div>
               <button
                 onClick={() => setIsHistoryModalOpen(false)}
-                className="p-2 hover:bg-white/20 rounded-full transition-colors"
+                className="p-1 hover:bg-white/20 rounded-full transition-colors"
               >
-                <X className="h-6 w-6 text-white" />
+                <X className="h-4 w-4 text-white" />
               </button>
             </div>
 
             {/* Filters Row */}
-            <div className="px-8 py-5 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 shrink-0 space-y-4">
+            <div className="px-4 py-2 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 shrink-0 space-y-1">
               {/* Row 1: Search & Date Filters */}
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-2 items-end">
                 {/* Search Input */}
-                <div className="space-y-1.5 md:col-span-4">
-                  <Label className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Search Student</Label>
+                <div className="space-y-0.5 md:col-span-4">
+                  <Label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Search</Label>
                   <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
                     <input
@@ -2258,29 +2252,37 @@ export default function BranchAdminAttendancePage() {
                 </div>
 
                 {/* From Date */}
-                <div className="space-y-1.5 md:col-span-4">
-                  <Label className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">From Date</Label>
+                <div className="space-y-0.5 md:col-span-4">
+                  <Label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">From</Label>
                   <DatePicker
                     value={historyModalFilters.fromDate}
-                    onChange={(e) => setHistoryModalFilters(prev => ({ ...prev, fromDate: e.target.value }))}
+                    onChange={(e) => {
+                      const newFilters = { ...historyModalFilters, fromDate: e.target.value };
+                      setHistoryModalFilters(newFilters);
+                      fetchHistoryModal(newFilters);
+                    }}
                   />
                 </div>
 
                 {/* To Date */}
-                <div className="space-y-1.5 md:col-span-4">
-                  <Label className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">To Date</Label>
+                <div className="space-y-0.5 md:col-span-4">
+                  <Label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">To</Label>
                   <DatePicker
                     value={historyModalFilters.toDate}
-                    onChange={(e) => setHistoryModalFilters(prev => ({ ...prev, toDate: e.target.value }))}
+                    onChange={(e) => {
+                      const newFilters = { ...historyModalFilters, toDate: e.target.value };
+                      setHistoryModalFilters(newFilters);
+                      fetchHistoryModal(newFilters);
+                    }}
                   />
                 </div>
               </div>
 
               {/* Row 2: Class, Section, Status, Actions */}
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-end">
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-2 items-end">
                 {/* Class */}
-                <div className="space-y-1.5 md:col-span-3">
-                  <Label className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Class</Label>
+                <div className="space-y-0.5 md:col-span-3">
+                  <Label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Class</Label>
                   <Dropdown
                     name="historyClass"
                     value={historyModalFilters.classId}
@@ -2299,8 +2301,8 @@ export default function BranchAdminAttendancePage() {
                 </div>
 
                 {/* Section */}
-                <div className="space-y-1.5 md:col-span-3">
-                  <Label className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Section</Label>
+                <div className="space-y-0.5 md:col-span-3">
+                  <Label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Section</Label>
                   <Dropdown
                     name="historySection"
                     value={historyModalFilters.sectionId}
@@ -2324,9 +2326,9 @@ export default function BranchAdminAttendancePage() {
                 </div>
 
                 {/* Status Pills */}
-                <div className="space-y-1.5 md:col-span-4">
-                  <Label className="text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Status</Label>
-                  <div className="flex items-center gap-1.5 bg-slate-100 dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700 w-fit">
+                <div className="space-y-0.5 md:col-span-4">
+                  <Label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Status</Label>
+                  <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-800 p-0.5 rounded-lg border border-slate-200 dark:border-slate-700 w-fit">
                     {[
                       { value: '', label: 'All', icon: <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="8" y1="6" x2="21" y2="6"/><line x1="8" y1="12" x2="21" y2="12"/><line x1="8" y1="18" x2="21" y2="18"/><line x1="3" y1="6" x2="3.01" y2="6"/><line x1="3" y1="12" x2="3.01" y2="12"/><line x1="3" y1="18" x2="3.01" y2="18"/></svg>, activeClass: 'bg-white dark:bg-slate-700 text-slate-700 dark:text-slate-100 shadow-sm border border-slate-200 dark:border-slate-600' },
                       { value: 'PRESENT', label: 'Present', icon: <CheckCircle className="h-4 w-4" />, activeClass: 'bg-emerald-500 text-white shadow-sm shadow-emerald-200' },
@@ -2340,7 +2342,7 @@ export default function BranchAdminAttendancePage() {
                           setHistoryModalFilters(newFilters);
                           fetchHistoryModal(newFilters);
                         }}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                        className={`flex items-center gap-1 px-2 py-1 rounded-md text-[10px] font-bold transition-all ${
                           historyModalFilters.status === opt.value
                             ? opt.activeClass
                             : 'text-slate-400 dark:text-slate-500 hover:text-slate-600 dark:hover:text-slate-350'
@@ -2364,16 +2366,16 @@ export default function BranchAdminAttendancePage() {
                       fetchHistoryModal(todayFilters);
                     }}
                     variant="outline"
-                    className="border-2 border-slate-200 dark:border-slate-700 font-bold rounded-xl gap-2 p-2 hover:bg-slate-50 dark:hover:bg-slate-800 h-10 w-10 justify-center shrink-0"
+                    className="border-2 border-slate-200 dark:border-slate-700 font-bold rounded-lg gap-1.5 p-1 hover:bg-slate-50 dark:hover:bg-slate-800 h-8 w-8 justify-center shrink-0"
                     title="Reset Filters"
                   >
-                    <Clock className="h-4 w-4 text-slate-500 dark:text-slate-400" />
+                    <RefreshCw className="h-4 w-4 text-slate-500 dark:text-slate-400" />
                   </Button>
                   
                   <Button
                     onClick={() => fetchHistoryModal()}
                     disabled={historyModalLoading}
-                    className="bg-violet-600 hover:bg-violet-700 text-white font-bold rounded-xl gap-2 flex-1 h-10 justify-center shadow-lg shadow-violet-200 dark:shadow-none"
+                    className="bg-violet-600 hover:bg-violet-700 text-white font-bold rounded-lg gap-1.5 flex-1 h-8 text-[11px] justify-center shadow-lg shadow-violet-200 dark:shadow-none"
                   >
                     {historyModalLoading ? <ButtonLoader color="white" /> : <Search className="h-4 w-4" />}
                     Search
@@ -2415,14 +2417,14 @@ export default function BranchAdminAttendancePage() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-700">
-                        <th className="text-left px-6 py-3 text-xs font-black text-slate-500 uppercase tracking-wider">#</th>
-                        <th className="text-left px-6 py-3 text-xs font-black text-slate-500 uppercase tracking-wider">Date</th>
-                        <th className="text-left px-6 py-3 text-xs font-black text-slate-500 uppercase tracking-wider">Student Name</th>
-                        <th className="text-left px-6 py-3 text-xs font-black text-slate-500 uppercase tracking-wider">GR No</th>
-                        <th className="text-left px-6 py-3 text-xs font-black text-slate-500 uppercase tracking-wider">Class / Section</th>
-                        <th className="text-left px-6 py-3 text-xs font-black text-slate-500 uppercase tracking-wider">Status</th>
-                        <th className="text-left px-6 py-3 text-xs font-black text-slate-500 uppercase tracking-wider">Time In</th>
-                        <th className="text-right px-6 py-3 text-xs font-black text-slate-500 uppercase tracking-wider">Actions</th>
+                        <th className="text-left px-3 py-1.5 text-[10px] font-black text-slate-500 uppercase tracking-wider">#</th>
+                        <th className="text-left px-3 py-1.5 text-[10px] font-black text-slate-500 uppercase tracking-wider">Date</th>
+                        <th className="text-left px-3 py-1.5 text-[10px] font-black text-slate-500 uppercase tracking-wider">Student Name</th>
+                        <th className="text-left px-3 py-1.5 text-[10px] font-black text-slate-500 uppercase tracking-wider">GR No</th>
+                        <th className="text-left px-3 py-1.5 text-[10px] font-black text-slate-500 uppercase tracking-wider">Class / Section</th>
+                        <th className="text-left px-3 py-1.5 text-[10px] font-black text-slate-500 uppercase tracking-wider">Status</th>
+                        <th className="text-left px-3 py-1.5 text-[10px] font-black text-slate-500 uppercase tracking-wider">Time In</th>
+                        <th className="text-right px-3 py-1.5 text-[10px] font-black text-slate-500 uppercase tracking-wider">Actions</th>
                       </tr>
                     </thead>
                     <tbody>
@@ -2465,51 +2467,51 @@ export default function BranchAdminAttendancePage() {
                             key={record.id || idx}
                             className="border-b border-slate-50 dark:border-slate-800 hover:bg-violet-50/30 dark:hover:bg-violet-900/10 transition-colors"
                           >
-                            <td className="px-6 py-3 text-slate-400 font-mono text-xs">{idx + 1}</td>
-                            <td className="px-6 py-3">
-                              <div className="flex items-center gap-1.5">
-                                <Calendar className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                                <span className="font-medium text-slate-700 dark:text-slate-200">{dateStr}</span>
+                            <td className="px-3 py-1.5 text-slate-400 font-mono text-[11px]">{idx + 1}</td>
+                            <td className="px-3 py-1.5">
+                              <div className="flex items-center gap-1">
+                                <Calendar className="h-3 w-3 text-slate-400 shrink-0" />
+                                <span className="font-medium text-slate-700 dark:text-slate-200 text-[11px]">{dateStr}</span>
                               </div>
                             </td>
-                            <td className="px-6 py-3">
-                              <div className="flex items-center gap-2">
-                                <div className="h-8 w-8 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center text-violet-600 dark:text-violet-400 text-xs font-bold shrink-0">
+                            <td className="px-3 py-1.5">
+                              <div className="flex items-center gap-1.5">
+                                <div className="h-6 w-6 rounded-full bg-violet-100 dark:bg-violet-900/30 flex items-center justify-center text-violet-600 dark:text-violet-400 text-[10px] font-bold shrink-0">
                                   {studentName.charAt(0) || 'S'}
                                 </div>
-                                <span className="font-semibold text-slate-800 dark:text-slate-100">{studentName}</span>
+                                <span className="font-semibold text-slate-800 dark:text-slate-100 text-[11px]">{studentName}</span>
                               </div>
                             </td>
-                            <td className="px-6 py-3">
-                              <span className="font-mono text-xs bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded text-slate-600 dark:text-slate-400">{grNo}</span>
+                            <td className="px-3 py-1.5">
+                              <span className="font-mono text-[10px] bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded text-slate-600 dark:text-slate-400">{grNo}</span>
                             </td>
-                            <td className="px-6 py-3" title={`${getClassName(student?.details?.academic_info?.class_id)} - ${getSectionName(student?.details?.academic_info?.section_id || student?.section)}`}>
-                              <span className="text-slate-600 dark:text-slate-400 font-medium">
+                            <td className="px-3 py-1.5" title={`${getClassName(student?.details?.academic_info?.class_id)} - ${getSectionName(student?.details?.academic_info?.section_id || student?.section)}`}>
+                              <span className="text-slate-600 dark:text-slate-400 font-medium text-[11px]">
                                 {getClassName(student?.details?.academic_info?.class_id)} - {getSectionName(student?.details?.academic_info?.section_id || student?.section)}
                               </span>
                             </td>
-                            <td className="px-6 py-3">
-                              <span className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${statusColors[record.status] || 'bg-gray-100 text-gray-600'}`}>
+                            <td className="px-3 py-1.5">
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-bold ${statusColors[record.status] || 'bg-gray-100 text-gray-600'}`}>
                                 {statusLabel}
                               </span>
                             </td>
-                            <td className="px-6 py-3">
-                              <div className="flex items-center gap-1.5">
-                                <Clock className="h-3.5 w-3.5 text-slate-400 shrink-0" />
-                                <span className="text-slate-600 dark:text-slate-400 font-medium">{timeIn}</span>
+                            <td className="px-3 py-1.5">
+                              <div className="flex items-center gap-1">
+                                <Clock className="h-3 w-3 text-slate-400 shrink-0" />
+                                <span className="text-slate-600 dark:text-slate-400 font-medium text-[11px]">{timeIn}</span>
                               </div>
                             </td>
-                            <td className="px-6 py-3 text-right">
+                            <td className="px-3 py-1.5 text-right">
                               <button
                                 onClick={() => setDeleteRecord({
                                   id: record._id || record.id,
                                   studentName,
                                   date: dateStr
                                 })}
-                                className="p-1.5 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-lg transition-colors"
+                                className="p-1 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-md transition-colors"
                                 title="Delete Record"
                               >
-                                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
+                                <svg xmlns="http://www.w3.org/2000/svg" className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" y1="11" x2="10" y2="17"/><line x1="14" y1="11" x2="14" y2="17"/></svg>
                               </button>
                             </td>
                           </tr>

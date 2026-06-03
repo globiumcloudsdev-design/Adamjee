@@ -19,6 +19,7 @@ const Subject = sequelize.define(
       comment: "Array of objects: { title, url, public_id, type }",
     },
     is_active: { type: DataTypes.BOOLEAN, defaultValue: true },
+    is_applicable_for_all_groups: { type: DataTypes.BOOLEAN, defaultValue: false },
     created_by: { type: DataTypes.UUID, allowNull: false },
   },
   {

@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { Subject, Class } from "@/backend/models/postgres";
 import { getCurrentUser } from "@/lib/auth";
 import { uploadToCloudinary } from "@/backend/utils/cloudinary";
+import { Op } from "sequelize";
 
 // 1. GET ALL SUBJECTS (Filtered by Branch)
 export async function GET(req) {
@@ -18,7 +19,15 @@ export async function GET(req) {
       user.role === "SUPER_ADMIN" ? {} : { branch_id: user.branch_id };
 
     // Agar specific class ke subjects chahiye (?class_id=...)
-    if (classId) whereClause.class_id = classId;
+    if (classId) {
+      whereClause = {
+        ...whereClause,
+        [Op.or]: [
+          { class_id: classId },
+          { is_applicable_for_all_groups: true }
+        ]
+      };
+    }
 
     const subjects = await Subject.findAll({
       where: whereClause,
@@ -44,6 +53,7 @@ export async function POST(req) {
     const subject_code = formData.get("subject_code");
     const class_id = formData.get("class_id");
     const branch_id = formData.get("branch_id");
+    const is_applicable_for_all_groups = formData.get("is_applicable_for_all_groups") === 'true';
     const files = formData.getAll("files");
 
     console.log("[Subjects POST] Incoming Data:", { name, subject_code, class_id, branch_id, filesCount: files.length });
@@ -93,6 +103,7 @@ export async function POST(req) {
       subject_code,
       class_id,
       branch_id: targetBranchId,
+      is_applicable_for_all_groups,
       materials: uploadedMaterials,
       created_by: user.id,
     });

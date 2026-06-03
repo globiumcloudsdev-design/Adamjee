@@ -48,6 +48,7 @@ export default function SubjectsContent() {
     subject_code: '',
     class_id: '',
     branch_id: '',
+    is_applicable_for_all_groups: false,
     files: []
   });
 
@@ -90,6 +91,7 @@ export default function SubjectsContent() {
       subject_code: '',
       class_id: '',
       branch_id: isSuperAdmin ? '' : (user?.branch_id || ''),
+      is_applicable_for_all_groups: false,
       files: []
     });
     setShowModal(true);
@@ -126,6 +128,7 @@ export default function SubjectsContent() {
       data.append('subject_code', formData.subject_code);
       data.append('class_id', formData.class_id);
       data.append('branch_id', formData.branch_id);
+      data.append('is_applicable_for_all_groups', formData.is_applicable_for_all_groups);
       
       formData.files.forEach(file => {
         data.append('files', file);
@@ -337,6 +340,7 @@ export default function SubjectsContent() {
                           subject_code: sub.subject_code || '',
                           class_id: sub.class_id,
                           branch_id: sub.branch_id,
+                          is_applicable_for_all_groups: sub.is_applicable_for_all_groups || false,
                           files: []
                         });
                         setShowModal(true);
@@ -437,6 +441,23 @@ export default function SubjectsContent() {
                         ))}
                     </select>
                  </div>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="flex items-center gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.is_applicable_for_all_groups}
+                    onChange={(e) => setFormData({ ...formData, is_applicable_for_all_groups: e.target.checked })}
+                    className="w-5 h-5 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                  />
+                  <span className="text-sm font-bold text-slate-700 dark:text-slate-300">Applicable for all groups</span>
+                </label>
+                {formData.is_applicable_for_all_groups && (
+                  <p className="text-xs text-amber-600 bg-amber-50 dark:bg-amber-900/20 p-2 rounded-lg border border-amber-100 dark:border-amber-900/30">
+                    Warning: Please keep seating capacity high as this subject is applicable for all groups.
+                  </p>
+                )}
               </div>
 
               {/* Material Asset Upload Area */}
