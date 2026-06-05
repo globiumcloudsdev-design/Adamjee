@@ -18,7 +18,7 @@ import LiveJsQRScanner from '@/components/LiveJsQRScanner';
 import apiClient from '@/lib/api-client';
 import API_ENDPOINTS from '@/constants/api-endpoints';
 import { toast } from 'sonner';
-import { Camera, Search, Save, CheckCircle, XCircle, Clock, UserSearch, Eye, DollarSign, Calendar, X, Scan, Upload, FileText, QrCode, Download, Users, RefreshCw } from 'lucide-react';
+import { Camera, Search, Save, CheckCircle, XCircle, Clock, UserSearch, Eye, DollarSign, Calendar, X, Scan, Upload, FileText, QrCode, Download, Users, RefreshCw, AlertTriangle } from 'lucide-react';
 import ButtonLoader from '@/components/ui/button-loader';
 import { Checkbox } from '@/components/ui/checkbox';
 import { TableSkeleton } from '@/components/ui/skeleton';
@@ -35,7 +35,6 @@ const STATUS_OPTIONS = [
 
 export default function BranchAdminAttendancePage() {
   const router = useRouter();
-  const [activeTab, setActiveTab] = useState('manual');
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -175,6 +174,43 @@ export default function BranchAdminAttendancePage() {
 
   // Manual Bulk Attendance States
   const [manualAttendanceModalOpen, setManualAttendanceModalOpen] = useState(false);
+
+  const getThisWeekRange = () => {
+    const today = new Date();
+    const day = today.getDay(); 
+    const diff = today.getDate() - day + (day === 0 ? -6 : 1);
+    const monday = new Date(today.setDate(diff));
+    const sunday = new Date(monday.valueOf());
+    sunday.setDate(monday.getDate() + 6);
+    return {
+      fromDate: monday.toISOString().split('T')[0],
+      toDate: sunday.toISOString().split('T')[0]
+    };
+  };
+
+  // Student Report Modal States
+  const [isStudentReportModalOpen, setIsStudentReportModalOpen] = useState(false);
+  const [studentReportFilters, setStudentReportFilters] = useState({
+    studentId: '',
+    fromDate: getThisWeekRange().fromDate,
+    toDate: getThisWeekRange().toDate,
+  });
+  const [studentReportSearchQuery, setStudentReportSearchQuery] = useState('');
+  const [studentReportSearchResults, setStudentReportSearchResults] = useState([]);
+  const [studentReportSearching, setStudentReportSearching] = useState(false);
+  const [studentReportLoading, setStudentReportLoading] = useState(false);
+  const [studentReportRecords, setStudentReportRecords] = useState([]);
+  const [studentReportFetched, setStudentReportFetched] = useState(false);
+
+  // Defaulters Report Modal States
+  const [isDefaultersModalOpen, setIsDefaultersModalOpen] = useState(false);
+  const [defaultersFilters, setDefaultersFilters] = useState({
+    fromDate: getThisWeekRange().fromDate,
+    toDate: getThisWeekRange().toDate,
+  });
+  const [defaultersData, setDefaultersData] = useState([]);
+  const [defaultersLoading, setDefaultersLoading] = useState(false);
+
   const [manualAttendanceDate, setManualAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
   const [manualAttendanceStatus, setManualAttendanceStatus] = useState('PRESENT');
   const [manualAttendanceStudents, setManualAttendanceStudents] = useState([]);
@@ -1305,6 +1341,335 @@ export default function BranchAdminAttendancePage() {
     // Auto-fetch today's records using direct params
     fetchHistoryModal(todayFilters);
   };
+
+  const searchStudentForReport = async (query) => {
+    setStudentReportSearchQuery(query);
+    
+    // Clear previously selected student if user starts typing again
+    if (studentReportFilters.studentId) {
+      setStudentReportFilters(prev => ({ ...prev, studentId: '' }));
+      setStudentReportRecords([]);
+      setStudentReportFetched(false);
+    }
+    
+    if (!query || query.length < 2) {
+      setStudentReportSearchResults([]);
+      return;
+    }
+    try {
+      setStudentReportSearching(true);
+      const response = await apiClient.get(API_ENDPOINTS.BRANCH_ADMIN.STUDENTS.SEARCH, { q: query });
+      const searchData = Array.isArray(response) ? response : (response.data?.students || response.data || []);
+      setStudentReportSearchResults(searchData);
+    } catch (error) {
+      console.error('Error searching students:', error);
+      setStudentReportSearchResults([]);
+    } finally {
+      setStudentReportSearching(false);
+    }
+  };
+
+  const fetchStudentReportData = async () => {
+    if (!studentReportFilters.studentId) {
+      toast.error('Please select a student');
+      return;
+    }
+    try {
+      setStudentReportLoading(true);
+      const params = {
+        student_id: studentReportFilters.studentId,
+        fromDate: studentReportFilters.fromDate || '',
+        toDate: studentReportFilters.toDate || ''
+      };
+      
+      const response = await apiClient.get('/api/attendance', params);
+      
+      if (response.success && response.data) {
+        setStudentReportRecords(response.data);
+      } else {
+        setStudentReportRecords([]);
+      }
+      setStudentReportFetched(true);
+    } catch (error) {
+      console.error('Error fetching student report data:', error);
+      toast.error('Failed to fetch attendance data');
+      setStudentReportRecords([]);
+      setStudentReportFetched(true);
+    } finally {
+      setStudentReportLoading(false);
+    }
+  };
+
+  const closeStudentReportModal = () => {
+    setIsStudentReportModalOpen(false);
+    setStudentReportFilters({ 
+      studentId: '', 
+      fromDate: getThisWeekRange().fromDate, 
+      toDate: getThisWeekRange().toDate 
+    });
+    setStudentReportSearchQuery('');
+    setStudentReportRecords([]);
+    setStudentReportFetched(false);
+    setStudentReportSearchResults([]);
+  };
+
+  const fetchDefaultersData = async () => {
+    try {
+      setDefaultersLoading(true);
+      const params = {
+        fromDate: defaultersFilters.fromDate || '',
+        toDate: defaultersFilters.toDate || ''
+      };
+      
+      const response = await apiClient.get('/api/attendance', params);
+      
+      if (response.success && response.data) {
+        // Group by student_id
+        const studentMap = new Map();
+        
+        response.data.forEach(record => {
+          const student = record.student;
+          if (!student) return;
+          const sId = record.student_id;
+          
+          if (!studentMap.has(sId)) {
+            studentMap.set(sId, {
+              student,
+              absentCount: 0,
+              lateCount: 0,
+              absentDates: [],
+              lateDates: []
+            });
+          }
+          
+          const sData = studentMap.get(sId);
+          const formattedDate = record.date ? new Date(record.date).toLocaleDateString('en-PK', { day: '2-digit', month: 'short', weekday: 'short' }) : '';
+          
+          if (record.status === 'ABSENT') {
+            sData.absentCount++;
+            if (formattedDate) sData.absentDates.push(formattedDate);
+          }
+          if (record.status === 'LATE') {
+            sData.lateCount++;
+            if (formattedDate) sData.lateDates.push(formattedDate);
+          }
+        });
+        
+        // Filter out those with 0 absents and 0 lates
+        let defaulters = Array.from(studentMap.values()).filter(d => d.absentCount > 0 || d.lateCount > 0);
+        
+        // Sort: Highest absent first, then highest late
+        defaulters.sort((a, b) => {
+          if (b.absentCount !== a.absentCount) return b.absentCount - a.absentCount;
+          return b.lateCount - a.lateCount;
+        });
+        
+        setDefaultersData(defaulters);
+      } else {
+        setDefaultersData([]);
+      }
+    } catch (error) {
+      console.error('Error fetching defaulters data:', error);
+      toast.error('Failed to fetch defaulters data');
+      setDefaultersData([]);
+    } finally {
+      setDefaultersLoading(false);
+    }
+  };
+
+  const closeDefaultersModal = () => {
+    setIsDefaultersModalOpen(false);
+    setDefaultersFilters({ 
+      fromDate: getThisWeekRange().fromDate, 
+      toDate: getThisWeekRange().toDate 
+    });
+    setDefaultersData([]);
+  };
+
+  const generateStudentReportPDF = async () => {
+    if (!studentReportFilters.studentId) {
+      toast.error('Please select a student');
+      return;
+    }
+    
+    const records = studentReportRecords;
+    if (!studentReportFetched || records.length === 0) {
+      toast.error('No records to generate report');
+      return;
+    }
+
+    try {
+      setStudentReportLoading(true);
+      
+      const student = studentReportSearchResults.find(s => s.id === studentReportFilters.studentId || s._id === studentReportFilters.studentId) || records[0]?.student;
+      
+      if (!student) {
+        toast.error('Student details not found');
+        return;
+      }
+
+      const { default: jsPDF } = await import('jspdf');
+      const { default: autoTable } = await import('jspdf-autotable');
+
+      const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      const pageWidth = doc.internal.pageSize.getWidth();
+
+      // ── HEADER BACKGROUND ──────────────────────────────────────────
+      doc.setFillColor(109, 40, 217); // violet-700
+      doc.rect(0, 0, pageWidth, 38, 'F');
+
+      // Logo
+      try {
+        const img = new Image();
+        img.src = '/logo.png';
+        await new Promise((res) => { img.onload = res; img.onerror = res; });
+        doc.addImage(img, 'PNG', 8, 4, 28, 28);
+      } catch (_) {}
+
+      // School title
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(16);
+      doc.text('Adamjee Coaching Center', 42, 14);
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Campus 12 — Single Student Attendance Report', 42, 21);
+
+      // Date generated
+      doc.setFontSize(7.5);
+      doc.setTextColor(220, 200, 255);
+      doc.text(`Generated: ${new Date().toLocaleString('en-PK')}`, 42, 27);
+
+      // ── STUDENT INFO BOX ─────────────────────────────────────────────
+      doc.setFillColor(245, 243, 255); // very light violet
+      doc.setDrawColor(200, 185, 255);
+      doc.roundedRect(8, 42, pageWidth - 16, 18, 3, 3, 'FD');
+
+      doc.setTextColor(80, 40, 160);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+
+      const fromLabel = studentReportFilters.fromDate
+        ? new Date(studentReportFilters.fromDate).toLocaleDateString('en-PK', { year: 'numeric', month: 'short', day: 'numeric' })
+        : 'All';
+      const toLabel = studentReportFilters.toDate
+        ? new Date(studentReportFilters.toDate).toLocaleDateString('en-PK', { year: 'numeric', month: 'short', day: 'numeric' })
+        : 'All';
+
+      const name = `${student.first_name || student.firstName || ''} ${student.last_name || student.lastName || ''}`.trim();
+      const grNo = student.details?.academic_info?.roll_no || student.rollNumber || student.roll_no || 'N/A';
+      const className = getClassName(student.details?.academic_info?.class_id || student.classId);
+      const sectionName = getSectionName(student.details?.academic_info?.section_id || student.section);
+
+      doc.text(`Student:  ${name}`, 14, 48);
+      doc.text(`GR No:  ${grNo}`, 14, 54);
+      
+      doc.text(`Class:  ${className} - ${sectionName}`, 120, 48);
+      doc.text(`Date Range:  ${fromLabel}  →  ${toLabel}`, 120, 54);
+
+      // Count present/absent
+      const presentCount = records.filter(r => r.status === 'PRESENT').length;
+      const absentCount = records.filter(r => r.status === 'ABSENT').length;
+      const lateCount = records.filter(r => r.status === 'LATE').length;
+      const leaveCount = records.filter(r => r.status === 'LEAVE' || r.status === 'HOLIDAY').length;
+
+      doc.setTextColor(109, 40, 217);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`Total Records: ${records.length}`, pageWidth - 14, 48, { align: 'right' });
+      
+      doc.setFontSize(7.5);
+      doc.setTextColor(22, 163, 74);
+      doc.text(`Present: ${presentCount} | `, pageWidth - 55, 54, { align: 'right' });
+      doc.setTextColor(220, 38, 38);
+      doc.text(`Absent: ${absentCount} | `, pageWidth - 37, 54, { align: 'right' });
+      doc.setTextColor(217, 119, 6);
+      doc.text(`Late: ${lateCount} | `, pageWidth - 20, 54, { align: 'right' });
+      doc.setTextColor(147, 51, 234);
+      doc.text(`Leave: ${leaveCount}`, pageWidth - 14, 54, { align: 'right' });
+
+      // ── TABLE ────────────────────────────────────────────────────────
+      const tableData = records.map((record, idx) => {
+        const date = record.date ? new Date(record.date).toLocaleDateString('en-PK', { year: 'numeric', month: 'short', day: 'numeric' }) : '—';
+        const dayStr = record.date ? new Date(record.date).toLocaleDateString('en-PK', { weekday: 'long' }) : '—';
+        const timeIn = record.created_at ? new Date(record.created_at).toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit', hour12: true }) : '—';
+        const status = record.status ? record.status.charAt(0) + record.status.slice(1).toLowerCase() : '—';
+        return [idx + 1, date, dayStr, status, timeIn];
+      });
+
+      autoTable(doc, {
+        startY: 64,
+        head: [['#', 'Date', 'Day', 'Status', 'Time In']],
+        body: tableData,
+        styles: {
+          fontSize: 7,
+          cellPadding: 1.5,
+          font: 'helvetica',
+          textColor: [30, 30, 50],
+          lineColor: [220, 215, 255],
+          lineWidth: 0.2,
+        },
+        headStyles: {
+          fillColor: [109, 40, 217],
+          textColor: [255, 255, 255],
+          fontStyle: 'bold',
+          fontSize: 8,
+          halign: 'center',
+        },
+        alternateRowStyles: { fillColor: [248, 245, 255] },
+        columnStyles: {
+          0: { halign: 'center' },
+          1: { halign: 'center' },
+          2: { halign: 'center' },
+          3: { halign: 'center' },
+          4: { halign: 'center' },
+        },
+        didDrawCell: (data) => {
+          if (data.column.index === 3 && data.section === 'body') {
+            const status = data.cell.raw;
+            if (status === 'Present') {
+              doc.setTextColor(22, 163, 74);
+            } else if (status === 'Absent') {
+              doc.setTextColor(220, 38, 38);
+            } else {
+              doc.setTextColor(30, 30, 50);
+            }
+          }
+        },
+        margin: { left: 8, right: 8 },
+        tableLineColor: [200, 185, 255],
+        tableLineWidth: 0.3,
+      });
+
+      // ── FOOTER ───────────────────────────────────────────────────────
+      const finalY = doc.lastAutoTable.finalY + 6;
+      doc.setDrawColor(200, 185, 255);
+      doc.line(8, finalY, pageWidth - 8, finalY);
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7);
+      doc.setTextColor(150, 130, 200);
+      doc.text('Adamjee Coaching Center — Confidential Attendance Record', pageWidth / 2, finalY + 5, { align: 'center' });
+
+      // Page numbers
+      const pageCount = doc.internal.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(7);
+        doc.setTextColor(170, 150, 220);
+        doc.text(`Page ${i} of ${pageCount}`, pageWidth - 10, doc.internal.pageSize.getHeight() - 5, { align: 'right' });
+      }
+
+      const safeName = name.replace(/[^a-zA-Z0-9]/g, '_');
+      doc.save(`Student_Report_${safeName}_${grNo}.pdf`);
+      toast.success('Report generated successfully!');
+      closeStudentReportModal();
+
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to generate report');
+    } finally {
+      setStudentReportLoading(false);
+    }
+  };
   
   const handleEditStatus = (record) => {
     setEditingRecord(record);
@@ -1781,6 +2146,385 @@ export default function BranchAdminAttendancePage() {
           </div>
         </form>
       </Modal>
+
+      {/* ============ STUDENT REPORT MODAL ============ */}
+      {isStudentReportModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[200] p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-[1.5rem] shadow-2xl w-full max-w-7xl max-h-[90vh] flex flex-col border border-slate-100 dark:border-slate-800 overflow-hidden">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-4 py-2 border-b border-slate-100 dark:border-slate-800 bg-gradient-to-r from-blue-600 to-indigo-600 shrink-0">
+              <div className="flex items-center gap-2">
+                <div className="p-1 bg-white/20 rounded-md">
+                  <FileText className="h-4 w-4 text-white" />
+                </div>
+                <h2 className="text-base font-black text-white tracking-tight">Student Attendance Report</h2>
+              </div>
+              <button
+                onClick={closeStudentReportModal}
+                className="p-1 hover:bg-white/20 rounded-full transition-colors"
+              >
+                <X className="h-4 w-4 text-white" />
+              </button>
+            </div>
+
+            {/* Filters Row */}
+            <div className="px-4 py-2 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 shrink-0 space-y-1">
+              <div className="grid grid-cols-1 md:grid-cols-12 gap-2 items-end">
+                {/* Search Input */}
+                <div className="space-y-0.5 md:col-span-4 relative">
+                  <Label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Search Student (GR No / Name)</Label>
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-slate-400" />
+                    <input
+                      type="text"
+                      placeholder="Type to search..."
+                      value={studentReportSearchQuery}
+                      onChange={(e) => searchStudentForReport(e.target.value)}
+                      className="w-full pl-9 pr-4 py-2 bg-white dark:bg-slate-850 border border-slate-200 dark:border-slate-700 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all font-medium text-slate-700 dark:text-slate-200 placeholder-slate-400 dark:placeholder-slate-500"
+                    />
+                    {studentReportSearching && (
+                      <div className="absolute right-3 top-2">
+                        <ButtonLoader color="indigo" />
+                      </div>
+                    )}
+                  </div>
+                  {(studentReportSearching || (studentReportSearchQuery.length >= 2 && !studentReportFilters.studentId)) && (
+                    <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-slate-800 border dark:border-slate-700 shadow-xl rounded-xl overflow-hidden max-h-60 overflow-y-auto z-50">
+                      {studentReportSearching ? (
+                        <div className="p-4 flex items-center justify-center gap-2 text-slate-500">
+                          <div className="h-4 w-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                          <span className="text-sm font-medium">Searching students...</span>
+                        </div>
+                      ) : studentReportSearchResults.length > 0 ? (
+                        studentReportSearchResults.map(student => (
+                        <div 
+                          key={student.id || student._id}
+                          onClick={() => {
+                            setStudentReportFilters(prev => ({ ...prev, studentId: student.id || student._id }));
+                            setStudentReportSearchQuery(`${student.first_name || student.firstName} ${student.last_name || student.lastName} (${student.details?.academic_info?.roll_no || student.rollNumber || student.roll_no || 'No GR'})`);
+                            setStudentReportSearchResults([]);
+                            setStudentReportFetched(false);
+                          }}
+                          className="p-3 border-b border-slate-100 dark:border-slate-800 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-700 cursor-pointer flex justify-between items-center"
+                        >
+                          <div>
+                            <p className="font-bold text-sm text-slate-800 dark:text-slate-200">{student.first_name || student.firstName} {student.last_name || student.lastName}</p>
+                            <p className="text-[10px] text-slate-500">GR No: {student.details?.academic_info?.roll_no || student.rollNumber || student.roll_no || 'N/A'}</p>
+                          </div>
+                          <Badge variant="outline" className="text-[10px]">
+                            {getClassName(student.details?.academic_info?.class_id || student.classId)}
+                          </Badge>
+                        </div>
+                        ))
+                      ) : (
+                        <div className="p-4 text-center text-sm text-slate-500 font-medium">
+                          No students found for &quot;{studentReportSearchQuery}&quot;
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {studentReportFilters.studentId && (
+                    <div className="absolute -bottom-7 left-0 text-[10px] text-indigo-600 font-bold flex items-center gap-1 bg-indigo-50 px-2 py-0.5 rounded-md border border-indigo-100">
+                      <CheckCircle className="h-3 w-3" /> Selected
+                      <button 
+                        onClick={() => {
+                          setStudentReportFilters(prev => ({ ...prev, studentId: '' }));
+                          setStudentReportSearchQuery('');
+                          setStudentReportRecords([]);
+                          setStudentReportFetched(false);
+                        }}
+                        className="ml-2 text-rose-500 hover:text-rose-700 cursor-pointer underline"
+                      >
+                        Clear
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                {/* From Date */}
+                <div className="space-y-0.5 md:col-span-3">
+                  <Label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">From Date</Label>
+                  <DatePicker 
+                    value={studentReportFilters.fromDate} 
+                    onChange={(e) => {
+                      setStudentReportFilters(prev => ({ ...prev, fromDate: e.target.value }));
+                      setStudentReportFetched(false);
+                    }} 
+                  />
+                </div>
+
+                {/* To Date */}
+                <div className="space-y-0.5 md:col-span-3">
+                  <Label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">To Date</Label>
+                  <DatePicker 
+                    value={studentReportFilters.toDate} 
+                    onChange={(e) => {
+                      setStudentReportFilters(prev => ({ ...prev, toDate: e.target.value }));
+                      setStudentReportFetched(false);
+                    }} 
+                  />
+                </div>
+
+                {/* Actions */}
+                <div className="flex items-center gap-2 md:col-span-2 justify-end w-full">
+                  <Button 
+                    onClick={fetchStudentReportData} 
+                    disabled={studentReportLoading || !studentReportFilters.studentId}
+                    className="bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg gap-1.5 flex-1 h-8 text-[11px] justify-center shadow-lg shadow-blue-200 dark:shadow-none"
+                  >
+                    {studentReportLoading && !studentReportFetched ? <ButtonLoader color="white" /> : <Search className="h-4 w-4" />}
+                    View Data
+                  </Button>
+                </div>
+              </div>
+            </div>
+
+            {/* Records Table */}
+            <div className="flex-1 overflow-y-auto mt-6 px-4 pb-4">
+              {studentReportLoading && !studentReportFetched ? (
+                <div className="flex flex-col items-center justify-center py-20 gap-4">
+                  <div className="h-12 w-12 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
+                  <p className="text-sm text-slate-500 font-medium">Fetching student report...</p>
+                </div>
+              ) : studentReportFetched && studentReportRecords.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 gap-3">
+                  <div className="p-5 bg-slate-100 dark:bg-slate-800 rounded-full">
+                    <FileText className="h-10 w-10 text-slate-300" />
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-500">No Records Found</h3>
+                  <p className="text-sm text-slate-400">No attendance records found for the selected student and date range.</p>
+                </div>
+              ) : !studentReportFetched ? (
+                <div className="flex flex-col items-center justify-center py-20 gap-3 text-slate-400">
+                  <Search className="h-10 w-10" />
+                  <p className="text-sm font-medium">Select a student, dates and click &quot;View Data&quot;</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-700">
+                        <th className="text-left px-3 py-1.5 text-[10px] font-black text-slate-500 uppercase tracking-wider">Date</th>
+                        <th className="text-left px-3 py-1.5 text-[10px] font-black text-slate-500 uppercase tracking-wider">Day</th>
+                        <th className="text-left px-3 py-1.5 text-[10px] font-black text-slate-500 uppercase tracking-wider">Status</th>
+                        <th className="text-left px-3 py-1.5 text-[10px] font-black text-slate-500 uppercase tracking-wider">Time In</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {studentReportRecords.map((record, index) => {
+                        const dateStr = record.date
+                          ? new Date(record.date).toLocaleDateString('en-PK', { year: 'numeric', month: 'short', day: 'numeric' })
+                          : '—';
+                        const dayStr = record.date
+                          ? new Date(record.date).toLocaleDateString('en-PK', { weekday: 'long' })
+                          : '—';
+                        const timeIn = record.created_at
+                          ? new Date(record.created_at).toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit', hour12: true })
+                          : '—';
+                          
+                        const statusColors = {
+                          PRESENT: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400',
+                          ABSENT: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400',
+                          LATE: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400',
+                          LEAVE: 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400',
+                          HOLIDAY: 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400',
+                        };
+                        const badgeColor = statusColors[record.status] || 'bg-slate-100 text-slate-700';
+
+                        return (
+                          <tr key={record.id || index} className="border-b border-slate-50 dark:border-slate-800/50 hover:bg-slate-50/50 dark:hover:bg-slate-800/50">
+                            <td className="px-3 py-2 font-medium text-slate-800 dark:text-slate-200">{dateStr}</td>
+                            <td className="px-3 py-2 text-slate-600 dark:text-slate-400">{dayStr}</td>
+                            <td className="px-3 py-2">
+                              <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold ${badgeColor}`}>
+                                {record.status}
+                              </span>
+                            </td>
+                            <td className="px-3 py-2 text-slate-500 font-mono text-xs">{timeIn}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Footer with counts and actions */}
+            <div className="px-4 py-3 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 shrink-0 flex items-center justify-between">
+              {studentReportFetched && studentReportRecords.length > 0 ? (
+                <div className="flex gap-2 text-[10px] font-bold">
+                  <span className="text-emerald-600 bg-emerald-100 dark:bg-emerald-900/30 px-2 py-1 rounded-md">Present: {studentReportRecords.filter(r => r.status === 'PRESENT').length}</span>
+                  <span className="text-red-600 bg-red-100 dark:bg-red-900/30 px-2 py-1 rounded-md">Absent: {studentReportRecords.filter(r => r.status === 'ABSENT').length}</span>
+                  <span className="text-amber-600 bg-amber-100 dark:bg-amber-900/30 px-2 py-1 rounded-md">Late: {studentReportRecords.filter(r => r.status === 'LATE').length}</span>
+                  <span className="text-orange-600 bg-orange-100 dark:bg-orange-900/30 px-2 py-1 rounded-md">Leave: {studentReportRecords.filter(r => r.status === 'LEAVE' || r.status === 'HOLIDAY').length}</span>
+                </div>
+              ) : (
+                <div />
+              )}
+              
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={closeStudentReportModal} className="h-8 text-xs font-bold rounded-lg border-2 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800">Cancel</Button>
+                <Button 
+                  onClick={generateStudentReportPDF} 
+                  disabled={!studentReportFetched || studentReportRecords.length === 0 || studentReportLoading}
+                  className="bg-blue-600 hover:bg-blue-700 h-8 text-xs text-white min-w-[120px] font-bold rounded-lg shadow-lg shadow-blue-200 dark:shadow-none"
+                >
+                  {studentReportLoading && studentReportFetched ? <ButtonLoader color="white" /> : 'Export PDF'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ============ DEFAULTERS REPORT MODAL ============ */}
+      {isDefaultersModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[200] p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-[1.5rem] shadow-2xl w-full max-w-7xl max-h-[90vh] flex flex-col border border-slate-100 dark:border-slate-800 overflow-hidden">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-4 py-2 border-b border-slate-100 dark:border-slate-800 bg-gradient-to-r from-orange-600 to-red-600 shrink-0">
+              <div className="flex items-center gap-2">
+                <div className="p-1 bg-white/20 rounded-md">
+                  <AlertTriangle className="h-4 w-4 text-white" />
+                </div>
+                <h2 className="text-base font-black text-white tracking-tight">Defaulters Report</h2>
+              </div>
+              <button
+                onClick={closeDefaultersModal}
+                className="p-1 hover:bg-white/20 rounded-full transition-colors"
+              >
+                <X className="h-4 w-4 text-white" />
+              </button>
+            </div>
+
+            {/* Filters Row */}
+            <div className="px-4 py-2 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 shrink-0 space-y-1">
+              <div className="flex flex-wrap items-end gap-4">
+                <div className="space-y-0.5">
+                  <Label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">From Date</Label>
+                  <DatePicker 
+                    value={defaultersFilters.fromDate} 
+                    onChange={(e) => setDefaultersFilters(prev => ({ ...prev, fromDate: e.target.value }))} 
+                  />
+                </div>
+                <div className="space-y-0.5">
+                  <Label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">To Date</Label>
+                  <DatePicker 
+                    value={defaultersFilters.toDate} 
+                    onChange={(e) => setDefaultersFilters(prev => ({ ...prev, toDate: e.target.value }))} 
+                  />
+                </div>
+                <Button 
+                  onClick={fetchDefaultersData} 
+                  disabled={defaultersLoading}
+                  className="bg-orange-600 hover:bg-orange-700 text-white font-bold rounded-lg h-8 text-xs justify-center shadow-lg shadow-orange-200 dark:shadow-none min-w-[100px]"
+                >
+                  {defaultersLoading ? <ButtonLoader color="white" /> : 'Fetch Defaulters'}
+                </Button>
+              </div>
+            </div>
+
+            {/* Records Table */}
+            <div className="flex-1 overflow-y-auto p-4">
+              {defaultersLoading ? (
+                <div className="flex flex-col items-center justify-center py-20 gap-4">
+                  <div className="h-12 w-12 border-4 border-orange-600 border-t-transparent rounded-full animate-spin"></div>
+                  <p className="text-sm text-slate-500 font-medium">Fetching defaulters data...</p>
+                </div>
+              ) : defaultersData.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 gap-3">
+                  <div className="p-5 bg-slate-100 dark:bg-slate-800 rounded-full">
+                    <AlertTriangle className="h-10 w-10 text-slate-300" />
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-500">No Defaulters Found</h3>
+                  <p className="text-sm text-slate-400">No students found with Absents or Lates in the selected period.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto border border-slate-100 dark:border-slate-800 rounded-xl">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-slate-50 dark:bg-slate-800/50 border-b border-slate-100 dark:border-slate-700">
+                        <th className="text-left px-4 py-2 text-xs font-black text-slate-500 uppercase tracking-wider">Rank</th>
+                        <th className="text-left px-4 py-2 text-xs font-black text-slate-500 uppercase tracking-wider">Student</th>
+                        <th className="text-left px-4 py-2 text-xs font-black text-slate-500 uppercase tracking-wider">Class / Section</th>
+                        <th className="text-center px-4 py-2 text-xs font-black text-slate-500 uppercase tracking-wider">Stats</th>
+                        <th className="text-left px-4 py-2 text-xs font-black text-slate-500 uppercase tracking-wider">Guardian Info</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+                      {defaultersData.map((d, index) => {
+                        const student = d.student;
+                        const guardian = student.details?.academic_info?.father || student.details?.academic_info?.guardian || {};
+                        return (
+                          <tr key={student.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                            <td className="px-4 py-3 text-sm font-bold text-slate-700 dark:text-slate-300">
+                              #{index + 1}
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="font-bold text-slate-800 dark:text-slate-200">
+                                {student.first_name || student.firstName} {student.last_name || student.lastName}
+                              </div>
+                              <div className="text-[10px] text-slate-500">
+                                GR: {student.details?.academic_info?.roll_no || student.registration_no || 'N/A'}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-xs text-slate-600 dark:text-slate-400">
+                              <span className="font-bold block">{getClassName(student.details?.academic_info?.class_id)}</span>
+                              <span>{getSectionName(student.details?.academic_info?.section_id)}</span>
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <div className="flex flex-col items-center justify-center gap-2">
+                                {d.absentCount > 0 && (
+                                  <div className="flex flex-col items-center gap-1">
+                                    <Badge className="bg-red-100 text-red-700 border-red-200 font-black">
+                                      {d.absentCount} Absent
+                                    </Badge>
+                                    <div className="text-[10px] text-red-600 max-w-[140px] leading-tight font-medium text-center">
+                                      {d.absentDates.join(', ')}
+                                    </div>
+                                  </div>
+                                )}
+                                {d.lateCount > 0 && (
+                                  <div className="flex flex-col items-center gap-1">
+                                    <Badge className="bg-amber-100 text-amber-700 border-amber-200 font-black">
+                                      {d.lateCount} Late
+                                    </Badge>
+                                    <div className="text-[10px] text-amber-600 max-w-[140px] leading-tight font-medium text-center">
+                                      {d.lateDates.join(', ')}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            </td>
+                            <td className="px-4 py-3">
+                              <div className="font-bold text-sm text-slate-700 dark:text-slate-300">
+                                {guardian.name || 'N/A'}
+                                {guardian.relation && <span className="text-[10px] font-normal text-slate-400 ml-1">({guardian.relation})</span>}
+                              </div>
+                              <div className="text-xs text-slate-500 font-mono">
+                                {guardian.phone || 'No phone'}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="border-t border-slate-100 dark:border-slate-800 px-4 py-3 flex items-center justify-between bg-slate-50 dark:bg-slate-800/30 shrink-0">
+              <span className="text-xs text-slate-500 font-medium">Showing top absentees & lates</span>
+              <Button variant="outline" onClick={closeDefaultersModal} className="h-8 text-xs font-bold rounded-lg border-2 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800">Close</Button>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-5 border-slate-100 dark:border-slate-800">
         <div>
           <h1 className="text-2xl md:text-3xl font-black tracking-tight text-gray-900 dark:text-white flex items-center gap-2">
@@ -1868,10 +2612,29 @@ export default function BranchAdminAttendancePage() {
 
                 <Button
                   onClick={openHistoryModal}
-                  className="col-span-2 bg-violet-600 hover:bg-violet-700 text-white flex items-center justify-center h-10 rounded-xl gap-2 font-bold text-sm shadow-sm"
+                  className="bg-violet-600 hover:bg-violet-700 text-white flex items-center justify-center h-10 rounded-xl gap-2 font-bold text-sm shadow-sm"
                 >
                   <Calendar className="h-4 w-4" />
-                  View Attendance History
+                  History
+                </Button>
+
+                <Button
+                  onClick={() => setIsStudentReportModalOpen(true)}
+                  className="bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center h-10 rounded-xl gap-2 font-bold text-sm shadow-sm"
+                >
+                  <FileText className="h-4 w-4" />
+                  Student Report
+                </Button>
+
+                <Button
+                  onClick={() => {
+                    setIsDefaultersModalOpen(true);
+                    fetchDefaultersData();
+                  }}
+                  className="bg-orange-600 hover:bg-orange-700 text-white flex items-center justify-center h-10 rounded-xl gap-2 font-bold text-sm shadow-sm"
+                >
+                  <AlertTriangle className="h-4 w-4" />
+                  Defaulters
                 </Button>
               </div>
             </CardContent>

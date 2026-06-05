@@ -128,6 +128,7 @@ export async function GET(req) {
     const branchId = searchParams.get("branch_id") || searchParams.get("branchId");
     const classId = searchParams.get("classId") || searchParams.get("class_id");
     const sectionId = searchParams.get("sectionId") || searchParams.get("section_id");
+    const studentId = searchParams.get("student_id") || searchParams.get("studentId");
 
     let finalBranchId = user.role === "BRANCH_ADMIN" ? user.branch_id : branchId;
 
@@ -145,6 +146,9 @@ export async function GET(req) {
 
     // Status filter
     if (status) whereClause.status = status.toUpperCase();
+
+    // Student filter
+    if (studentId) whereClause.student_id = studentId;
 
     // Prepare student model association filter for Class/Section
     const studentInclude = {
