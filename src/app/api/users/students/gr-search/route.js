@@ -75,7 +75,7 @@ export async function GET(req) {
         {
           model: Branch,
           as: "branch",
-          attributes: ["id", "name", "code"],
+          attributes: ["id", "name", "code", "settings"],
         },
       ],
       attributes: { exclude: ["password_hash", "plain_password"] },
