@@ -25,7 +25,7 @@ export default function ExamFormModal({
 }) {
   const [formData, setFormData] = useState({
     title: "",
-    exam_type: "midterm",
+    exam_type: "monthly",
     branch_id: "",
     class_id: "",
     section_id: "",
@@ -43,7 +43,7 @@ export default function ExamFormModal({
       if (exam) {
         setFormData({
           title: exam.title || "",
-          exam_type: exam.exam_type || "midterm",
+          exam_type: exam.exam_type || "monthly",
           branch_id: exam.branch_id || "",
           class_id: exam.class_id || "",
           section_id: exam.section_id || "",
@@ -325,9 +325,9 @@ export default function ExamFormModal({
               value={formData.exam_type}
               onChange={(e) => handleInputChange("exam_type", e.target.value)}
               options={[
-                { value: "quiz", label: "Weekly" },
-                { value: "midterm", label: "Mid" },
-                { value: "final", label: "Final/Annual" },
+                { value: "monthly", label: "Monthly" },
+                { value: "mid_term", label: "Mid-Term" },
+                { value: "comprehensive", label: "Comprehensive" },
               ]}
               placeholder="Select Exam Type"
             />

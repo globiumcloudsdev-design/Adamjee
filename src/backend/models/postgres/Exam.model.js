@@ -15,16 +15,11 @@ const Exam = sequelize.define(
     },
     exam_type: {
       type: DataTypes.ENUM(
-        "midterm",
-        "final",
-        "quiz",
-        "unit_test",
-        "mock",
-        "surprise",
-        "practical",
-        "oral"
+        "monthly",
+        "mid_term",
+        "comprehensive"
       ),
-      defaultValue: "midterm",
+      defaultValue: "monthly",
     },
     branch_id: {
       type: DataTypes.UUID,

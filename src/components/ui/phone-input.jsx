@@ -27,7 +27,7 @@ const PhoneInput = ({ value, onChange, className, error, label, required = false
   // Display value with space after 3 digits (e.g., 300 1234567)
   const formatDisplay = (val) => {
     if (!val) return '';
-    const clean = val.replace('+92', '');
+    const clean = String(val).replace('+92', '');
     if (clean.length > 3) {
       return `${clean.slice(0, 4)} ${clean.slice(4)}`;
     }

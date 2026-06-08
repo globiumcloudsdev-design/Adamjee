@@ -18,6 +18,8 @@ export async function GET(req) {
     let whereClause =
       user.role === "SUPER_ADMIN" ? {} : { branch_id: user.branch_id };
 
+    const groupId = searchParams.get("group_id");
+
     // Agar specific class ke subjects chahiye (?class_id=...)
     if (classId) {
       whereClause = {
@@ -26,6 +28,12 @@ export async function GET(req) {
           { class_id: classId },
           { is_applicable_for_all_groups: true }
         ]
+      };
+    } else if (groupId) {
+      // If no class_id is selected yet, but group is selected, return only common subjects
+      whereClause = {
+        ...whereClause,
+        is_applicable_for_all_groups: true
       };
     }
 

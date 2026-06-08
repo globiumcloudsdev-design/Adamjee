@@ -212,7 +212,7 @@ async function createExam(req) {
 
     const exam = await Exam.create({
       title,
-      exam_type: exam_type || "midterm",
+      exam_type: exam_type || "monthly",
       branch_id: targetBranchId,
       academic_year_id,
       group_id,

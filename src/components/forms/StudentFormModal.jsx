@@ -88,29 +88,64 @@ const StudentFormModal = ({
   // Load Class-specific Sections and Subjects
   useEffect(() => {
     const fetchClassDetails = async () => {
-      if (!formData.class_id) {
+      // If neither class_id nor group_id is set, clear everything
+      if (!formData.class_id && !formData.group_id) {
         setSections([]);
         setSubjectsList([]);
         return;
       }
       try {
-        const secRes = await apiClient.get(`/api/sections?class_id=${formData.class_id}`);
-        const sectionsData = Array.isArray(secRes) ? secRes : [];
-        setSections(sectionsData);
+        if (formData.class_id) {
+          const secRes = await apiClient.get(`/api/sections?class_id=${formData.class_id}`);
+          const sectionsData = Array.isArray(secRes) ? secRes : [];
+          setSections(sectionsData);
 
-        // Auto-select section if only one exists
-        if (sectionsData.length === 1 && !formData.section_id) {
-          handleFieldChange('section_id', sectionsData[0].id || sectionsData[0]._id);
+          // Auto-select section if only one exists
+          if (sectionsData.length === 1 && !formData.section_id) {
+            handleFieldChange('section_id', sectionsData[0].id || sectionsData[0]._id);
+          }
+        } else {
+          setSections([]);
         }
 
-        const subRes = await apiClient.get(`/api/subjects?class_id=${formData.class_id}`);
-        setSubjectsList(Array.isArray(subRes) ? subRes : []);
+        // Fetch subjects using either class_id or group_id to get common subjects
+        const queryParams = new URLSearchParams();
+        if (formData.class_id) queryParams.append('class_id', formData.class_id);
+        if (formData.group_id) queryParams.append('group_id', formData.group_id);
+        
+        const subRes = await apiClient.get(`/api/subjects?${queryParams.toString()}`);
+        const fetchedSubjects = Array.isArray(subRes) ? subRes : [];
+        setSubjectsList(fetchedSubjects);
+        
+        // Auto-select common subjects if they are not already selected
+        setFormData(prev => {
+          const currentSubjectIds = prev.subjects.map(s => s.id);
+          const newCommonSubjects = fetchedSubjects.filter(s => s.is_applicable_for_all_groups && !currentSubjectIds.includes(s.id));
+          
+          if (newCommonSubjects.length > 0) {
+            const subjectsToAdd = newCommonSubjects.map(sub => ({
+              id: sub.id,
+              name: sub.is_applicable_for_all_groups ? `${sub.name} (All Groups)` : sub.name,
+              subject_code: sub.subject_code,
+              fee: sub.fee || 0,
+              section_id: formData.section_id || '',
+              teacher_name: 'Not Assigned',
+              is_applicable_for_all_groups: true
+            }));
+            return {
+              ...prev,
+              subjects: [...prev.subjects, ...subjectsToAdd]
+            };
+          }
+          return prev;
+        });
+
       } catch (err) {
         console.error("Error fetching section/subject data:", err);
       }
     };
     fetchClassDetails();
-  }, [formData.class_id]);
+  }, [formData.class_id, formData.group_id]);
 
   // Populate form on edit
   useEffect(() => {
@@ -874,10 +909,10 @@ const StudentFormModal = ({
 
               <div className="border-t pt-4">
                 <h4 className="font-medium text-gray-700 mb-2">Subject Selection</h4>
-                {!formData.class_id ? (
-                  <p className="text-sm text-gray-500 italic">Please select a Class first to view available subjects.</p>
+                {!formData.class_id && !formData.group_id ? (
+                  <p className="text-sm text-gray-500 italic">Please select a Group or Class first to view available subjects.</p>
                 ) : subjectsList.length === 0 ? (
-                  <p className="text-sm text-gray-500 italic">No subjects defined for this class.</p>
+                  <p className="text-sm text-gray-500 italic">No subjects defined.</p>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-2 border rounded-md">
                     {subjectsList.map((sub) => {
@@ -906,7 +941,7 @@ const StudentFormModal = ({
                               </div>
                               <div className="flex-1">
                                 <p className={`font-bold transition-colors ${isChecked ? 'text-blue-700' : 'text-gray-700'}`}>
-                                  {sub.name}
+                                  {sub.name} {sub.is_applicable_for_all_groups && <span className="text-xs font-semibold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded ml-1">(All Group)</span>}
                                 </p>
                                 {sub.subject_code && (
                                   <p className="text-[10px] uppercase tracking-tighter text-gray-400 font-mono">
