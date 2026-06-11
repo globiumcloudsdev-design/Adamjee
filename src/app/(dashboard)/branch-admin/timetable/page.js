@@ -473,8 +473,8 @@ export default function BranchTimetablePage() {
 
     if (["day", "startTime", "endTime", "teacherId"].includes(field)) {
       if (isDuplicatePeriod(period, index)) {
-        toast.error("This time slot is already occupied on this day for this section!");
-        return;
+        toast.warning("Warning: This time slot overlaps with another period in this section!");
+        // Removed return; to allow user to type and fix the time
       }
 
       if (period.teacherId && field !== "teacherId") {
@@ -864,10 +864,10 @@ export default function BranchTimetablePage() {
       );
 
       if (conflict) {
-        toast.error(
-          `Conflict: Teacher is already assigned to ${conflict.className} (${conflict.sectionName}) on ${conflict.day} at ${conflict.startTime}`,
+        toast.warning(
+          `Combined Class Mode: Teacher is already assigned to ${conflict.className} (${conflict.sectionName}) on ${conflict.day} at ${conflict.startTime}. Saving anyway.`,
         );
-        return;
+        // Removed return; to allow saving combined classes
       }
     }
 
