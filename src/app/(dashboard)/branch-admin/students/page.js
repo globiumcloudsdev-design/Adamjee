@@ -682,50 +682,51 @@ export default function BranchAdminStudentsPage() {
     /* Info starts: right of purple sidebar, just below image box */
     .info-section {
       position: absolute;
-      left: 3.55in;
-      top: 1.3in;
-      right: 0.1in;
+      left: 3.58in;
+      top: 1.22in;
+      right: 0.08in;
     }
     .info-field {
-      margin-bottom: 0.055in;
+      margin-bottom: 0.045in;
     }
     .field-label {
-      font-size: 8px;
+      font-size: 7.5px;
       font-weight: 900;
       color: #000000;
       text-transform: uppercase;
-      letter-spacing: 0.3px;
+      letter-spacing: 0.4px;
       line-height: 1;
-      margin-bottom: 2px;
+      margin-bottom: 1.5px;
     }
     .field-value {
-      font-size: 11px;
+      font-size: 11.5px;
       font-weight: 900;
       color: #000000;
       word-break: break-word;
       line-height: 1.15;
     }
     .field-value.student-name {
-      font-size: 12px;
+      font-size: 13px;
       font-weight: 900;
       text-transform: uppercase;
       line-height: 1.2;
+      letter-spacing: 0.2px;
     }
     .subject-value {
-      font-size: 8.5px;
+      font-size: 9px;
       font-weight: 900;
-      line-height: 1.2;
+      line-height: 1.25;
       color: #000000;
       word-break: break-word;
     }
-    /* QR: flows naturally after subjects text, small top margin */
+    /* QR: flows naturally after subjects, small top margin */
     .qr-section {
-      margin-top: 0.1in;
-      width: 0.85in;
-      height: 0.85in;
+      margin-top: 0.09in;
+      width: 0.95in;
+      height: 0.95in;
       display: flex;
-      align-items: center;
-      justify-content: center;
+      align-items: flex-start;
+      justify-content: flex-start;
       background: #ffffff;
     }
     .qr-section img {
@@ -734,14 +735,14 @@ export default function BranchAdminStudentsPage() {
       object-fit: contain;
       image-rendering: crisp-edges;
     }
-    /* Barcode: flows naturally after subjects text */
+    /* Barcode: flows naturally after subjects */
     .barcode-section {
-      margin-top: 0.1in;
-      width: 1.55in;
-      height: 0.5in;
+      margin-top: 0.09in;
+      width: 1.5in;
+      height: 0.48in;
       display: flex;
       align-items: center;
-      justify-content: center;
+      justify-content: flex-start;
       background: #ffffff;
     }
     .barcode-section img {
