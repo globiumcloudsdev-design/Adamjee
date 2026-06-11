@@ -682,9 +682,9 @@ export default function BranchAdminStudentsPage() {
     /* Info starts: right of purple sidebar, just below image box */
     .info-section {
       position: absolute;
-      left: 3.7in;
-      top: 1.5in;
-      right: 0.1in;
+      left: 3.65in;
+      top: 1.35in;
+      width: 1.5in;
     }
     .info-field {
       margin-bottom: 0.055in;
@@ -737,11 +737,11 @@ export default function BranchAdminStudentsPage() {
     /* Barcode: flows naturally after subjects text */
     .barcode-section {
       margin-top: 0.1in;
-      width: 1.55in;
-      height: 0.5in;
+      width: 1.5in;
+      height: 0.45in;
       display: flex;
       align-items: center;
-      justify-content: center;
+      justify-content: flex-start;
       background: #ffffff;
     }
     .barcode-section img {
