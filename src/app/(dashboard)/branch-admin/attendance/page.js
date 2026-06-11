@@ -51,6 +51,7 @@ export default function BranchAdminAttendancePage() {
   
   // Data states
   const [classes, setClasses] = useState([]);
+  const [groups, setGroups] = useState([]);
   const [subjects, setSubjects] = useState([]);
   const [students, setStudents] = useState([]);
   const [allClasses, setAllClasses] = useState([]);
@@ -202,6 +203,19 @@ export default function BranchAdminAttendancePage() {
   const [studentReportRecords, setStudentReportRecords] = useState([]);
   const [studentReportFetched, setStudentReportFetched] = useState(false);
 
+  // Section Report Modal States
+  const [isSectionReportModalOpen, setIsSectionReportModalOpen] = useState(false);
+  const [sectionReportFilters, setSectionReportFilters] = useState({
+    groupId: '',
+    classId: '',
+    sectionId: '',
+    fromDate: getThisWeekRange().fromDate,
+    toDate: getThisWeekRange().toDate,
+  });
+  const [sectionReportData, setSectionReportData] = useState([]);
+  const [sectionReportLoading, setSectionReportLoading] = useState(false);
+  const [sectionReportFetched, setSectionReportFetched] = useState(false);
+
   // Defaulters Report Modal States
   const [isDefaultersModalOpen, setIsDefaultersModalOpen] = useState(false);
   const [defaultersFilters, setDefaultersFilters] = useState({
@@ -231,12 +245,19 @@ export default function BranchAdminAttendancePage() {
   // Fetch classes and today's attendance on mount
   useEffect(() => {
     if (user) {
+      fetchGroups();
       fetchClasses();
       fetchTodayAttendance();
       fetchAllSections();
       loadStudentsCache(); // Pre-load student cache for instant scanning
     }
   }, [user]);
+
+  useEffect(() => {
+    if (sectionReportFilters.classId && sectionReportFilters.sectionId && isSectionReportModalOpen) {
+      fetchSectionReportData();
+    }
+  }, [sectionReportFilters.classId, sectionReportFilters.sectionId, sectionReportFilters.fromDate, sectionReportFilters.toDate]);
 
   // Strict focus management for Hand Scanner
   useEffect(() => {
@@ -334,6 +355,129 @@ export default function BranchAdminAttendancePage() {
     setStudentSearchQuery('');
     setSearchQuery('');
     toast.success('Filters cleared successfully');
+  };
+
+  const fetchGroups = async () => {
+    try {
+      const res = await apiClient.get('/api/groups');
+      const data = Array.isArray(res) ? res : res.data || res.groups || [];
+      setGroups(data);
+    } catch (e) {
+      console.error("Failed to fetch groups:", e);
+    }
+  };
+
+  const generateSectionReportPDF = async () => {
+    if (!sectionReportFilters.classId || !sectionReportFilters.sectionId) {
+      toast.error('Please select class and section');
+      return;
+    }
+    
+    if (!sectionReportFetched || sectionReportData.length === 0) {
+      toast.error('No data to generate report');
+      return;
+    }
+
+    try {
+      setSectionReportLoading(true);
+      
+      const { default: jsPDF } = await import('jspdf');
+      const { default: autoTable } = await import('jspdf-autotable');
+
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pageWidth = doc.internal.pageSize.getWidth();
+
+      // HEADER BACKGROUND
+      doc.setFillColor(13, 148, 136); // teal-600
+      doc.rect(0, 0, pageWidth, 38, 'F');
+
+      // Logo
+      try {
+        const img = new Image();
+        img.src = '/logo.png';
+        await new Promise((res) => { img.onload = res; img.onerror = res; });
+        doc.addImage(img, 'PNG', 8, 4, 28, 28);
+      } catch (_) {}
+
+      // School title
+      doc.setTextColor(255, 255, 255);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(16);
+      doc.text('Adamjee Coaching Center', 42, 14);
+      doc.setFontSize(9);
+      doc.setFont('helvetica', 'normal');
+      doc.text('Campus 12 — Section Attendance Report', 42, 21);
+
+      // Date generated
+      doc.setFontSize(7.5);
+      doc.setTextColor(204, 251, 241);
+      doc.text(`Generated: ${new Date().toLocaleString('en-PK')}`, 42, 27);
+
+      // INFO BOX
+      doc.setFillColor(240, 253, 250); // teal-50
+      doc.setDrawColor(153, 246, 228);
+      doc.roundedRect(8, 42, pageWidth - 16, 18, 3, 3, 'FD');
+
+      doc.setTextColor(15, 118, 110);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(8);
+
+      const fromLabel = sectionReportFilters.fromDate
+        ? new Date(sectionReportFilters.fromDate).toLocaleDateString('en-PK', { year: 'numeric', month: 'short', day: 'numeric' })
+        : 'All';
+      const toLabel = sectionReportFilters.toDate
+        ? new Date(sectionReportFilters.toDate).toLocaleDateString('en-PK', { year: 'numeric', month: 'short', day: 'numeric' })
+        : 'All';
+
+      const className = classes.find(c => String(c.id || c._id) === String(sectionReportFilters.classId))?.name || 'N/A';
+      const sectionName = allSections.find(s => String(s.id || s._id) === String(sectionReportFilters.sectionId) || s.name === sectionReportFilters.sectionId)?.name || 'N/A';
+
+      doc.text(`Class:  ${className}`, 14, 48);
+      doc.text(`Section:  ${sectionName}`, 14, 54);
+      doc.text(`Date Range:  ${fromLabel} to ${toLabel}`, 120, 48);
+      doc.text(`Total Students:  ${sectionReportData.length}`, 120, 54);
+
+      const tableData = sectionReportData.map((d, i) => {
+        const student = d.student;
+        const guardian = student.details?.academic_info?.father || student.details?.academic_info?.guardian || {};
+        return [
+          i + 1,
+          `${student.first_name || student.firstName || ''} ${student.last_name || student.lastName || ''}`.trim(),
+          student.details?.academic_info?.roll_no || student.registration_no || student.rollNumber || 'N/A',
+          `${guardian.name || 'N/A'}\n${guardian.phone || 'No phone'}`,
+          d.present,
+          d.absent,
+          d.late,
+          d.leave
+        ];
+      });
+
+      autoTable(doc, {
+        startY: 65,
+        head: [['#', 'Student Name', 'GR No', 'Guardian Info', 'Present', 'Absent', 'Late', 'Leave']],
+        body: tableData,
+        theme: 'grid',
+        styles: { fontSize: 7, cellPadding: 2, textColor: [51, 65, 85] },
+        headStyles: { fillColor: [13, 148, 136], textColor: [255, 255, 255], fontStyle: 'bold' },
+        columnStyles: {
+          0: { cellWidth: 8 },
+          4: { cellWidth: 15, halign: 'center', textColor: [5, 150, 105] }, // Present
+          5: { cellWidth: 15, halign: 'center', textColor: [225, 29, 72] }, // Absent
+          6: { cellWidth: 15, halign: 'center', textColor: [217, 119, 6] }, // Late
+          7: { cellWidth: 15, halign: 'center', textColor: [234, 88, 12] }  // Leave
+        },
+        alternateRowStyles: { fillColor: [248, 250, 252] },
+        margin: { left: 8, right: 8 }
+      });
+
+      doc.save(`Section_Report_${className}_${sectionName}_${new Date().getTime()}.pdf`);
+      toast.success('Section Report PDF downloaded successfully');
+    } catch (error) {
+      console.error('Error generating PDF:', error);
+      toast.error('Failed to generate PDF');
+    } finally {
+      setSectionReportLoading(false);
+    }
   };
 
   const fetchClasses = async () => {
@@ -1411,6 +1555,78 @@ export default function BranchAdminAttendancePage() {
     setStudentReportRecords([]);
     setStudentReportFetched(false);
     setStudentReportSearchResults([]);
+  };
+
+  const fetchSectionReportData = async () => {
+    if (!sectionReportFilters.classId || !sectionReportFilters.sectionId) {
+      toast.error('Please select both class and section');
+      return;
+    }
+    try {
+      setSectionReportLoading(true);
+      const params = {
+        classId: sectionReportFilters.classId,
+        sectionId: sectionReportFilters.sectionId,
+        fromDate: sectionReportFilters.fromDate || '',
+        toDate: sectionReportFilters.toDate || ''
+      };
+      
+      const response = await apiClient.get('/api/attendance', params);
+      
+      if (response.success && response.data) {
+        const studentMap = new Map();
+        
+        response.data.forEach(record => {
+          const student = record.student;
+          if (!student) return;
+          const sId = record.student_id;
+          
+          if (!studentMap.has(sId)) {
+            studentMap.set(sId, {
+              student,
+              present: 0,
+              absent: 0,
+              late: 0,
+              leave: 0,
+              holiday: 0,
+            });
+          }
+          
+          const sData = studentMap.get(sId);
+          const status = record.status?.toUpperCase();
+          if (status === 'PRESENT') sData.present++;
+          else if (status === 'ABSENT') sData.absent++;
+          else if (status === 'LATE') sData.late++;
+          else if (status === 'LEAVE' || status === 'EXCUSED') sData.leave++;
+          else if (status === 'HOLIDAY') sData.holiday++;
+        });
+        
+        setSectionReportData(Array.from(studentMap.values()));
+      } else {
+        setSectionReportData([]);
+      }
+      setSectionReportFetched(true);
+    } catch (error) {
+      console.error('Error fetching section report data:', error);
+      toast.error('Failed to fetch section report data');
+      setSectionReportData([]);
+      setSectionReportFetched(true);
+    } finally {
+      setSectionReportLoading(false);
+    }
+  };
+
+  const closeSectionReportModal = () => {
+    setIsSectionReportModalOpen(false);
+    setSectionReportFilters({ 
+      groupId: '',
+      classId: '', 
+      sectionId: '', 
+      fromDate: getThisWeekRange().fromDate, 
+      toDate: getThisWeekRange().toDate 
+    });
+    setSectionReportData([]);
+    setSectionReportFetched(false);
   };
 
   const fetchDefaultersData = async () => {
@@ -2525,6 +2741,201 @@ export default function BranchAdminAttendancePage() {
           </div>
         </div>
       )}
+
+      {/* ============ SECTION REPORT MODAL ============ */}
+      {isSectionReportModalOpen && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[200] p-4 animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-slate-900 rounded-[1.5rem] shadow-2xl w-full max-w-7xl max-h-[90vh] flex flex-col border border-slate-100 dark:border-slate-800 overflow-hidden">
+            
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-4 py-2 border-b border-slate-100 dark:border-slate-800 bg-gradient-to-r from-teal-600 to-emerald-600 shrink-0">
+              <div className="flex items-center gap-2">
+                <div className="p-1 bg-white/20 rounded-md">
+                  <Users className="h-4 w-4 text-white" />
+                </div>
+                <h2 className="text-base font-black text-white tracking-tight">Section Attendance Report</h2>
+              </div>
+              <button
+                onClick={closeSectionReportModal}
+                className="p-1 hover:bg-white/20 rounded-full transition-colors"
+              >
+                <X className="h-4 w-4 text-white" />
+              </button>
+            </div>
+
+            {/* Filters Row */}
+            <div className="px-4 py-2 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/30 shrink-0 space-y-1">
+              <div className="flex flex-wrap items-end gap-4">
+                <div className="space-y-0.5 min-w-[150px]">
+                  <Label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Group</Label>
+                  <Dropdown
+                    name="sectionReportGroup"
+                    value={sectionReportFilters.groupId}
+                    onChange={(e) => {
+                      setSectionReportFilters(prev => ({ ...prev, groupId: e.target.value, classId: '', sectionId: '' }));
+                      setSectionReportFetched(false);
+                    }}
+                    options={[
+                      { value: '', label: 'Select Group' },
+                      ...groups.map((g) => ({ value: g.id || g._id, label: g.name }))
+                    ]}
+                  />
+                </div>
+                <div className="space-y-0.5 min-w-[150px]">
+                  <Label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Class</Label>
+                  <Dropdown
+                    name="sectionReportClass"
+                    value={sectionReportFilters.classId}
+                    onChange={(e) => {
+                      setSectionReportFilters(prev => ({ ...prev, classId: e.target.value, sectionId: '' }));
+                      setSectionReportFetched(false);
+                    }}
+                    options={[
+                      { value: '', label: 'Select Class' },
+                      ...classes
+                        .filter(c => !sectionReportFilters.groupId || String(c.groupId || c.group_id || c.group?.id || c.group?._id) === String(sectionReportFilters.groupId))
+                        .map((c) => ({ value: c.id || c._id, label: c.name }))
+                    ]}
+                    disabled={!sectionReportFilters.groupId}
+                  />
+                </div>
+                <div className="space-y-0.5 min-w-[150px]">
+                  <Label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">Section</Label>
+                  <Dropdown
+                    name="sectionReportSection"
+                    value={sectionReportFilters.sectionId}
+                    onChange={(e) => {
+                      setSectionReportFilters(prev => ({ ...prev, sectionId: e.target.value }));
+                      setSectionReportFetched(false);
+                    }}
+                    options={[
+                      { value: '', label: 'Select Section' },
+                      ...allSections.filter(s => {
+                        const rawClassId = s.class_id || s.classId || s.class?.id || s.class?._id;
+                        return sectionReportFilters.classId && String(typeof rawClassId === 'object' ? (rawClassId.id || rawClassId._id) : rawClassId) === String(sectionReportFilters.classId);
+                      }).map((s) => ({ value: s.id || s._id || s.name, label: s.name.replace(new RegExp(classes.find(c => c.id === sectionReportFilters.classId || c._id === sectionReportFilters.classId)?.name || '', 'gi'), '').replace(/^[\s\-\/\|]+|[\s\-\/\|]+$/g, '').trim() || s.name }))
+                    ]}
+                    disabled={!sectionReportFilters.classId}
+                  />
+                </div>
+                <div className="space-y-0.5">
+                  <Label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">From Date</Label>
+                  <DatePicker 
+                    value={sectionReportFilters.fromDate} 
+                    onChange={(e) => {
+                      setSectionReportFilters(prev => ({ ...prev, fromDate: e.target.value }));
+                      setSectionReportFetched(false);
+                    }} 
+                  />
+                </div>
+                <div className="space-y-0.5">
+                  <Label className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-wider">To Date</Label>
+                  <DatePicker 
+                    value={sectionReportFilters.toDate} 
+                    onChange={(e) => {
+                      setSectionReportFilters(prev => ({ ...prev, toDate: e.target.value }));
+                      setSectionReportFetched(false);
+                    }} 
+                  />
+                </div>
+                <Button 
+                  onClick={fetchSectionReportData} 
+                  disabled={sectionReportLoading || !sectionReportFilters.classId || !sectionReportFilters.sectionId}
+                  className="bg-teal-600 hover:bg-teal-700 text-white font-bold rounded-lg h-8 text-xs justify-center shadow-lg shadow-teal-200 dark:shadow-none min-w-[100px]"
+                >
+                  {sectionReportLoading ? <ButtonLoader color="white" /> : 'View Report'}
+                </Button>
+              </div>
+            </div>
+
+            {/* Records Table */}
+            <div className="flex-1 overflow-y-auto p-4">
+              {sectionReportLoading ? (
+                <div className="flex flex-col items-center justify-center py-20 gap-4">
+                  <div className="h-12 w-12 border-4 border-teal-600 border-t-transparent rounded-full animate-spin"></div>
+                  <p className="text-sm text-slate-500 font-medium">Fetching section report data...</p>
+                </div>
+              ) : sectionReportFetched && sectionReportData.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-20 gap-3">
+                  <div className="p-5 bg-slate-100 dark:bg-slate-800 rounded-full">
+                    <Users className="h-10 w-10 text-slate-300" />
+                  </div>
+                  <h3 className="text-lg font-bold text-slate-500">No Data Found</h3>
+                  <p className="text-sm text-slate-400">No attendance data found for this section in the selected date range.</p>
+                </div>
+              ) : !sectionReportFetched ? (
+                <div className="flex flex-col items-center justify-center py-20 gap-3 text-slate-400">
+                  <Users className="h-10 w-10" />
+                  <p className="text-sm font-medium">Select class, section, dates and click &quot;View Report&quot;</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto border border-slate-100 dark:border-slate-800 rounded-xl">
+                  <table className="w-full text-sm">
+                    <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-800/90 backdrop-blur-md border-b border-slate-100 dark:border-slate-700 shadow-sm">
+                      <tr>
+                        <th className="text-left px-4 py-3 text-xs font-black text-slate-500 uppercase tracking-wider">#</th>
+                        <th className="text-left px-4 py-3 text-xs font-black text-slate-500 uppercase tracking-wider">Student Name</th>
+                        <th className="text-left px-4 py-3 text-xs font-black text-slate-500 uppercase tracking-wider">GR No</th>
+                        <th className="text-left px-4 py-3 text-xs font-black text-slate-500 uppercase tracking-wider">Guardian Info</th>
+                        <th className="text-center px-4 py-3 text-xs font-black text-slate-500 uppercase tracking-wider text-emerald-600">Present</th>
+                        <th className="text-center px-4 py-3 text-xs font-black text-slate-500 uppercase tracking-wider text-rose-600">Absent</th>
+                        <th className="text-center px-4 py-3 text-xs font-black text-slate-500 uppercase tracking-wider text-amber-600">Late</th>
+                        <th className="text-center px-4 py-3 text-xs font-black text-slate-500 uppercase tracking-wider text-orange-600">Leave</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800/60">
+                      {sectionReportData.map((d, index) => {
+                        const student = d.student;
+                        const guardian = student.details?.academic_info?.father || student.details?.academic_info?.guardian || {};
+                        return (
+                          <tr key={student.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors">
+                            <td className="px-4 py-2 text-sm font-bold text-slate-400">{index + 1}</td>
+                            <td className="px-4 py-2 font-bold text-slate-800 dark:text-slate-200 whitespace-nowrap">
+                              {student.first_name || student.firstName} {student.last_name || student.lastName}
+                            </td>
+                            <td className="px-4 py-2 font-mono text-xs text-slate-600 dark:text-slate-400 whitespace-nowrap">
+                              {student.details?.academic_info?.roll_no || student.registration_no || student.rollNumber || 'N/A'}
+                            </td>
+                            <td className="px-4 py-2 min-w-[200px]">
+                              <div className="font-bold text-sm text-slate-700 dark:text-slate-300 truncate max-w-[200px]">
+                                {guardian.name || 'N/A'}
+                              </div>
+                              <div className="text-xs text-slate-500 font-mono">
+                                {guardian.phone || 'No contact'}
+                              </div>
+                            </td>
+                            <td className="px-4 py-2 text-center font-bold text-emerald-600">{d.present}</td>
+                            <td className="px-4 py-2 text-center font-bold text-rose-600">{d.absent}</td>
+                            <td className="px-4 py-2 text-center font-bold text-amber-600">{d.late}</td>
+                            <td className="px-4 py-2 text-center font-bold text-orange-600">{d.leave}</td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="border-t border-slate-100 dark:border-slate-800 px-4 py-3 flex items-center justify-between bg-slate-50 dark:bg-slate-800/30 shrink-0">
+              <span className="text-xs text-slate-500 font-medium">
+                {sectionReportFetched ? `${sectionReportData.length} students found` : 'Select filters to view report'}
+              </span>
+              <div className="flex gap-2">
+                <Button variant="outline" onClick={closeSectionReportModal} className="h-8 text-xs font-bold rounded-lg border-2 border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800">Close</Button>
+                <Button 
+                  onClick={generateSectionReportPDF} 
+                  disabled={!sectionReportFetched || sectionReportData.length === 0 || sectionReportLoading}
+                  className="bg-teal-600 hover:bg-teal-700 h-8 text-xs text-white min-w-[120px] font-bold rounded-lg shadow-lg shadow-teal-200 dark:shadow-none"
+                >
+                  {sectionReportLoading ? <ButtonLoader color="white" /> : 'Export PDF'}
+                </Button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b pb-5 border-slate-100 dark:border-slate-800">
         <div>
           <h1 className="text-2xl md:text-3xl font-black tracking-tight text-gray-900 dark:text-white flex items-center gap-2">
@@ -2612,18 +3023,29 @@ export default function BranchAdminAttendancePage() {
 
                 <Button
                   onClick={openHistoryModal}
-                  className="bg-violet-600 hover:bg-violet-700 text-white flex items-center justify-center h-10 rounded-xl gap-2 font-bold text-sm shadow-sm"
+                  variant="outline"
+                  className="border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-900/20 hover:bg-violet-100 dark:hover:bg-violet-900/40 flex flex-col items-center justify-center h-20 rounded-2xl p-2 gap-1 text-violet-700 dark:text-violet-300 transition-all shadow-sm hover:shadow-md"
                 >
-                  <Calendar className="h-4 w-4" />
-                  History
+                  <Calendar className="h-5 w-5 text-violet-600 dark:text-violet-400" />
+                  <span className="text-[11px] sm:text-xs font-bold text-center leading-tight">History</span>
                 </Button>
 
                 <Button
                   onClick={() => setIsStudentReportModalOpen(true)}
-                  className="bg-blue-600 hover:bg-blue-700 text-white flex items-center justify-center h-10 rounded-xl gap-2 font-bold text-sm shadow-sm"
+                  variant="outline"
+                  className="border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/40 flex flex-col items-center justify-center h-20 rounded-2xl p-2 gap-1 text-blue-700 dark:text-blue-300 transition-all shadow-sm hover:shadow-md"
                 >
-                  <FileText className="h-4 w-4" />
-                  Student Report
+                  <FileText className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+                  <span className="text-[11px] sm:text-xs font-bold text-center leading-tight">Student<br/>Report</span>
+                </Button>
+
+                <Button
+                  onClick={() => setIsSectionReportModalOpen(true)}
+                  variant="outline"
+                  className="border border-teal-200 dark:border-teal-800 bg-teal-50 dark:bg-teal-900/20 hover:bg-teal-100 dark:hover:bg-teal-900/40 flex flex-col items-center justify-center h-20 rounded-2xl p-2 gap-1 text-teal-700 dark:text-teal-300 transition-all shadow-sm hover:shadow-md"
+                >
+                  <Users className="h-5 w-5 text-teal-600 dark:text-teal-400" />
+                  <span className="text-[11px] sm:text-xs font-bold text-center leading-tight">Section<br/>Report</span>
                 </Button>
 
                 <Button
@@ -2631,10 +3053,11 @@ export default function BranchAdminAttendancePage() {
                     setIsDefaultersModalOpen(true);
                     fetchDefaultersData();
                   }}
-                  className="bg-orange-600 hover:bg-orange-700 text-white flex items-center justify-center h-10 rounded-xl gap-2 font-bold text-sm shadow-sm"
+                  variant="outline"
+                  className="border border-orange-200 dark:border-orange-800 bg-orange-50 dark:bg-orange-900/20 hover:bg-orange-100 dark:hover:bg-orange-900/40 flex flex-col items-center justify-center h-20 rounded-2xl p-2 gap-1 text-orange-700 dark:text-orange-300 transition-all shadow-sm hover:shadow-md"
                 >
-                  <AlertTriangle className="h-4 w-4" />
-                  Defaulters
+                  <AlertTriangle className="h-5 w-5 text-orange-600 dark:text-orange-400" />
+                  <span className="text-[11px] sm:text-xs font-bold text-center leading-tight">Defaulters</span>
                 </Button>
               </div>
             </CardContent>

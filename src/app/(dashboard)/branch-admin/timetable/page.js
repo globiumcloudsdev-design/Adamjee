@@ -86,6 +86,7 @@ export default function BranchTimetablePage() {
     const t = teachers.find((t) => String(t.id || t._id) === String(normalizedId));
     return t ? `${t.first_name} ${t.last_name}` : "N/A";
   };
+  
   const [selectedSection, setSelectedSection] = useState("");
   const [selectedTeacher, setSelectedTeacher] = useState("");
   const [selectedSubject, setSelectedSubject] = useState("");
@@ -260,8 +261,8 @@ export default function BranchTimetablePage() {
         const list = response.data || response.timetable || [];
         const existing = list.find(
           (t) =>
-            String(t.classId?.id || t.classId?._id || t.classId || t.class_id) === String(classId) &&
-            String(t.section?.id || t.section?._id || t.section || t.section_id) === String(section),
+            String(t.class_id || t.classId?.id || t.classId?._id || (typeof t.classId === 'string' ? t.classId : "")) === String(classId) &&
+            String(t.section_id || t.section?.id || t.section?._id || (typeof t.section === 'string' ? t.section : "")) === String(section),
         );
         return existing || null;
       }
@@ -301,8 +302,8 @@ export default function BranchTimetablePage() {
           name: existing.name,
           academicYear: existing.academicYear,
           branchId: branchId,
-          classId: existing.classId?.id || existing.classId?._id || existing.classId || existing.class_id,
-          section: existing.section?.id || existing.section?._id || existing.section || existing.section_id,
+          classId: existing.class_id || existing.classId?.id || existing.classId?._id || (typeof existing.classId === 'string' ? existing.classId : ""),
+          section: existing.section_id || existing.section?.id || existing.section?._id || (typeof existing.section === 'string' ? existing.section : ""),
           effectiveFrom:
             existing.effectiveFrom?.split("T")[0] || prev.effectiveFrom,
           effectiveTo: existing.effectiveTo?.split("T")[0] || prev.effectiveTo,
@@ -400,7 +401,7 @@ export default function BranchTimetablePage() {
   const isDuplicatePeriod = (period, currentIndex = -1) => {
     return formData.periods.some((p, index) => {
       if (index === currentIndex) return false;
-      if (p.day === period.day && formData.section === period.section) {
+      if ((p.day === period.day || p.day === "All Days" || period.day === "All Days") && formData.section === period.section) {
         if (
           p.subjectId === period.subjectId &&
           p.periodNumber === period.periodNumber &&
@@ -584,7 +585,7 @@ export default function BranchTimetablePage() {
       
       const sDay = String(s.day || s.day_of_week || "").trim().toLowerCase();
       // console.log(`   - Comparing with DB Entry: ${sDay} ${pStart}-${pEnd}`);
-      if (sDay !== nDay) return false;
+      if (sDay !== nDay && sDay !== "all days" && nDay !== "all days") return false;
 
       const pStart = timeToMinutes(s.startTime || s.start_time);
       const pEnd = timeToMinutes(s.endTime || s.end_time);
@@ -612,7 +613,7 @@ export default function BranchTimetablePage() {
       if (!pTid || String(pTid).trim() !== cleanTid) return false;
 
       const pDay = String(p.day || "").trim().toLowerCase();
-      if (pDay !== nDay) return false;
+      if (pDay !== nDay && pDay !== "all days" && nDay !== "all days") return false;
 
       const pStart = timeToMinutes(p.startTime);
       const pEnd = timeToMinutes(p.endTime);
@@ -804,9 +805,9 @@ export default function BranchTimetablePage() {
     setEditingTimetable(timetable);
     
     // Normalize IDs from various possible structures (nested object or plain ID)
-    const classId = timetable.class?.id || timetable.classId?.id || timetable.class_id || timetable.classId;
-    const sectionId = timetable.section?.id || timetable.sectionId?.id || timetable.section_id || timetable.section;
-    const academicYearId = timetable.academicYear?.id || timetable.academicYearId?.id || timetable.academic_year_id?.id || timetable.academicYear || timetable.academic_year_id;
+    const classId = timetable.class_id || timetable.class?.id || timetable.classId?.id || (typeof timetable.classId === 'string' ? timetable.classId : "");
+    const sectionId = timetable.section_id || timetable.section?.id || timetable.sectionId?.id || (typeof timetable.section === 'string' ? timetable.section : "");
+    const academicYearId = timetable.academic_year_id || timetable.academicYear?.id || timetable.academicYearId?.id || (typeof timetable.academicYear === 'string' ? timetable.academicYear : "");
 
     // Find groupId from the classes list
     const selectedClassObj = classes.find(c => String(c.id) === String(classId));
@@ -1437,11 +1438,11 @@ export default function BranchTimetablePage() {
                   const usedSectionIds = branchTimetables
                     .filter(
                       (tt) =>
-                        (String(tt.class_id || tt.class?.id) === String(formData.classId)) &&
-                        (String(tt.academic_year_id || tt.academicYear?.id || tt.academicYear) === String(formData.academicYear)) &&
+                        (String(tt.class_id || tt.class?.id || tt.classId?.id || (typeof tt.classId === 'string' ? tt.classId : "")) === String(formData.classId)) &&
+                        (String(tt.academic_year_id || tt.academicYear?.id || tt.academicYearId?.id || (typeof tt.academicYear === 'string' ? tt.academicYear : "")) === String(formData.academicYear)) &&
                         (!editingTimetable || tt.id !== editingTimetable.id),
                     )
-                    .map((tt) => String(tt.section_id || tt.section?.id || tt.section));
+                    .map((tt) => String(tt.section_id || tt.section?.id || tt.sectionId?.id || (typeof tt.section === 'string' ? tt.section : "")));
 
                   return sections.length > 0
                     ? sections.map((s) => {
@@ -1589,6 +1590,7 @@ export default function BranchTimetablePage() {
               ))}
             </div>
           </div>
+          <div className="h-40"></div>
         </form>
       </Modal>
 
