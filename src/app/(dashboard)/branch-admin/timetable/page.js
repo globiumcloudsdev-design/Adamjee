@@ -488,8 +488,8 @@ export default function BranchTimetablePage() {
           period.subjectId
         );
         if (conflict) {
-          toast.error(`Teacher Conflict: This teacher is busy in ${conflict.className} - ${conflict.sectionName}`);
-          return;
+          toast.warning(`Combined Class Mode: Teacher is also scheduled in ${conflict.className} - ${conflict.sectionName} at this time.`);
+          // Removed return; to allow the jugad for combined classes
         }
       }
 
@@ -504,8 +504,8 @@ export default function BranchTimetablePage() {
           period.subjectId
         );
         if (conflict) {
-          toast.error(`Teacher Conflict: This teacher is busy in ${conflict.className} - ${conflict.sectionName}`);
-          return;
+          toast.warning(`Combined Class Mode: Teacher is also scheduled in ${conflict.className} - ${conflict.sectionName} at this time.`);
+          // Removed return; to allow the jugad for combined classes
         }
       }
     }
@@ -673,7 +673,7 @@ export default function BranchTimetablePage() {
       return {
         value: teacherId,
         label: label,
-        disabled: !!conflict && !isCurrent,
+        disabled: false, // Allow selection for combined classes
       };
     });
   };
