@@ -605,7 +605,8 @@ export default function BranchAdminStudentsPage() {
     const subjectsArr = student.details?.academic_info?.subjects || [];
     const subjectsText = subjectsArr.length > 0
       ? subjectsArr.map(s => {
-          const sName = s?.name || s;
+          let sName = s?.name || s;
+          if (typeof sName === 'string') sName = sName.replace(' (All Groups)', '');
           const secId = s?.section_id;
           let secNameStr = '';
           if (secId) {
@@ -679,15 +680,15 @@ export default function BranchAdminStudentsPage() {
       background: transparent;
       overflow: hidden;
     }
-    /* ── Info Section: Tuned to 1.05in top to cut down the excess blank gap ── */
+    /* ── Info Section: Adjusted top position and margins to fix overlapping ── */
     .info-section {
       position: absolute;
-      left: 3.42in; 
-      top: 1.05in; /* Decreased from 1.45in to bring the layout higher up */
+      left: 3.48in; /* Pushed right slightly to avoid touching left printed edge */
+      top: 1.25in; /* Pushed down to start completely below the picture box */
       right: 0.1in; 
     }
     .info-field {
-      margin-bottom: 0.05in;
+      margin-bottom: 0.025in; /* Tighter vertical space */
     }
     .field-label {
       font-size: 8px;
@@ -707,24 +708,24 @@ export default function BranchAdminStudentsPage() {
     }
     .field-value.student-name {
       font-size: 12px;
-      font-weight: 900;
+      font-weight: 700; /* Reduced from 900 as requested */
       text-transform: uppercase;
       line-height: 1.1;
     }
     .subject-value {
-      font-size: 9px;
+      font-size: 8px; /* Reduced for better wrapping */
       font-weight: 900;
-      line-height: 1.1;
+      line-height: 1; /* Tighter line height */
       color: #000000 !important;
       word-break: break-word;
     }
-    /* ── QR Section: Shifted slightly lower to stay clear of the larger text flow ── */
+    /* ── QR Section: Shifted lower and shrunk to stay clear of text ── */
     .qr-section {
       position: absolute;
       left: 3.68in; 
-      bottom: 0.12in; 
-      width: 0.85in;  
-      height: 0.85in;
+      bottom: 0.04in; /* Lowered further to make room */
+      width: 0.7in;   /* Shrunk slightly to make room */
+      height: 0.7in;  /* Shrunk slightly to make room */
       display: flex;
       align-items: center;
       justify-content: center;
@@ -739,10 +740,10 @@ export default function BranchAdminStudentsPage() {
     }
     .barcode-section {
       position: absolute;
-      left: 3.42in; 
-      bottom: 0.15in; 
-      width: 1.6in;  
-      height: 0.6in;
+      left: 3.48in; /* Matches the updated left indent of info-section */
+      bottom: 0.04in; /* Lowered further to make room */
+      width: 1.5in;  
+      height: 0.45in; /* Reduced height to fit */
       display: flex;
       align-items: center;
       justify-content: center;

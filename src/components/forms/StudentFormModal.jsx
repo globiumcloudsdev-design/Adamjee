@@ -117,28 +117,30 @@ const StudentFormModal = ({
         const fetchedSubjects = Array.isArray(subRes) ? subRes : [];
         setSubjectsList(fetchedSubjects);
         
-        // Auto-select common subjects if they are not already selected
-        setFormData(prev => {
-          const currentSubjectIds = prev.subjects.map(s => s.id);
-          const newCommonSubjects = fetchedSubjects.filter(s => s.is_applicable_for_all_groups && !currentSubjectIds.includes(s.id));
-          
-          if (newCommonSubjects.length > 0) {
-            const subjectsToAdd = newCommonSubjects.map(sub => ({
-              id: sub.id,
-              name: sub.is_applicable_for_all_groups ? `${sub.name} (All Groups)` : sub.name,
-              subject_code: sub.subject_code,
-              fee: sub.fee || 0,
-              section_id: formData.section_id || '',
-              teacher_name: 'Not Assigned',
-              is_applicable_for_all_groups: true
-            }));
-            return {
-              ...prev,
-              subjects: [...prev.subjects, ...subjectsToAdd]
-            };
-          }
-          return prev;
-        });
+        // Auto-select common subjects only when adding a new student
+        if (!initialData) {
+          setFormData(prev => {
+            const currentSubjectIds = prev.subjects.map(s => s.id);
+            const newCommonSubjects = fetchedSubjects.filter(s => s.is_applicable_for_all_groups && !currentSubjectIds.includes(s.id));
+            
+            if (newCommonSubjects.length > 0) {
+              const subjectsToAdd = newCommonSubjects.map(sub => ({
+                id: sub.id,
+                name: sub.name, // Do not append (All Groups) to the saved string
+                subject_code: sub.subject_code,
+                fee: sub.fee || 0,
+                section_id: prev.section_id || '',
+                teacher_name: 'Not Assigned',
+                is_applicable_for_all_groups: true
+              }));
+              return {
+                ...prev,
+                subjects: [...prev.subjects, ...subjectsToAdd]
+              };
+            }
+            return prev;
+          });
+        }
 
       } catch (err) {
         console.error("Error fetching section/subject data:", err);
