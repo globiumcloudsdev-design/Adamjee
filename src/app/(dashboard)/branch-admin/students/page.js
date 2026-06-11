@@ -248,7 +248,7 @@ export default function BranchAdminStudentsPage() {
 
     const matchesSearch = !debouncedSearch || name.includes(debouncedSearch.toLowerCase()) || email.includes(debouncedSearch.toLowerCase()) || regNo.includes(debouncedSearch.toLowerCase());
     const matchesStatus = !statusFilter || student.is_active === (statusFilter === 'active');
-    
+
     const matchesSubject = !subjectFilter || (
       student.details?.academic_info?.subjects &&
       student.details.academic_info.subjects.some(s => {
@@ -461,7 +461,7 @@ export default function BranchAdminStudentsPage() {
         img.src = '/logo.png';
         await new Promise((res) => { img.onload = res; img.onerror = res; });
         doc.addImage(img, 'PNG', 8, 4, 28, 28);
-      } catch (_) {}
+      } catch (_) { }
 
       // School title
       doc.setTextColor(255, 255, 255);
@@ -495,7 +495,7 @@ export default function BranchAdminStudentsPage() {
       };
 
       const tableColumn = [
-        "Name", "GR No", "Class", "Section", "Group", 
+        "Name", "GR No", "Class", "Section", "Group",
         "Subjects", "Parent Name", "Parent Phone", "Student Phone"
       ];
       const tableRows = [];
@@ -605,22 +605,21 @@ export default function BranchAdminStudentsPage() {
     const subjectsArr = student.details?.academic_info?.subjects || [];
     const subjectsText = subjectsArr.length > 0
       ? subjectsArr.map(s => {
-          let sName = s?.name || s;
-          if (typeof sName === 'string') sName = sName.replace(' (All Groups)', '');
-          const secId = s?.section_id;
-          let secNameStr = '';
-          if (secId) {
-            const secObj = sections.find(sec => sec.id === secId || sec._id === secId);
-            if (secObj) secNameStr = ` (${secObj.name})`;
-          }
-          return sName ? `${sName}${secNameStr}` : '';
-        }).filter(Boolean).join(', ')
+        const sName = s?.name || s;
+        const secId = s?.section_id;
+        let secNameStr = '';
+        if (secId) {
+          const secObj = sections.find(sec => sec.id === secId || sec._id === secId);
+          if (secObj) secNameStr = ` (${secObj.name})`;
+        }
+        return sName ? `${sName}${secNameStr}` : '';
+      }).filter(Boolean).join(', ')
       : 'N/A';
 
     const idCardFormat = student.branch?.settings?.idCardFormat || 'barcode';
 
     let codeHTML = '';
-    
+
     if (idCardFormat === 'qrcode') {
       const qrValue = JSON.stringify({ id: student.id });
       // SVG Format for clean black vector path printing
@@ -670,62 +669,60 @@ export default function BranchAdminStudentsPage() {
     html, body {
       width: 100%;
       background-color: #ffffff;
-      font-family: 'Arial Black', -apple-system, sans-serif;
+      font-family: 'Arial Black', Arial, sans-serif;
     }
     .card {
       position: relative;
       width: 5.2in;
       height: 4in;
       margin: 0;
-      background: transparent;
+      background: #ffffff;
       overflow: hidden;
     }
-    /* ── Info Section: Adjusted top position and margins to fix overlapping ── */
+    /* Info starts: right of purple sidebar, just below image box */
     .info-section {
       position: absolute;
-      left: 3.48in; /* Pushed right slightly to avoid touching left printed edge */
-      top: 1.25in; /* Pushed down to start completely below the picture box */
-      right: 0.1in; 
+      left: 3.55in;
+      top: 1.3in;
+      right: 0.1in;
     }
     .info-field {
-      margin-bottom: 0.025in; /* Tighter vertical space */
+      margin-bottom: 0.055in;
     }
     .field-label {
       font-size: 8px;
       font-weight: 900;
-      color: #000000 !important;
+      color: #000000;
       text-transform: uppercase;
       letter-spacing: 0.3px;
       line-height: 1;
-      margin-bottom: 0.01in;
+      margin-bottom: 2px;
     }
     .field-value {
       font-size: 11px;
       font-weight: 900;
-      color: #000000 !important;
+      color: #000000;
       word-break: break-word;
-      line-height: 1.1;
+      line-height: 1.15;
     }
     .field-value.student-name {
       font-size: 12px;
-      font-weight: 700; /* Reduced from 900 as requested */
+      font-weight: 900;
       text-transform: uppercase;
-      line-height: 1.1;
+      line-height: 1.2;
     }
     .subject-value {
-      font-size: 8px; /* Reduced for better wrapping */
+      font-size: 8.5px;
       font-weight: 900;
-      line-height: 1; /* Tighter line height */
-      color: #000000 !important;
+      line-height: 1.2;
+      color: #000000;
       word-break: break-word;
     }
-    /* ── QR Section: Shifted lower and shrunk to stay clear of text ── */
+    /* QR: flows naturally after subjects text, small top margin */
     .qr-section {
-      position: absolute;
-      left: 3.68in; 
-      bottom: 0.04in; /* Lowered further to make room */
-      width: 0.7in;   /* Shrunk slightly to make room */
-      height: 0.7in;  /* Shrunk slightly to make room */
+      margin-top: 0.1in;
+      width: 0.85in;
+      height: 0.85in;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -735,15 +732,13 @@ export default function BranchAdminStudentsPage() {
       width: 100%;
       height: 100%;
       object-fit: contain;
-      image-rendering: -webkit-optimize-contrast;
       image-rendering: crisp-edges;
     }
+    /* Barcode: flows naturally after subjects text */
     .barcode-section {
-      position: absolute;
-      left: 3.48in; /* Matches the updated left indent of info-section */
-      bottom: 0.04in; /* Lowered further to make room */
-      width: 1.5in;  
-      height: 0.45in; /* Reduced height to fit */
+      margin-top: 0.1in;
+      width: 1.55in;
+      height: 0.5in;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -753,14 +748,11 @@ export default function BranchAdminStudentsPage() {
       width: 100%;
       height: 100%;
       object-fit: contain;
-      image-rendering: -webkit-optimize-contrast;
-      image-rendering: crisp-edges;
     }
   </style>
 </head>
 <body>
   <div class="card">
-
     <div class="info-section">
       <div class="info-field">
         <div class="field-label">Name</div>
@@ -772,7 +764,7 @@ export default function BranchAdminStudentsPage() {
       </div>
       <div class="info-field">
         <div class="field-label">Class</div>
-        <div class="field-value">${className} \u2013 ${sectionName}</div>
+        <div class="field-value">${className} &ndash; ${sectionName}</div>
       </div>
       <div class="info-field">
         <div class="field-label">Session</div>
@@ -782,8 +774,8 @@ export default function BranchAdminStudentsPage() {
         <div class="field-label">Subject</div>
         <div class="field-value subject-value">${subjectsText}</div>
       </div>
+      ${codeHTML}
     </div>
-    ${codeHTML}
   </div>
 
   <script>
@@ -968,7 +960,7 @@ export default function BranchAdminStudentsPage() {
           {/* Pagination */}
           <div className="flex items-center justify-between mt-6">
             <div className="text-sm text-gray-600">
-              {isFiltering 
+              {isFiltering
                 ? `Showing all ${filteredStudents.length} students (Filtered)`
                 : `Showing ${((pagination.page - 1) * pagination.limit) + 1} to ${Math.min(pagination.page * pagination.limit, filteredStudents.length)} of ${filteredStudents.length} students`
               }
