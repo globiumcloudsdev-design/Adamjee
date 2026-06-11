@@ -1485,18 +1485,7 @@ export default function BranchTimetablePage() {
                           onChange={(e) =>
                             updatePeriod(index, "day", e.target.value)
                           }
-                          options={["All Days", ...DAYS].filter((day) => {
-                            if (!formData.section) return true;
-                            const conflict = formData.periods.some((p, i) => {
-                              if (i === index) return false;
-                              return (
-                                p.day === day &&
-                                p.startTime === period.startTime &&
-                                p.endTime === period.endTime
-                              );
-                            });
-                            return !conflict;
-                          }).map((day) => ({ value: day, label: day }))}
+                          options={["All Days", ...DAYS].map((day) => ({ value: day, label: day }))}
                         />
                       </div>
 
