@@ -278,11 +278,20 @@ const StudentFormModal = ({
 
   const handleSubjectToggle = (subject) => {
     setFormData((prev) => {
-      const alreadySelected = prev.subjects.find(s => String(s.id) === String(subject.id));
+      const alreadySelected = prev.subjects.find(s => 
+        String(s.id) === String(subject.id) || 
+        (s.name && s.name.toLowerCase() === subject.name.toLowerCase()) ||
+        (typeof s === 'string' && s.toLowerCase() === subject.name.toLowerCase())
+      );
       if (alreadySelected) {
         return {
           ...prev,
-          subjects: prev.subjects.filter(s => String(s.id) !== String(subject.id))
+          subjects: prev.subjects.filter(s => {
+            const isMatch = String(s.id) === String(subject.id) || 
+                            (s.name && s.name.toLowerCase() === subject.name.toLowerCase()) ||
+                            (typeof s === 'string' && s.toLowerCase() === subject.name.toLowerCase());
+            return !isMatch;
+          })
         };
       } else {
         // Auto-select first section if available
@@ -893,8 +902,9 @@ const StudentFormModal = ({
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-2 border rounded-md">
                     {subjectsList.map((sub) => {
-                      const isChecked = formData.subjects.some(s => String(s.id) === String(sub.id));
-                      const currentSelected = formData.subjects.find(s => String(s.id) === String(sub.id));
+                      const isMatch = (s) => String(s.id) === String(sub.id) || (s.name && s.name.toLowerCase() === sub.name.toLowerCase()) || (typeof s === 'string' && s.toLowerCase() === sub.name.toLowerCase());
+                      const isChecked = formData.subjects.some(isMatch);
+                      const currentSelected = formData.subjects.find(isMatch);
 
                       return (
                         <div
