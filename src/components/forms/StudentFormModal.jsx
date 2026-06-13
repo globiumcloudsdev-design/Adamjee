@@ -247,7 +247,7 @@ const StudentFormModal = ({
             const teacherName = `${teacher.first_name || ''} ${teacher.last_name || ''}`.trim();
             setFormData((prev) => ({
               ...prev,
-              subjects: prev.subjects.map(s => s.id === subjectId ? { ...s, teacher_name: teacherName } : s)
+              subjects: prev.subjects.map(s => String(s.id) === String(subjectId) ? { ...s, teacher_name: teacherName } : s)
             }));
             return;
           }
@@ -256,7 +256,7 @@ const StudentFormModal = ({
 
       setFormData((prev) => ({
         ...prev,
-        subjects: prev.subjects.map(s => s.id === subjectId ? { ...s, teacher_name: 'Not Assigned' } : s)
+        subjects: prev.subjects.map(s => String(s.id) === String(subjectId) ? { ...s, teacher_name: 'Not Assigned' } : s)
       }));
     } catch (err) {
       console.error("Error fetching teacher:", err);
@@ -268,7 +268,7 @@ const StudentFormModal = ({
   const handleSubjectFieldChange = async (subjectId, field, value) => {
     setFormData((prev) => ({
       ...prev,
-      subjects: prev.subjects.map(s => s.id === subjectId ? { ...s, [field]: value } : s)
+      subjects: prev.subjects.map(s => String(s.id) === String(subjectId) ? { ...s, [field]: value } : s)
     }));
 
     if (field === 'section_id' && value) {
@@ -278,11 +278,11 @@ const StudentFormModal = ({
 
   const handleSubjectToggle = (subject) => {
     setFormData((prev) => {
-      const alreadySelected = prev.subjects.find(s => s.id === subject.id);
+      const alreadySelected = prev.subjects.find(s => String(s.id) === String(subject.id));
       if (alreadySelected) {
         return {
           ...prev,
-          subjects: prev.subjects.filter(s => s.id !== subject.id)
+          subjects: prev.subjects.filter(s => String(s.id) !== String(subject.id))
         };
       } else {
         // Auto-select first section if available
@@ -893,8 +893,8 @@ const StudentFormModal = ({
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-2 border rounded-md">
                     {subjectsList.map((sub) => {
-                      const isChecked = formData.subjects.some(s => s.id === sub.id);
-                      const currentSelected = formData.subjects.find(s => s.id === sub.id);
+                      const isChecked = formData.subjects.some(s => String(s.id) === String(sub.id));
+                      const currentSelected = formData.subjects.find(s => String(s.id) === String(sub.id));
 
                       return (
                         <div
