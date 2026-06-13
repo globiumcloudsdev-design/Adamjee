@@ -14,15 +14,16 @@ export async function GET(req) {
 
     const { searchParams } = new URL(req.url);
     const branch_id = searchParams.get("branch_id");
+    const dateParam = searchParams.get("date");
     const finalBranchId = user.role === "BRANCH_ADMIN" ? user.branch_id : branch_id;
 
     if (!finalBranchId) {
       return NextResponse.json({ error: "Branch ID is required" }, { status: 400 });
     }
 
-    const today = new Date();
-    const dateStr = format(today, "yyyy-MM-dd");
-    const dayName = format(today, "EEEE");
+    const targetDate = dateParam ? new Date(dateParam) : new Date();
+    const dateStr = format(targetDate, "yyyy-MM-dd");
+    const dayName = format(targetDate, "EEEE");
 
     const students = await User.findAll({
       where: {
@@ -99,16 +100,16 @@ export async function POST(req) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { branch_id, student_ids } = await req.json();
+    const { branch_id, student_ids, date } = await req.json();
     const finalBranchId = user.role === "BRANCH_ADMIN" ? user.branch_id : branch_id;
 
     if (!finalBranchId) {
       return NextResponse.json({ error: "Branch ID is required" }, { status: 400 });
     }
 
-    const today = new Date();
-    const dateStr = format(today, "yyyy-MM-dd");
-    const dayName = format(today, "EEEE"); 
+    const targetDate = date ? new Date(date) : new Date();
+    const dateStr = format(targetDate, "yyyy-MM-dd");
+    const dayName = format(targetDate, "EEEE"); 
 
     // 1. Get students of this branch
     const students = await User.findAll({

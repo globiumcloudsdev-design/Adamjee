@@ -85,6 +85,8 @@ export default function BranchAdminAttendancePage() {
   const [studentsCache, setStudentsCache] = useState({});
   const [isProcessingAutoAbsent, setIsProcessingAutoAbsent] = useState(false);
   const [isAutoAbsentModalOpen, setIsAutoAbsentModalOpen] = useState(false);
+  const [autoAbsentDate, setAutoAbsentDate] = useState(new Date().toISOString().split('T')[0]);
+  const [isAutoAbsentDateModalOpen, setIsAutoAbsentDateModalOpen] = useState(false);
   const [autoAbsentPreview, setAutoAbsentPreview] = useState([]);
   const [autoAbsentSelected, setAutoAbsentSelected] = useState([]);
   const [fetchingAutoAbsent, setFetchingAutoAbsent] = useState(false);
@@ -661,15 +663,17 @@ export default function BranchAdminAttendancePage() {
     }
   };
 
-  const fetchAutoAbsentPreview = async () => {
+  const fetchAutoAbsentPreview = async (selectedDate) => {
     try {
       setFetchingAutoAbsent(true);
       const res = await apiClient.get('/api/attendance/auto-absent', {
-        branch_id: user?.branch_id || user?.branchId
+        branch_id: user?.branch_id || user?.branchId,
+        date: selectedDate
       });
       if (res.success) {
         setAutoAbsentPreview(res.students || []);
         setAutoAbsentSelected(res.students ? res.students.map(s => s.id) : []);
+        setIsAutoAbsentDateModalOpen(false);
         setIsAutoAbsentModalOpen(true);
       } else {
         toast.error(res.error || "Failed to fetch auto-absent preview");
@@ -691,7 +695,8 @@ export default function BranchAdminAttendancePage() {
       setIsProcessingAutoAbsent(true);
       const res = await apiClient.post('/api/attendance/auto-absent', {
         branch_id: user?.branch_id || user?.branchId,
-        student_ids: autoAbsentSelected
+        student_ids: autoAbsentSelected,
+        date: autoAbsentDate
       });
       
       if (res.success) {
@@ -2999,7 +3004,7 @@ export default function BranchAdminAttendancePage() {
                 </Button>
 
                 <Button
-                  onClick={fetchAutoAbsentPreview}
+                  onClick={() => setIsAutoAbsentDateModalOpen(true)}
                   disabled={fetchingAutoAbsent || isProcessingAutoAbsent}
                   variant="outline"
                   className="border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800 flex flex-col items-center justify-center h-20 rounded-2xl p-2 gap-1 text-slate-700 dark:text-slate-200"
@@ -3064,7 +3069,7 @@ export default function BranchAdminAttendancePage() {
           </Card>
 
           {/* Unified Filters Card */}
-          <Card className="border-none shadow-sm rounded-3xl overflow-hidden bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-850">
+          <Card className="border-none shadow-sm rounded-3xl overflow-visible bg-white dark:bg-slate-900 border border-slate-100 dark:border-slate-850">
             <CardHeader className="bg-slate-50/50 dark:bg-slate-800/30 border-b border-slate-100 dark:border-slate-805 py-4 flex flex-row items-center justify-between">
               <CardTitle className="text-md font-bold flex items-center gap-2 text-slate-800 dark:text-slate-200">
                 <Search className="h-4 w-4 text-indigo-500" />
@@ -3085,6 +3090,7 @@ export default function BranchAdminAttendancePage() {
                 <DatePicker
                   value={attendanceDate}
                   onChange={(e) => setAttendanceDate(e.target.value)}
+                  openUpward={true}
                 />
               </div>
               
@@ -4001,6 +4007,27 @@ export default function BranchAdminAttendancePage() {
           </div>
         </div>
       )}
+
+      {/* Auto Absent Date Selection Modal */}
+      <Modal open={isAutoAbsentDateModalOpen} onClose={() => setIsAutoAbsentDateModalOpen(false)} title="Select Date for Auto Absent" size="sm">
+        <div className="p-4 space-y-4 min-h-[380px]">
+          <DatePicker
+            label="Attendance Date"
+            value={autoAbsentDate}
+            onChange={(e) => setAutoAbsentDate(e.target.value)}
+            disableFuture={true}
+          />
+          <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
+            <Button variant="outline" onClick={() => setIsAutoAbsentDateModalOpen(false)}>Cancel</Button>
+            <Button 
+              onClick={() => fetchAutoAbsentPreview(autoAbsentDate)} 
+              disabled={fetchingAutoAbsent || !autoAbsentDate}
+            >
+              {fetchingAutoAbsent ? <ButtonLoader /> : "Continue"}
+            </Button>
+          </div>
+        </div>
+      </Modal>
 
       {/* Auto Absent Modal */}
       <Modal
